@@ -11,6 +11,8 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -69,7 +71,11 @@ namespace CC98.Views
             catch (Exception ex)
             {
                 // 网络不可达/超时/协议错误:避免异常逃逸出 async void 导致进程崩溃,恢复按钮供重试
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = $"OpenID 登录失败: {ex.Message}" });
+                AppNotification notification = new AppNotificationBuilder()
+                .AddText("OpenID拉起失败")
+                .AddText(ex.Message)
+                .BuildNotification();
+                AppNotificationManager.Default.Show(notification);
                 Debug.WriteLine($"OpenID 登录失败: {ex.Message}"); 
             }
             finally

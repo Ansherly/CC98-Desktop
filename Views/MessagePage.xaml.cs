@@ -5,6 +5,7 @@ using CC98.Services.Extensions;
 using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -30,32 +31,54 @@ public sealed partial class MessagePage
     {
         InitializeComponent();
     }
-    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    protected override async void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
-        if (GlobalService.ShouldReplaceNavigationArgs)
+        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存。
+        if (e.NavigationMode == NavigationMode.Back)
         {
-            if (GlobalService.NavigationAnchor is int targetIndex)
-            {
-                NaviBar.SelectedItem = NaviBar.Items[targetIndex];
-            }
-            else
-            {
-                NaviBar.SelectedItem = NaviBar.Items[0];
-            }
+            // 返回时选中标签与已加载列表都还在,一般直接沿用;
+            // 但"私信"标签只是跳转入口(选中即导航到 ChatPage),不承载列表,
+            // 从 ChatPage 返回后若仍停在它上面,界面会与列表内容不符,故回到第一个内容标签。
+            if ((NaviBar.SelectedItem as SelectorBarItem)?.Tag is "Chat")
+                NaviBar.SelectedItem = NaviBar.Items[0]; // 触发 SelectionChanged 完成加载
             return;
         }
-        NaviBar.SelectedItem = NaviBar.Items[0];
+
+        // 前进进入:回到第一个内容标签。选中项变化时由 NaviBar_SelectionChanged 完成加载;
+        // 若本来就停在第一个标签(缓存实例),事件不会触发,需显式重新加载。
+        if (!ReferenceEquals(NaviBar.SelectedItem, NaviBar.Items[0]))
+        {
+            NaviBar.SelectedItem = NaviBar.Items[0];
+            return;
+        }
+
+        await ReloadNoticesAsync();
     }
 
     private async void NaviBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        //记住本次选项，用于返回时直接选中
         var bar = NaviBar.SelectedItem;
-        var selected = NaviBar.Items.IndexOf(bar);
-        GlobalService.Instance.NavigationAnchor = selected;
+        if (bar?.Tag is "Chat")
+        {
+            // "私信"标签是跳转入口:选中即进入聊天页,本页不加载列表。
+            Frame.Navigate(typeof(ChatPage));
+            return;
+        }
+
+        await ReloadNoticesAsync();
+    }
+
+    /// <summary>
+    /// 按当前选中的标签设置通知类型并重新加载列表。
+    /// 缓存实例上会残留上次的集合与分页游标,故加载前必须清空。
+    /// </summary>
+    private async Task ReloadNoticesAsync()
+    {
+        var bar = NaviBar.SelectedItem;
         if (bar?.Tag is not string tag) return;
+
         switch (tag)
         {
             case "System":
@@ -71,9 +94,9 @@ public sealed partial class MessagePage
                 MsgCount.Text = $"{GlobalService.AtCount}条未读信息";
                 break;
             case "Chat":
-                Frame.Navigate(typeof(ChatPage));
-                return;
+                return; // 跳转入口,不在此加载
         }
+
         Increment.Clear();
         Notices.Clear();
         await GetNotice();

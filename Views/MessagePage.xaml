@@ -10,6 +10,7 @@
     xmlns:obj="using:CC98.Objects"
     xmlns:empty="using:CC98.Controls.EmptyState"
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    NavigationCacheMode="Required"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Page.Resources>

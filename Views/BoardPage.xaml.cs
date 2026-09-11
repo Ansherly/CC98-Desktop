@@ -54,11 +54,32 @@ public sealed partial class BoardPage
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+
         var args = e.TryGetParameter<int>();
+
+        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
+        // 返回同一版面(如从主题页返回)时,筛选标签、已加载列表、滚动位置与搜索面板都还在,
+        // 直接沿用即可,不要重新加载。
+        // 注意:这里比较的是"本次传入的版面"与"当前实例正在展示的版面",
+        // 因此返回到了另一个版面时会正确地走下面的重置逻辑。
+        if (e.NavigationMode == NavigationMode.Back && args == BoardId) return;
+
+        // 前进进入,或返回到了另一个版面:完全重置为默认的"最新"标签。
         BoardId = args;
         BoardSymbol.Symbol = BoardIconHelper.GetSymbol(BoardId, "");
+
+        // 程序化复位选中项同样会触发 TypeSelectorBar_SelectionChanged,这里抑制它,
+        // 统一由下面的 RefreshAsync 加载一次,避免重复加载。
+        _suppressTypeChange = true;
+        TypeSelectorBar.SelectedItem = TypeSelectorBar.Items[0];
+        _suppressTypeChange = false;
+
+        FilterType = BoardTopicFilterType.Latest;
+        Increment.Clear();
+        Topics.Clear();
+
         // 版面信息与主题列表互不依赖,并行加载
-        await Task.WhenAll(GetData(), LoadTopics());
+        await RefreshAsync();
     }
 
 
@@ -197,6 +218,8 @@ public sealed partial class BoardPage
 
     private async void TypeSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
+        // 程序化复位(OnNavigatedTo 中换版面/重新进入)不触发加载
+        if (_suppressTypeChange) return;
         // 防重入:加载期间忽略重复触发,避免"重复加载两次帖子"的问题
         if (_isLoading) return;
         var item = sender as SelectorBar;
@@ -215,6 +238,9 @@ public sealed partial class BoardPage
 
     // 版面数据加载防重入标志
     private bool _isLoading;
+
+    // 程序化复位筛选标签时置位,用于抑制 TypeSelectorBar_SelectionChanged 触发的加载
+    private bool _suppressTypeChange;
 
     /// <summary>
     /// 版面信息与主题列表并行加载,并防止并发触发。

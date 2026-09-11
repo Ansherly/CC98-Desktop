@@ -25,7 +25,6 @@ namespace CC98.Views;
 /// </summary>
 public sealed partial class FocusPage : Page
 {
-    public GlobalService GlobalService = GlobalService.Instance;
     public Increment Increment = new(20, 0, true);
     public FocusContentType Mode = FocusContentType.Followee;
     public ApplicationDataContainer Set = ApplicationData.Current.LocalSettings;
@@ -40,15 +39,25 @@ public sealed partial class FocusPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (GlobalService.ShouldReplaceNavigationArgs)
+
+        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
+        // 返回时选中的标签与已加载的数据都还在,直接沿用即可,不要重新加载。
+        if (e.NavigationMode == NavigationMode.Back) return;
+
+        // 前进进入(例如从导航菜单再次点击"动态"):缓存实例上会残留上次的集合与分页游标,
+        // 必须先重置,否则 GetMoments 会往旧集合里追加、并从非 0 页开始取数据。
+        Mode = FocusContentType.Followee;
+        if (!ReferenceEquals(Navibar.SelectedItem, Navibar.Items[0]))
         {
-            if (GlobalService.NavigationAnchor is int targetIndex)
-                Navibar.SelectedItem = Navibar.Items[targetIndex];
-            else
-                Navibar.SelectedItem = Navibar.Items[0];
+            // 切换选中项会触发 TypeChoice_SelectionChanged,由它完成清空与加载,
+            // 这里直接返回以避免重复请求。
+            Navibar.SelectedItem = Navibar.Items[0];
             return;
         }
 
+        Increment.Clear();
+        Topics.Clear();
+        TopicIds.Clear();
         await GetMoments();
     }
 
@@ -104,7 +113,6 @@ public sealed partial class FocusPage : Page
         var s = Navibar.SelectedItem;
         if (s?.Tag is not string tag) return;
         Mode = tag == "0" ? FocusContentType.Followee : FocusContentType.FavoriteUpdate;
-        GlobalService.NavigationAnchor = Navibar.Items.IndexOf(s);
         Increment.Clear();
         Topics.Clear();
         TopicIds.Clear();

@@ -171,7 +171,6 @@ public sealed partial class ProfilePage : Page
         if (!IsMe) return;
         var h = sender as HyperlinkButton;
         if (h?.Tag is not string tag) return;
-        GlobalService.Instance.NavigationAnchor = tag;
         Frame.Navigate(typeof(FollowPage), tag);
     }
 

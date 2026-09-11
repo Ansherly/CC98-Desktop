@@ -708,8 +708,7 @@ public sealed partial class SketchPage : Page
                 TopicId = NavigationInfo.TopicId,
                 TargetFloor = NavigationInfo.Floor
             };
-            GlobalService.Instance.NavigationAnchor = param;
-            GoBack();
+            GoBackToTopic(param);
         }
     }
 
@@ -760,8 +759,7 @@ public sealed partial class SketchPage : Page
                 TargetFloor = NavigationInfo.Floor,
                 GoToLatest = NavigationInfo.EditorMode == EditorMode.ReplyToTopic
             };
-            GlobalService.Instance.NavigationAnchor = param;
-            GoBack();
+            GoBackToTopic(param);
         }
     }
 
@@ -787,13 +785,9 @@ public sealed partial class SketchPage : Page
         }
         else
         {
-            var newTopicId = res.Data;
-            var param = new TopicNavigationInfo
-            {
-                IsJumpingMode = false,
-                TopicId = newTopicId
-            };
-            GlobalService.Instance.NavigationAnchor = param;
+            // 注意:本分支目前没有调用方(BoardPage 的"发主题"入口尚未开放)。
+            // 返回目标是版面页而不是主题页,故不使用导航参数覆盖;将来接入时
+            // 需要另行决定如何打开新建的主题(可直接用 res.Data 作为 TopicId)。
             GoBack();
         }
     }
@@ -877,6 +871,25 @@ public sealed partial class SketchPage : Page
     private void GoBack()
     {
         if (Frame.CanGoBack) Frame.GoBack();
+    }
+
+    /// <summary>
+    /// 返回主题页,并把"应跳转到的位置"一并交给它。
+    /// 主题页会被重建,而后退栈里的原始导航参数只含 TopicId、不含目标楼层,
+    /// 因此必须通过 <see cref="NavigationArgs"/> 覆盖通道传递新参数。
+    /// </summary>
+    /// <param name="param">主题页应采用的新导航参数。</param>
+    private void GoBackToTopic(TopicNavigationInfo param)
+    {
+        if (!Frame.CanGoBack) return;
+
+        // 仅当返回目标确实是主题页时才登记:本页也可能从版面页(投票入口)进入,
+        // 那种情况下登记会留下无人消费的陈旧载荷,并影响后续真正的主题页导航。
+        var backStack = Frame.BackStack;
+        if (backStack.Count > 0 && backStack[backStack.Count - 1].SourcePageType == typeof(TopicPage))
+            NavigationArgs.Set<TopicPage>(param);
+
+        Frame.GoBack();
     }
 
     #endregion

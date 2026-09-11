@@ -51,15 +51,6 @@ namespace CC98.Views;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    private readonly HashSet<(Type from, Type to)> _rules =
-    [
-        (typeof(SketchPage), typeof(TopicPage)),
-        (typeof(TopicPage), typeof(MessagePage)),
-        (typeof(TopicPage), typeof(FocusPage)),
-        (typeof(ProfilePage), typeof(FollowPage)),
-        (typeof(TopicPage), typeof(SearchPage))
-    ];
-
     public ObservableCollection<string> Collections = [];
     public GlobalService GlobalService = GlobalService.Instance;
     //需要迁移到新的存取关注版面的方式
@@ -533,16 +524,6 @@ public sealed partial class MainWindow : Window
     }
     
 
-    //本方法只控制全局状态记忆类的参量，而不更改导航栈本身的导航参数
-    private void ContentFrame_Navigating(object sender, NavigatingCancelEventArgs e)
-    {
-        if (ContentFrame.Content is not Page currentPage) return;
-        var fromPage = currentPage.GetType();
-        var toPage = e.SourcePageType;
-        GlobalService.ShouldReplaceNavigationArgs = e.NavigationMode == NavigationMode.Back && _rules.Contains((fromPage, toPage));
-    }
-
-    
     private async void VPNConfigSave_Click(object sender, RoutedEventArgs e)
     {
         var userName = VPNUsername.Text;

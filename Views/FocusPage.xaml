@@ -13,6 +13,7 @@
     xmlns:picture="using:CC98.Controls.Picture"
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
     xmlns:empty="using:CC98.Controls.EmptyState"
+    NavigationCacheMode="Required"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Grid Padding="15,5,15,15">

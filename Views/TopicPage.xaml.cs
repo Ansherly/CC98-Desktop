@@ -47,7 +47,11 @@ public sealed partial class TopicPage : Page
     public int TopicId = 0;
     public int CurrentPage = 0;
     public int PageSize = 10;
-    public GlobalService GlobalService = GlobalService.Instance;
+
+    // 最近一次浏览位置:用于"进入本页的子页面(编辑器、用户资料等)后返回同一主题"时恢复分页。
+    // 本页是 NavigationCacheMode=Disabled(每次导航都会重建),故用静态字段跨实例传递。
+    private static int _recentTopicId;
+    private static int _recentPage;
     public ApiService ApiService = App.Current.GetService<ApiService>();
     public TopicPage()
     {
@@ -65,6 +69,10 @@ public sealed partial class TopicPage : Page
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        // 记录离开时的浏览位置,供返回同一主题时恢复分页(例如进入编辑器后未发送就返回)。
+        _recentTopicId = TopicId;
+        _recentPage = CurrentPage;
+
         //释放资源
         base.OnNavigatedFrom(e);
         Replies.Clear();
@@ -91,13 +99,12 @@ public sealed partial class TopicPage : Page
     {
         base.OnNavigatedTo(e);
 
-        var args = GlobalService.ShouldReplaceNavigationArgs ?
-            (TopicNavigationInfo?)GlobalService.NavigationAnchor :
-            e.TryGetParameter<TopicNavigationInfo>();
-        if (!GlobalService.ShouldReplaceNavigationArgs)
-        {
-            GlobalService.NavigationAnchor = e.TryGetParameter<TopicNavigationInfo>();
-        }
+        // 优先采用发起方登记的覆盖参数:例如 SketchPage 发帖/编辑成功后返回本页时,
+        // 后退栈里的原始参数只有 TopicId、没有目标楼层,必须用覆盖参数才能跳到指定楼层。
+        // 其余情况一律使用导航参数本身。
+        TopicNavigationInfo? args = NavigationArgs.TryConsume<TopicPage, TopicNavigationInfo>(out var overridden)
+            ? overridden
+            : e.TryGetParameter<TopicNavigationInfo>();
         if (args == null) return;
         TopicId = args.TopicId;
         if (args.GoToLatest || args.IsJumpingMode)
@@ -111,6 +118,21 @@ public sealed partial class TopicPage : Page
             }
             IsJumping = true;
             await Tp(args.TargetFloor);
+            return;
+        }
+
+        // 若本次是"返回同一主题"(进入编辑器未发送就返回、看完用户资料返回等),
+        // 恢复到离开时的分页位置,而不是回到第 1 页。
+        if (e.NavigationMode == NavigationMode.Back && args.TopicId == _recentTopicId && _recentPage > 0)
+        {
+            // 需要先由 LoadTopicInfo 设置 Pager.NumberOfPages 才能定位页码
+            await LoadTopicInfo();
+            // 主题回复数可能已变化,越界时夹取到有效范围
+            var target = System.Math.Clamp(_recentPage, 0, System.Math.Max(Pager.NumberOfPages - 1, 0));
+            if (target > 0)
+                Pager.SelectedPageIndex = target; // 触发 Pager_SelectedIndexChanged,由它完成 LoadReply
+            else
+                await LoadReply();
             return;
         }
 

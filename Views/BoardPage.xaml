@@ -18,6 +18,7 @@
     xmlns:dev="using:DevWinUI"
     xmlns:helper="using:CC98.Services.Helpers"
     xmlns:empty="using:CC98.Controls.EmptyState"
+    NavigationCacheMode="Required"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
     <Grid>
         <Grid.RowDefinitions>

@@ -25,7 +25,6 @@ namespace CC98.Views;
 public sealed partial class FollowPage : Page
 {
     public ObservableCollection<Friend> Friends = [];
-    public GlobalService GlobalService = GlobalService.Instance;
     public Increment Increment = new();
     public string Type = "follower";
     public ApiService ApiService = App.Current.GetService<ApiService>();
@@ -38,21 +37,18 @@ public sealed partial class FollowPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (GlobalService.ShouldReplaceNavigationArgs)
-        {
-            if (GlobalService.NavigationAnchor is string targetType)
-                Type = targetType;
-        }
-        else
-        {
-            Type = e.TryGetParameter<string>() ?? "follower";
-        }
 
+        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
+        // 返回时 Type 与已加载的列表都还在,直接沿用即可,不要重新加载。
+        if (e.NavigationMode == NavigationMode.Back) return;
 
-        if (Type == "follower")
-            FriendType.Text = "粉丝";
-        else
-            FriendType.Text = "关注";
+        // 前进进入:按导航参数重新设定类型(同一种页面会由不同入口用不同参数打开)。
+        Type = e.TryGetParameter<string>() ?? "follower";
+        FriendType.Text = Type == "follower" ? "粉丝" : "关注";
+
+        // 复用缓存实例时必须先清空,否则 LoadFriend 会往旧集合里追加、并从非 0 页开始取数据。
+        Increment.Clear();
+        Friends.Clear();
 
         await LoadFriend();
     }
