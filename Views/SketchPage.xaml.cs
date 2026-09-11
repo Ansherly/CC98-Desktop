@@ -6,7 +6,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
+using Windows.Storage.Streams;
 using CC98.Kernel;
 using CC98.Objects;
 using CC98.Services;
@@ -332,11 +334,22 @@ public sealed partial class SketchPage : Page
         var fullTag = $"{openTag}{content}{closeTag}";
         var selectionStart = Editor.SelectionStart;
         Editor.Text = Editor.Text.Insert(selectionStart, fullTag);
-        Editor.SelectionStart = selectionStart + openTag.Length + content.Length + offset;
         if (selectText)
+        {
+            // 选中已插入的内容,输入即可整体替换
+            Editor.SelectionStart = selectionStart + openTag.Length + offset;
             Editor.SelectionLength = content.Length;
+        }
         else
+        {
+            // 有内容时把光标移到闭合标签之后;空标签则停在标签内部,便于直接输入。
+            // 若一律停在内部,连续插入多个媒体标签时后一个会被插进前一个内部,
+            // 产生 [img]A[upload]B[/upload][/img] 这类错误嵌套。
+            Editor.SelectionStart = string.IsNullOrEmpty(content)
+                ? selectionStart + openTag.Length + offset
+                : selectionStart + fullTag.Length + offset;
             Editor.SelectionLength = 0;
+        }
         Editor.Focus(FocusState.Programmatic);
     }
 
@@ -501,6 +514,119 @@ public sealed partial class SketchPage : Page
                 CustomLink.Focus(FocusState.Keyboard); //自动聚焦，减少鼠标操作
             }
         }
+    }
+
+    /// <summary>
+    /// 编辑器粘贴(Ctrl+V):剪贴板中为文件或图片时先上传,再按当前编辑器模式插入标签;
+    /// 普通文本不干预,交给默认粘贴行为。
+    /// </summary>
+    private async void Editor_Paste(object sender, TextControlPasteEventArgs e)
+    {
+        try
+        {
+            var content = Clipboard.GetContent();
+            var hasFiles = content.Contains(StandardDataFormats.StorageItems);
+            var hasBitmap = !hasFiles && content.Contains(StandardDataFormats.Bitmap);
+            if (!hasFiles && !hasBitmap) return; // 普通文本:走默认粘贴
+
+            // 必须在任何 await 之前同步置位:本方法是 async void,遇到 await 就会返回,
+            // 若此时仍未置位,框架会认为未处理而照常执行默认粘贴。
+            e.Handled = true;
+
+            await UploadClipboardMediaAsync(content, hasFiles);
+        }
+        catch (Exception ex)
+        {
+            // async void 必须兜底:未捕获异常会终止进程
+            Debug.WriteLine($"粘贴上传失败: {ex.Message}");
+            Flower.Play(FlowStatus.Fail, "粘贴上传失败，请重试");
+        }
+    }
+
+    /// <summary>
+    /// 上传剪贴板中的媒体并插入标签。文件与位图两种来源共用。
+    /// </summary>
+    private async Task UploadClipboardMediaAsync(DataPackageView content, bool hasFiles)
+    {
+        await RunUploadBusyAsync(async () =>
+        {
+            if (hasFiles)
+                await UploadPastedFilesAsync(await content.GetStorageItemsAsync());
+            else
+                await UploadPastedBitmapAsync(await content.GetBitmapAsync());
+        });
+    }
+
+    /// <summary>
+    /// 上传期间的忙碌态:提示进度并暂时禁止编辑,避免重复粘贴触发并发上传;结束后恢复原状态。
+    /// 用 IsReadOnly 而非 IsEnabled=false —— 后者会连带禁用右键菜单与文本选择高亮。
+    /// </summary>
+    private async Task RunUploadBusyAsync(Func<Task> upload)
+    {
+        var previousStatus = status.Text;
+        var previousReadOnly = Editor.IsReadOnly;
+        try
+        {
+            Editor.IsReadOnly = true;
+            status.Text = "正在上传…";
+            await upload();
+        }
+        finally
+        {
+            Editor.IsReadOnly = previousReadOnly;
+            status.Text = previousStatus;
+        }
+    }
+
+    private async Task UploadPastedFilesAsync(IReadOnlyList<IStorageItem> items)
+    {
+        var files = items.OfType<StorageFile>().ToList();
+        if (files.Count == 0) return;
+
+        var uploaded = 0;
+        foreach (var file in files)
+        {
+            status.Text = $"正在上传 {file.Name}…";
+            var result = await FileUploadService.UploadAsync(file);
+            if (!result.Success)
+            {
+                // 仅在确实有错误时提示(用户取消不算错误)
+                if (!string.IsNullOrEmpty(result.Error))
+                    Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                continue;
+            }
+
+            InsertMediaTag(FileUploadService.GetLabelForFileName(file.Name), result.Url);
+            uploaded++;
+        }
+
+        if (uploaded > 0) Flower.Play(FlowStatus.Success, $"已上传 {uploaded} 个文件");
+    }
+
+    private async Task UploadPastedBitmapAsync(RandomAccessStreamReference bitmap)
+    {
+        status.Text = "正在上传图片…";
+        var result = await FileUploadService.UploadClipboardBitmapAsync(bitmap);
+        if (!result.Success)
+        {
+            if (!string.IsNullOrEmpty(result.Error))
+                Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+            return;
+        }
+
+        InsertMediaTag("img", result.Url);
+        Flower.Play(FlowStatus.Success, "图片已上传");
+    }
+
+    /// <summary>
+    /// 按当前编辑器模式插入媒体标签:UBB 生成 [xx]url[/xx],Markdown 生成对应语法。
+    /// </summary>
+    private void InsertMediaTag(string label, string url)
+    {
+        if (TextContentType == (int)Objects.ContentType.Markdown)
+            InsertMdMedia(label, url);
+        else
+            InsertTag(label, label, url);
     }
 
     private async void SendButton_Click(object sender, RoutedEventArgs e)

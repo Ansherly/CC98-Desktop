@@ -12,6 +12,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
 
@@ -31,6 +32,9 @@ public sealed partial class DiscoverPage : Page
     public HashSet<int> TopicIds = [];
     public ObservableCollection<TopicInfo> Topics = [];
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
+    // 记录离开本页时的垂直滚动偏移,用于从主题页返回时恢复位置
+    private double _savedScrollOffset;
     public DiscoverPage()
     {
         InitializeComponent();
@@ -49,10 +53,19 @@ public sealed partial class DiscoverPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        // 页面被缓存(NavigationCacheMode=Required),每次进入都重新订阅并刷新数据,
-        // 避免 RandomTopics/Topics 无界增长(随机接口还会返回重复项)。
         SizeChanged -= Discover_SizeChanged;
         SizeChanged += Discover_SizeChanged;
+
+        // 从主题页返回时:页面实例已被缓存(NavigationCacheMode=Required),已加载的数据仍在。
+        // 此处不能清空列表——清空会让 ItemsRepeater 内容归零、滚动区域高度塌缩、偏移被钳制为 0,
+        // 且重新加载只取第一页,导致无法回到原来的滚动位置。故仅恢复滚动位置后直接返回。
+        if (e.NavigationMode == NavigationMode.Back && Topics.Count > 0)
+        {
+            RestoreScrollOffset();
+            return;
+        }
+
+        // 新进入页面时才刷新数据,避免 RandomTopics/Topics 无界增长(随机接口还会返回重复项)。
         RandomTopics.Clear();
         Topics.Clear();
         TopicIds.Clear();
@@ -64,6 +77,22 @@ public sealed partial class DiscoverPage : Page
     {
         base.OnNavigatedFrom(e);
         SizeChanged -= Discover_SizeChanged;
+        // 记录离开时的滚动位置,供返回时恢复
+        _savedScrollOffset = NewTopicViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    /// 恢复离开本页前的垂直滚动位置。
+    /// 需等待重新挂载后的布局完成,否则 ExtentHeight 仍为 0,设置的偏移会被钳制为 0。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            NewTopicViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
     }
 
     private async Task<bool> GetNewTopic()

@@ -425,6 +425,11 @@ public sealed partial class TopicPage : Page
     private async void MdViewer_LinkClicked(object sender, CommunityToolkit.WinUI.Controls.LinkClickedEventArgs e)
     {
         e.Handled = true;
+
+        // 防御:控件在第一次点击(Handled=true)后会清空 Hyperlink.NavigateUri,
+        // 第二次点击同一链接时 e.Uri 为 null,此处若直接 .ToString() 会抛 NRE,
+        // 且因为本方法是 async void,未捕获的异常会终止整个进程。
+        if (e.Uri == null) return;
         var url = e.Uri.ToString();
         if (string.IsNullOrWhiteSpace(url)) return;
 
