@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:md="using:CC98.Controls.MarkdownTextBlock">
+
+    <!--  MarkdownTextBlock 控件模板:内容全部由渲染策略动态生成,模板只提供一个根面板  -->
+    <Style TargetType="md:MarkdownTextBlock">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="HorizontalAlignment" Value="Stretch" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="md:MarkdownTextBlock">
+                    <Border
+                        Padding="{TemplateBinding Padding}"
+                        HorizontalAlignment="Stretch"
+                        Background="{TemplateBinding Background}">
+                        <StackPanel
+                            x:Name="PART_RootPanel"
+                            HorizontalAlignment="Stretch" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

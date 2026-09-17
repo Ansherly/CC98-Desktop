@@ -14,7 +14,7 @@
     xmlns:obj="using:CC98.Objects"
     xmlns:svc="using:CC98.Services"
     xmlns:picture="using:CC98.Controls.Picture"
-    xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
+    xmlns:md="using:CC98.Controls.MarkdownTextBlock"
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
     xmlns:empty="using:CC98.Controls.EmptyState"
     NavigationCacheMode="Disabled"
@@ -99,7 +99,7 @@
                 </StackPanel>
 
                 <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <ubbTextBlock:UbbTextBlock UbbText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" CodeBackground="{ThemeResource QuoteBackgroundBrush}" MediaClicked="UbbTextBlock_MediaClicked" HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"></ubbTextBlock:UbbTextBlock>
+                    <ubb:UbbTextBlock UbbText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" CodeBackground="{ThemeResource QuoteBackgroundBrush}" MediaClicked="UbbTextBlock_MediaClicked" HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"></ubb:UbbTextBlock>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -175,7 +175,7 @@
                 </StackPanel>
 
                 <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <tool:MarkdownTextBlock Text="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" UseAutoLinks="True" UseEmphasisExtras="True" UseListExtras="True" UsePipeTables="True" UseTaskLists="True" UseSoftlineBreakAsHardlineBreak="True" OnLinkClicked="MdViewer_LinkClicked" Config="{ThemeResource CustomMarkdownConfig}"/>
+                    <md:MarkdownTextBlock x:Name="MdViewer" MarkdownText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth,Mode=OneWay}" LinkClicked="MdViewer_LinkClicked"/>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -341,7 +341,7 @@
                         <TextBlock Text="{x:Bind Profile.Id,Mode=OneWay}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" IsTextSelectionEnabled="True"></TextBlock>
                     </Border>
                 </StackPanel>
-                <ubbTextBlock:UbbTextBlock UbbText="{x:Bind Profile.SignatureCode,Mode=OneWay}"  Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" Background="Transparent" QuoteBackground="{ThemeResource QuoteBackgroundBrush}"  ImageMaxWidth="240"/>
+                <ubb:UbbTextBlock UbbText="{x:Bind Profile.SignatureCode,Mode=OneWay}"  Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" Background="Transparent" QuoteBackground="{ThemeResource QuoteBackgroundBrush}"  ImageMaxWidth="240"/>
             </Grid>
         </TeachingTip>
 

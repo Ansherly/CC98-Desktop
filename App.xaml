@@ -54,27 +54,12 @@
             <Style TargetType="RichTextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
             </Style>
-            <Style TargetType="tool:MarkdownTextBlock">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
-            </Style>
             <Style TargetType="tool:SettingsCard">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
             </Style>
             <Style TargetType="tool:SettingsExpander">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
             </Style>
-
-            <tool:MarkdownConfig x:Key="CustomMarkdownConfig" BaseUrl="https://www.cc98.org">
-                <tool:MarkdownConfig.ImageProvider>
-                    <primitives:SmartMarkdownImageProvider></primitives:SmartMarkdownImageProvider>
-                </tool:MarkdownConfig.ImageProvider>
-                <tool:MarkdownConfig.Themes>
-                    <!-- 注意:MarkdownThemes 是普通 CLR 类(非依赖属性),不能使用 {ThemeResource},
-                         只能使用 {StaticResource}(静态资源可在资源字典中一次求值并支持普通属性) -->
-                    <tool:MarkdownThemes CodeBlockBackground="{StaticResource MarkdownBackgroundBrush}" QuoteBorderThickness="2" QuoteBorderBrush="{StaticResource QuoteBorderBrush}"></tool:MarkdownThemes>
-                </tool:MarkdownConfig.Themes>
-            </tool:MarkdownConfig>
-           
             <primitives:SmartImageLoader x:Key="PortraitLoader" LowRes="True" />
             <primitives:SmartImageLoader x:Key="CustomPortraitLoader" LowRes="False" />
             <services:HexToBrushConverter x:Key="HexToColorBrush" />

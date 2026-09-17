@@ -1,0 +1,135 @@
+using CC98.Controls.MarkdownTextBlock.Common;
+using CC98.Controls.Picture;
+using CC98.Controls.Primitives;
+using Microsoft.UI;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Documents;
+using Microsoft.UI.Xaml.Media;
+
+namespace CC98.Controls.MarkdownTextBlock.Rendering;
+
+/// <summary>
+///     XAML 元素工厂:链接、图片、任务列表勾选框。
+/// </summary>
+internal static class ElementFactory
+{
+    /// <summary>
+    ///     创建可点击的超链接(点击仅抛出事件,由宿主决定导航行为)。
+    /// </summary>
+    public static Hyperlink CreateLink(RenderContext context, string url, string text, bool isAutolink = false)
+    {
+        var hyperlink = new Hyperlink();
+        hyperlink.Click += (_, _) => context.Control.RaiseLinkClicked(url, text, isAutolink);
+        return hyperlink;
+    }
+
+    /// <summary>
+    ///     创建图片控件。
+    /// </summary>
+    public static Picture.Picture CreatePicture(RenderContext context, string src, string alt)
+    {
+        var maxWidth = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxWidth) ?? double.PositiveInfinity;
+        var maxHeight = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxHeight) ?? double.PositiveInfinity;
+
+        return new Picture.Picture
+        {
+            LoadImageCallback = SmartImageLoader.Default,
+            Src = src,
+            MaxWidth = maxWidth,
+            MaxHeight = maxHeight,
+            Stretch = Stretch.Uniform
+        };
+    }
+
+    /// <summary>
+    ///     创建块级图片(独占段落时使用)。
+    /// </summary>
+    public static UIElement CreateBlockImage(RenderContext context, string src, string alt)
+    {
+        var picture = CreatePicture(context, src, alt);
+        return CreateImageButton(context, picture, alt);
+    }
+
+    /// <summary>
+    ///     创建行内图片(限高,避免撑破段落行高)。
+    /// </summary>
+    public static Inline CreateInlineImage(RenderContext context, string src, string alt)
+    {
+        var picture = CreatePicture(context, src, alt);
+        var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+        picture.MaxHeight = fontSize * 1.5;
+
+        return new InlineUIContainer { Child = CreateImageButton(context, picture, alt) };
+    }
+
+    private static HyperlinkButton CreateImageButton(RenderContext context, Picture.Picture picture, string alt)
+    {
+        var button = new HyperlinkButton
+        {
+            Content = picture,
+            Padding = new Thickness(0),
+            BorderThickness = new Thickness(0),
+            Background = new SolidColorBrush(Colors.Transparent),
+            HorizontalAlignment = HorizontalAlignment.Left,
+            HorizontalContentAlignment = HorizontalAlignment.Left,
+            VerticalAlignment = VerticalAlignment.Top,
+            VerticalContentAlignment = VerticalAlignment.Top
+        };
+
+        button.Click += (_, _) => context.Control.RaiseImageClicked(picture.Src, alt);
+        return button;
+    }
+
+    /// <summary>
+    ///     创建行内代码(等宽字体 + 代码背景的小色块)。
+    ///     WinUI 的 Span 不支持背景色,这里用 InlineUIContainer 承载带背景的 Border。
+    /// </summary>
+    public static Inline CreateInlineCode(RenderContext context, string text)
+    {
+        var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+
+        var textBlock = new TextBlock
+        {
+            Text = text,
+            FontFamily = context.GetProperty<FontFamily>(RenderPropertyKeys.MonoFontFamily),
+            FontSize = fontSize * 0.92,
+            VerticalAlignment = VerticalAlignment.Bottom
+        };
+
+        if (context.Control.Foreground is not null) textBlock.Foreground = context.Control.Foreground;
+
+        var border = new Border
+        {
+            Background = context.GetProperty<Brush>(RenderPropertyKeys.CodeBackground),
+            BorderBrush = context.GetBrush(RenderPropertyKeys.BorderBrush,
+                BrushHelper.CreateSubtleBrush(context.Control.Foreground, 0x33)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(3),
+            Padding = new Thickness(4, 0, 4, 1),
+            Margin = new Thickness(1, 0, 1, -1),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Child = textBlock
+        };
+
+        return new InlineUIContainer { Child = border };
+    }
+
+    /// <summary>
+    ///     创建只读任务列表勾选框。
+    /// </summary>
+    public static Inline CreateTaskListCheckBox(bool isChecked)
+    {
+        var checkBox = new CheckBox
+        {
+            IsChecked = isChecked,
+            IsHitTestVisible = false,
+            MinWidth = 0,
+            MinHeight = 0,
+            Margin = new Thickness(0, 0, 4, -4),
+            VerticalAlignment = VerticalAlignment.Center
+        };
+
+        return new InlineUIContainer { Child = checkBox };
+    }
+}

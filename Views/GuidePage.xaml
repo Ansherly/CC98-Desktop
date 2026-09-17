@@ -7,7 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ic="using:FluentIcons.WinUI"  
-    xmlns:tool="using:CommunityToolkit.WinUI.Controls"
+    xmlns:md="using:CC98.Controls.MarkdownTextBlock"
     mc:Ignorable="d">
 
     <Grid x:Name="RootGrid" Padding="20" Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" CornerRadius="8" Opacity="0.8" RowSpacing="10" Loaded="RootGrid_Loaded">
@@ -20,7 +20,7 @@
         </HyperlinkButton>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
-            <tool:MarkdownTextBlock x:Name="TipText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" UseAutoLinks="True" UseEmphasisExtras="True" UseListExtras="True" UsePipeTables="True" UseTaskLists="True" UseSoftlineBreakAsHardlineBreak="True"/>
+            <md:MarkdownTextBlock x:Name="TipText" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </ScrollViewer>
     </Grid>
 </Page>

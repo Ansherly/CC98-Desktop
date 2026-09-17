@@ -4,6 +4,18 @@
     xmlns:smartImage="using:CC98.Controls.SmartImage"
     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
     xmlns:fileCard="using:CC98.Controls.FileCard">
+
+    <!--
+    自定义控件的默认样式必须在 Themes/Generic.xaml 中(含其合并字典)才能被
+    DefaultStyleKey 查找命中。放在别处的 ResourceDictionary 若不合并进来,
+    控件就取不到 ControlTemplate —— OnApplyTemplate 不触发、GetTemplateChild 拿不到
+    PART_RootPanel,表现为"控件完全不显示任何内容"(而非绑定失败)。
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Controls/MarkdownTextBlock/Themes/MarkdownTextBlock.xaml" />
+        <ResourceDictionary Source="ms-appx:///Controls/CodeBlock/CodeBlock.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
     <Style TargetType="smartImage:SmartImage">
         <Setter Property="Template">
             <Setter.Value>

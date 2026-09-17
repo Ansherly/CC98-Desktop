@@ -1,35 +1,56 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-
-<UserControl
-    x:Class="CC98.Controls.CodeBlock.CodeBlock"
+<?xml version="1.0" encoding="utf-8"?>
+<ResourceDictionary
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    x:Name="Control"
-    mc:Ignorable="d">
+    xmlns:local="using:CC98.Controls">
 
-    <Grid BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-          BorderThickness="{x:Bind Control.BorderThickness,Mode=OneWay}"
-          Background="{x:Bind Control.Background,Mode=OneWay}"
-          Padding="{x:Bind Control.Padding,Mode=OneWay}"
-          CornerRadius="{x:Bind Control.CornerRadius,Mode=OneWay}"
-          Margin="{x:Bind Control.Margin,Mode=OneWay}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
-        <StackPanel Grid.Row="0" HorizontalAlignment="Left" Orientation="Vertical" Spacing="2">
-            <TextBlock x:Name="LanguageTag" Text="C#" FontSize="12" Margin="3,0,3,0" CharacterSpacing="25" />
-            <Border Background="{ThemeResource AccentAAFillColorDefaultBrush}" Height="3" CornerRadius="1.5" />
-        </StackPanel>
-        <Button x:Name="CopyButton" Grid.Row="0" HorizontalAlignment="Right" Width="32" Height="32" Padding="0"
-                Margin="0,0,8,0" Click="CopyButton_Click">
-            <FontIcon Glyph="&#xE8C8;" FontSize="16" />
-        </Button>
-        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-            <RichTextBlock x:Name="Viewer" FontFamily="Consolas" IsTextSelectionEnabled="True"
-                           FontSize="{x:Bind Control.FontSize,Mode=OneWay}" />
-        </ScrollViewer>
-    </Grid>
-</UserControl>
+
+    <!--
+    代码块控件模板:结构参考 CC98\Controls\CodeBlock(该实现放在 UBB 里没有滚轮问题)。
+    要点:用 Grid + 行定义(Auto / *)包住 ScrollViewer,且不要显式设置 ScrollMode,
+    ScrollViewer 的视口高度就等于内容高度 → 纵向没有可滚动范围,滚轮会自然交给外层。
+-->
+    <Style TargetType="local:CodeBlock">
+        <Setter Property="IsTabStop" Value="False" />
+        <Setter Property="FontFamily" Value="Consolas" />
+        <Setter Property="FontSize" Value="13" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="local:CodeBlock">
+                    <Grid
+                    Padding="{TemplateBinding Padding}"
+                    Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}"
+                    BorderThickness="{TemplateBinding BorderThickness}"
+                    CornerRadius="{TemplateBinding CornerRadius}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <TextBlock
+                        x:Name="PART_LanguageTag"
+                        Grid.Row="0"
+                        Margin="3,0,3,2"
+                        HorizontalAlignment="Left"
+                        FontSize="11"
+                        Opacity="0.55"
+                        Text=""
+                        Visibility="Collapsed" />
+                        <ScrollViewer
+                        x:Name="PART_Scroller"
+                        Grid.Row="1"
+                        HorizontalScrollBarVisibility="Auto"
+                        VerticalScrollBarVisibility="Auto">
+                            <RichTextBlock
+                            x:Name="PART_Viewer"
+                            FontFamily="{TemplateBinding FontFamily}"
+                            FontSize="{TemplateBinding FontSize}"
+                            IsTextSelectionEnabled="True"
+                            TextWrapping="NoWrap" />
+                        </ScrollViewer>
+                    </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+</ResourceDictionary>

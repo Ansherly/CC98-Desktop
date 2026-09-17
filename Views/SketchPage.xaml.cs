@@ -175,7 +175,7 @@ public sealed partial class SketchPage : Page
         if (TextContentType == (int)Objects.ContentType.Ubb)
             UbbViewer.UbbText = TextContent;
         else
-            MdViewer.Text = TextContent;
+            MdViewer.MarkdownText = TextContent;
     }
 
     #endregion

@@ -244,7 +244,7 @@ public class CodeRenderStrategy : IRenderStrategy
     {
         context.FinalizeCurrentTextBlock();
         var languageName = node is TagNode tagNode ? tagNode.GetAttribute("language") : "plaintext";
-        var viewer = new CodeBlock.CodeBlock
+        var viewer = new CodeBlock
         {
             LanguageName = languageName,
             Code = RenderHelper.CollectText(node),
@@ -625,14 +625,14 @@ public class MarkdownRenderStrategy : IRenderStrategy
             VerticalScrollBarVisibility = ScrollBarVisibility.Auto
         };
 
-        var textBlock = new MarkdownTextBlock
+        var textBlock = new MarkdownTextBlock.MarkdownTextBlock
         {
             FontSize = 14,
             Background = new SolidColorBrush(Colors.Transparent)
         };
 
         var codeText = RenderHelper.CollectText(node);
-        textBlock.Text = codeText;
+        textBlock.MarkdownText = codeText;
 
         scrollViewer.Content = textBlock;
         context.AddToContainer(scrollViewer);
