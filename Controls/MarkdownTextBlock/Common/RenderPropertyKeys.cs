@@ -13,6 +13,7 @@ public static class RenderPropertyKeys
     public const string QuoteBorderBrush = "QuoteBorderBrush";
     public const string ImageMaxWidth = "ImageMaxWidth";
     public const string ImageMaxHeight = "ImageMaxHeight";
+    public const string HideImage = "HideImage";
     public const string BorderBrush = "BorderBrush";
     public const string SubtleBrush = "SubtleBrush";
     public const string MonoFontFamily = "MonoFontFamily";

@@ -32,10 +32,12 @@ internal static class ElementFactory
     {
         var maxWidth = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxWidth) ?? double.PositiveInfinity;
         var maxHeight = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxHeight) ?? double.PositiveInfinity;
+        var hideImage = context.GetProperty<bool?>(RenderPropertyKeys.HideImage) ?? false;
 
         return new Picture.Picture
         {
             LoadImageCallback = SmartImageLoader.Default,
+            Hide = hideImage, // 无图模式,与 UBB 的 Hide = Control.HideImage 对齐
             Src = src,
             MaxWidth = maxWidth,
             MaxHeight = maxHeight,
@@ -64,16 +66,24 @@ internal static class ElementFactory
         return new InlineUIContainer { Child = CreateImageButton(context, picture, alt) };
     }
 
+    /// <summary>
+    ///     创建图片外层的可点击按钮。
+    /// </summary>
+    /// <remarks>
+    ///     样式刻意与 UBB 的 ImageRenderStrategy 保持一致:1 DIP 内边距 + 透明背景 + 内容拉伸,
+    ///     这样悬停时 HyperlinkButton 自带的圆角高亮会从图片四周露出 1 DIP,两处控件的图片观感一致。
+    ///     (垂直方向保留 Top:行内图片需要按内容高度对齐,不能撑满行高。)
+    /// </remarks>
     private static HyperlinkButton CreateImageButton(RenderContext context, Picture.Picture picture, string alt)
     {
         var button = new HyperlinkButton
         {
             Content = picture,
-            Padding = new Thickness(0),
+            Padding = new Thickness(1),
             BorderThickness = new Thickness(0),
             Background = new SolidColorBrush(Colors.Transparent),
             HorizontalAlignment = HorizontalAlignment.Left,
-            HorizontalContentAlignment = HorizontalAlignment.Left,
+            HorizontalContentAlignment = HorizontalAlignment.Stretch,
             VerticalAlignment = VerticalAlignment.Top,
             VerticalContentAlignment = VerticalAlignment.Top
         };

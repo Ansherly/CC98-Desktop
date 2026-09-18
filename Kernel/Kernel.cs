@@ -172,6 +172,13 @@ public class ApiService(IHttpClientFactory httpClientFactory)
         try
         {
             var res = await httpClient.GetAsync(endpoint,cancellationToken);
+            // 非 2xx 时响应体是错误页 / 错误 JSON,绝不是文件内容。
+            // 之前把响应体直接返回,401/404 的错误体就会被当作图片写进缓存并长期生效。
+            if (!res.IsSuccessStatusCode)
+            {
+                Debug.WriteLine("Kernel", $"获取字节失败: {(int)res.StatusCode} {endpoint}");
+                return null;
+            }
             return await res.Content.ReadAsByteArrayAsync(cancellationToken);
         }
         catch (Exception ex)

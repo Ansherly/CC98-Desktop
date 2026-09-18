@@ -182,7 +182,7 @@
                             </DataTemplate>
                         </GridView.ItemTemplate>
                     </GridView>
-                    <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" >
+                    <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled">
                         <controls:Segmented HorizontalAlignment="Center" >
                             <controls:SegmentedItem Content="CC98" PointerEntered="EmojiType_PointerEntered" IsSelected="True" x:Name="EmojiType" Tag="CC98"></controls:SegmentedItem>
                             <controls:SegmentedItem Content="AC娘" PointerEntered="EmojiType_PointerEntered"   Tag="ac-white"></controls:SegmentedItem>
@@ -250,9 +250,9 @@
                             <ic:SymbolIcon Symbol="Color" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton  Grid.Row="1" Grid.Column="3" Background="Transparent" Label="贴图" Click="AppBarButton_Click">
+                    <AppBarButton  Grid.Row="1" Grid.Column="3" Background="Transparent" Label="公式" Click="AppBarButton_Click">
                         <AppBarButton.Icon>
-                            <ic:SymbolIcon Symbol="PaintBrush"/>
+                            <ic:SymbolIcon Symbol="MathFormula"/>
                         </AppBarButton.Icon>
                     </AppBarButton>
                 </Grid>

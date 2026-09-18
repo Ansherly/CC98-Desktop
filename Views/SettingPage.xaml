@@ -143,13 +143,13 @@
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
                 <TextBlock Text="浏览" FontSize="16" Margin="5,2,0,5" />
-                <tool:SettingsCard Header="无图模式" Description="隐藏帖子中的图片,仅对UBB有效">
+                <tool:SettingsCard Header="无图模式" Description="隐藏帖子中的图片">
                     <tool:SettingsCard.HeaderIcon>
                         <ic:SymbolIcon Symbol="Image" />
                     </tool:SettingsCard.HeaderIcon>
                     <ToggleSwitch x:Name="IsImageVisible" IsOn="{x:Bind sv:AppSettings.Current.HideImage,Mode=TwoWay}" />
                 </tool:SettingsCard>
-                <tool:SettingsCard Header="图片最大宽度" Description="设置图片显示的最大宽度,仅对UBB有效">
+                <tool:SettingsCard Header="图片最大宽度" Description="设置图片显示的最大宽度">
                     <tool:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE9A6;"/>
                     </tool:SettingsCard.HeaderIcon>

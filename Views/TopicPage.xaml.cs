@@ -496,10 +496,6 @@ public sealed partial class TopicPage : Page
     private async void MdViewer_LinkClicked(object sender, Controls.MarkdownTextBlock.Common.Events.LinkClickedEventArgs e)
     {
         e.Handled = true;
-
-        // 防御:控件在第一次点击(Handled=true)后会清空 Hyperlink.NavigateUri,
-        // 第二次点击同一链接时 e.Uri 为 null,此处若直接 .ToString() 会抛 NRE,
-        // 且因为本方法是 async void,未捕获的异常会终止整个进程。
         var url = e.Url;
         if (string.IsNullOrWhiteSpace(url)) return;
 
@@ -517,6 +513,23 @@ public sealed partial class TopicPage : Page
         };
 
         await LinkNavigationService.HandleLinkAsync(url, context);
+    }
+
+    /// <summary>
+    ///     Markdown 图片点击:与 UBB 图片点击(见 <see cref="UbbTextBlock_MediaClicked"/>)保持一致 ——
+    ///     把整段内容里的图片一起交给预览器做画廊,并以被点击的这张为当前项。
+    /// </summary>
+    private void MdViewer_ImageClicked(object sender, Controls.MarkdownTextBlock.Common.Events.ImageClickedEventArgs e)
+    {
+        e.Handled = true;
+        if (string.IsNullOrWhiteSpace(e.Source)) return;
+
+        // 用控件自己维护的图片序列(已做 ~/ 展开等归一化),这样 IndexOf 一定找得到被点击的那张
+        var gallery = sender is Controls.MarkdownTextBlock.MarkdownTextBlock md
+            ? md.GetImageUrls().ToList()
+            : null;
+
+        LinkNavigationService.ShowImageViewer(e.Source, gallery);
     }
 
 

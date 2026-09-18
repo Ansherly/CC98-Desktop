@@ -105,6 +105,35 @@ public sealed partial class MarkdownTextBlock : Control
             }
     }
 
+    /// <summary>
+    ///     按文档顺序返回本次渲染出的所有图片地址。
+    /// </summary>
+    /// <remarks>
+    ///     供宿主实现"图片画廊"使用:点击某张图时把整段内容里的图片一起交给预览器,
+    ///     体验与 UbbTextBlock 的图片点击一致。返回的是控件实际渲染用的地址(已做完 ~/ 展开等归一化),
+    ///     因此可以直接用 <c>IndexOf</c> 定位被点击的那一张。
+    /// </remarks>
+    public IReadOnlyList<string> GetImageUrls()
+    {
+        var urls = new List<string>();
+        if (_rootPanel is null) return urls;
+
+        CollectImageUrls(_rootPanel, urls);
+        return urls;
+    }
+
+    private static void CollectImageUrls(DependencyObject element, List<string> urls)
+    {
+        if (element is Picture.Picture picture)
+        {
+            if (!string.IsNullOrWhiteSpace(picture.Src)) urls.Add(picture.Src);
+            return; // 图片内部不会再有图片
+        }
+
+        var count = VisualTreeHelper.GetChildrenCount(element);
+        for (var i = 0; i < count; i++) CollectImageUrls(VisualTreeHelper.GetChild(element, i), urls);
+    }
+
     private static string DescribeInline(Inline inline)
     {
         switch (inline)
@@ -258,6 +287,14 @@ public sealed partial class MarkdownTextBlock : Control
             typeof(MarkdownTextBlock),
             new(double.PositiveInfinity, OnRenderPropertyChanged));
 
+    /// <summary>无图模式:为 true 时不加载图片,只显示占位(与 UbbTextBlock.HideImage 对齐)。</summary>
+    public static readonly DependencyProperty HideImageProperty =
+        DependencyProperty.Register(
+            nameof(HideImage),
+            typeof(bool),
+            typeof(MarkdownTextBlock),
+            new(false, OnRenderPropertyChanged));
+
     /// <summary>是否允许选中文本。</summary>
     public static readonly DependencyProperty IsSelectionEnabledProperty =
         DependencyProperty.Register(
@@ -325,6 +362,13 @@ public sealed partial class MarkdownTextBlock : Control
     {
         get => (double)GetValue(ImageMaxHeightProperty);
         set => SetValue(ImageMaxHeightProperty, value);
+    }
+
+    /// <summary>无图模式(与 UbbTextBlock.HideImage 对齐)。</summary>
+    public bool HideImage
+    {
+        get => (bool)GetValue(HideImageProperty);
+        set => SetValue(HideImageProperty, value);
     }
 
     public bool IsSelectionEnabled
@@ -435,6 +479,7 @@ public sealed partial class MarkdownTextBlock : Control
         properties[RenderPropertyKeys.BoldFontFamily] = BoldFontFamily;
         properties[RenderPropertyKeys.ImageMaxWidth] = ImageMaxWidth;
         properties[RenderPropertyKeys.ImageMaxHeight] = ImageMaxHeight;
+        properties[RenderPropertyKeys.HideImage] = HideImage;
 
         properties[RenderPropertyKeys.CodeBackground] =
             CodeBackground ?? new SolidColorBrush(Color.FromArgb(0x1F, 0x88, 0x88, 0x88));

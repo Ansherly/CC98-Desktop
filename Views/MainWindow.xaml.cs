@@ -165,7 +165,6 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            //尝试获取新头像地址。获取失败时，尝试加载本地缓存。加载缓存也失败，使用AppSettings.Current.Portrait。
             var profileUrl = ApiEndpoints.User.UserProfile(true);
             var profileResult = await ApiService.Fetch<UserInfo>(profileUrl);
             var customBoards = SerializationHelper.TryDeserialize<List<int>>(AppSettings.Current.CustomBoards);
@@ -194,19 +193,26 @@ public sealed partial class MainWindow : Window
     }
     private async Task RefreshPortraitIfNeeded(string url)
     {
-        //如果缓存的地址和当前地址相同，则不进行下载
-        if (AppSettings.Current.PortraitUrl == url) return;
-        //如果不同，则保存新地址，并下载缓存
-        AppSettings.Current.PortraitUrl = url;
-        //进行下载缓存,并使用缓存图片
-        var portraitPath = await Downloader.DownloadFileAsync(url, ApplicationData.Current.LocalCacheFolder.Path);
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        // 命中缓存的充要条件:远端地址没变【且本地缓存文件确实还在】。
+        // 只比较地址是不够的:清除缓存 / 切换用户会删掉 LocalCache 里的头像文件,却不会动这两项设置,
+        // 于是 LocalPortraitUrl 变成指向已删除文件的悬空路径;而只看地址的旧逻辑会直接返回,
+        // 头像便再也下载不回来 —— 表现为设置里有路径、缓存目录里没有文件、头像空白。
+        if (AppSettings.Current.PortraitUrl == url && File.Exists(AppSettings.Current.LocalPortraitUrl)) return;
+
+        // 下载期间先不写 PortraitUrl:若失败时已经写入,下次启动会因地址相同而跳过重试
+        var portraitPath = await Downloader.DownloadCacheFileAsync(url, ApplicationData.Current.LocalCacheFolder.Path);
         if (portraitPath == null)
         {
             Debug.WriteLine("下载头像失败");
             return;
         }
+
         AppSettings.Current.LocalPortraitUrl = portraitPath;
+        AppSettings.Current.PortraitUrl = url;
     }
+
     private async Task LoadFocusBoardsIfNeeded(UserInfo data, List<int>? customBoards)
     {
         if (customBoards == null || !customBoards.ToHashSet().SetEquals(data.CustomBoards.ToHashSet()))

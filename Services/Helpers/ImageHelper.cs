@@ -22,11 +22,16 @@ public class ImageHelper
     /// <param name="lowRes">是否使用低分辨率模式加载。</param>
     /// <param name="cancellationToken">用于取消操作的令牌。</param>
     /// <returns>表示异步操作的任务。操作结果为加载后的图片对象。</returns>
-    public static async Task<BitmapSource> LoadWebImageAsync(string url, bool lowRes = false,CancellationToken cancellationToken = default)
+    public static async Task<BitmapSource?> LoadWebImageAsync(string url, bool lowRes = false,CancellationToken cancellationToken = default)
     {
         var apiService = App.Current.GetService<ApiService>();
         var imageBytes = await apiService.GetBytesAsync(url, cancellationToken);
-        return await LoadFromBytesAsync(imageBytes!, lowRes, cancellationToken);
+
+        // 取不到内容(网络异常 / 非 2xx)时返回 null,由调用方跳过设置图片,
+        // 而不是拿着 null 去解码(那样只会抛 NullReferenceException)
+        if (imageBytes is null || imageBytes.Length == 0) return null;
+
+        return await LoadFromBytesAsync(imageBytes, lowRes, cancellationToken);
     }
 
     public static async Task<BitmapSource> LoadLocalImage(string path,bool lowRes = false, CancellationToken cancellationToken = default)

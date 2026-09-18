@@ -45,9 +45,9 @@ public sealed partial class SmartImage : UserControl
         set => SetValue(SourceProperty, value);
     }
 
-    public ImageSource ImageSource
+    public ImageSource? ImageSource
     {
-        get => (ImageSource)GetValue(ImageSourceProperty);
+        get => GetValue(ImageSourceProperty) as ImageSource;
         set => SetValue(ImageSourceProperty, value);
     }
 

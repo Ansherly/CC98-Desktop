@@ -193,6 +193,10 @@ public sealed partial class SettingPage : Page
                 }
             }
 
+            // 头像缓存就在这个目录里:清掉文件后必须同时清掉记录,
+            // 否则 LocalPortraitUrl 会留下一个指向已删除文件的悬空路径。
+            AppSettings.Current.LocalPortraitUrl = string.Empty;
+
             Debug.WriteLine("应用缓存已成功清理。");
         }
         catch (Exception ex)

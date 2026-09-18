@@ -285,8 +285,10 @@ public sealed partial class SketchPage : Page
                     Editor.Focus(FocusState.Programmatic);
                 }
                 break;
-            case "贴图":
-                // TODO: 实现贴图功能
+            case "公式":
+                // 只管插语法骨架,公式内容由用户直接输入 —— 编辑区右侧本来就是实时预览
+                if (isMd) InsertMdSyntax("$$\n", "\n$$");   // MD:块级公式围栏 $$...$$
+                else InsertTag("math", "math", "");          // UBB:[math]...[/math] 标签(CC98 用的是 math 而非 latex)
                 break;
         }
     }

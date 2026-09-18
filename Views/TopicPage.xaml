@@ -175,7 +175,7 @@
                 </StackPanel>
 
                 <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <md:MarkdownTextBlock x:Name="MdViewer" MarkdownText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth,Mode=OneWay}" LinkClicked="MdViewer_LinkClicked"/>
+                    <md:MarkdownTextBlock x:Name="MdViewer" MarkdownText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth,Mode=OneWay}" HideImage="{x:Bind svc:AppSettings.Current.HideImage,Mode=OneWay}" LinkClicked="MdViewer_LinkClicked" ImageClicked="MdViewer_ImageClicked"/>
                 </Border>
             </Grid>
         </DataTemplate>
