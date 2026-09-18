@@ -3,7 +3,6 @@ using System.Text;
 using Windows.ApplicationModel.DataTransfer;
 using CC98.Controls.UbbTextBlock.Parser;
 using DevWinUI;
-using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
@@ -129,6 +128,7 @@ public class RenderContext
                 CurrentRichTextBlock = new()
                 {
                     FontSize = Control.FontSize,
+                    Foreground = Control.Foreground, // 为空则继承外层,不写死颜色
                     TextWrapping = TextWrapping.Wrap
                 };
                 CurrentParagraph = new();
@@ -171,7 +171,8 @@ public class RenderContext
         CurrentRichTextBlock = new()
         {
             FontSize = Control.FontSize,
-            Foreground = Control.Foreground ?? new SolidColorBrush(Colors.Black),
+            // Foreground 为空时不要赋值:交给外层继承,避免在深色主题下写死成黑色
+            Foreground = Control.Foreground,
             TextWrapping = TextWrapping.Wrap,
         };
 

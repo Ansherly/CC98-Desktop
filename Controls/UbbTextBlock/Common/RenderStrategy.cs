@@ -51,10 +51,12 @@ public class BoldRenderStrategy : IRenderStrategy
 {
     public void Render(UbbNode node, RenderContext context)
     {
-        var bold = new Bold
-        {
-            FontFamily = (FontFamily)context.Properties["BoldFontFamily"]
-        };
+        var bold = new Bold();
+
+        // 字体为空时不能赋值:FontFamily 赋 null 会抛异常,且应以宿主设置为准
+        var boldFontFamily = RenderHelper.GetFontFamily(context, "BoldFontFamily");
+        if (boldFontFamily is not null) bold.FontFamily = boldFontFamily;
+
         context.BeginInlineContainer(bold);
         foreach (var child in node.Children) context.RenderNode(child);
         context.EndInlineContainer();
@@ -174,9 +176,8 @@ public class UrlRenderStrategy : IRenderStrategy
             if (!url.IsValidUrl())
                 if (node.FirstChild is TextNode child)
                     url = child.Content;
-            // 设置样式
-            hyperlink.Foreground = new SolidColorBrush(Colors.LightSeaGreen);
-            hyperlink.TextDecorations = TextDecorations.Underline;
+            // 样式统一走 RenderHelper(颜色默认传统色,可由 LinkForeground 覆盖)
+            RenderHelper.ApplyLinkStyle(hyperlink, context);
 
             // 点击事件
             hyperlink.Click += (sender, e) => { context.Control.OnMediaClicked(url, MediaType.Link); };
@@ -244,11 +245,14 @@ public class CodeRenderStrategy : IRenderStrategy
     {
         context.FinalizeCurrentTextBlock();
         var languageName = node is TagNode tagNode ? tagNode.GetAttribute("language") : "plaintext";
+        var foreground = RenderHelper.GetBrush(context, "Foreground");
         var viewer = new CodeBlock
         {
             LanguageName = languageName,
             Code = RenderHelper.CollectText(node),
-            Background = (Brush)context.Properties["CodeBackground"],
+            Background = RenderHelper.GetBrush(context, "CodeBackground") ?? UbbBrushHelper.CreateFillBrush(foreground),
+            // 共享的 CodeBlock 模板使用 TemplateBinding BorderBrush,不传画刷时边框不可见
+            BorderBrush = UbbBrushHelper.CreateSubtleBrush(foreground),
             Padding = new(12),
             Margin = new(4, 2, 4, 2),
             BorderThickness = new(1),
@@ -601,7 +605,8 @@ public class DividerRenderStrategy : IRenderStrategy
             Y1 = 0,
             X2 = 1, // 相对坐标，Stretch.Fill会处理
             Y2 = 0,
-            Stroke = new SolidColorBrush(Colors.Gray),
+            // 由前景色推导,深浅主题都可见
+            Stroke = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
             StrokeThickness = 2,
             StrokeDashArray = { 2, 2 },
             Stretch = Stretch.Fill, // 自动拉伸
@@ -619,28 +624,46 @@ public class MarkdownRenderStrategy : IRenderStrategy
     {
         context.FinalizeCurrentTextBlock();
 
-        var scrollViewer = new ScrollViewer
-        {
-            HorizontalScrollBarVisibility = ScrollBarVisibility.Auto,
-            VerticalScrollBarVisibility = ScrollBarVisibility.Auto
-        };
-
+        // 不再外包 ScrollViewer:嵌套滚动容器在横向有溢出时会吞掉纵向滚轮(见 microsoft-ui-xaml#10172),
+        // 且 MarkdownTextBlock 本身是随外层页面滚动的。
         var textBlock = new MarkdownTextBlock.MarkdownTextBlock
         {
             FontSize = 14,
-            Background = new SolidColorBrush(Colors.Transparent)
+            Background = UbbBrushHelper.Transparent
         };
 
         var codeText = RenderHelper.CollectText(node);
         textBlock.MarkdownText = codeText;
 
-        scrollViewer.Content = textBlock;
-        context.AddToContainer(scrollViewer);
+        context.AddToContainer(textBlock);
     }
 }
 
 public class RenderHelper
 {
+    /// <summary>从渲染属性袋中取出画刷(键不存在或类型不符时返回 null)。</summary>
+    public static Brush? GetBrush(RenderContext context, string key)
+    {
+        return context.Properties.TryGetValue(key, out var value) ? value as Brush : null;
+    }
+
+    /// <summary>从渲染属性袋中取出字体(键不存在或类型不符时返回 null)。</summary>
+    public static FontFamily? GetFontFamily(RenderContext context, string key)
+    {
+        return context.Properties.TryGetValue(key, out var value) ? value as FontFamily : null;
+    }
+
+    /// <summary>
+    ///     给链接统一应用样式(颜色 + 可选下划线)。所有链接类策略都应经由本方法,便于后续统一调整。
+    /// </summary>
+    /// <remarks>颜色读取属性袋的 <c>LinkForeground</c>(M2 会由同名依赖属性填充);未设置时保持 CC98 传统色。</remarks>
+    public static void ApplyLinkStyle(Hyperlink hyperlink, RenderContext context, bool underline = true)
+    {
+        hyperlink.Foreground = GetBrush(context, "LinkForeground") ??
+                               new SolidColorBrush(Colors.LightSeaGreen);
+        hyperlink.TextDecorations = underline ? TextDecorations.Underline : TextDecorations.None;
+    }
+
     public static void ApplyAlignToContext(string align, UbbNode node, RenderContext context)
     {
         //使用Grid进行对齐控制
@@ -769,7 +792,7 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
             container.Children.Add(collapsedSection);
 
             // 在按钮和下方内容之间添加分割线
-            container.Children.Add(CreateSeparator());
+            container.Children.Add(CreateSeparator(context));
         }
 
         // 添加可见部分（前两层）
@@ -780,14 +803,13 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
             container.Children.Add(quoteContainer);
 
             // 在引用之间添加分割线（除了最后一个）
-            if (i > 0) container.Children.Add(CreateSeparator());
+            if (i > 0) container.Children.Add(CreateSeparator(context));
         }
 
         // 添加外部边框
         return new()
         {
-            Background = (Brush)context.Properties["QuoteBackground"] ??
-                         new SolidColorBrush(Color.FromArgb(255, 232, 244, 249)),
+            Background = RenderHelper.GetBrush(context, "QuoteBackground"),
             Padding = new(12, 8, 12, 8),
             Margin = new(0, 8, 0, 8),
             CornerRadius = new(4),
@@ -830,7 +852,7 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
             collapsedContent.Children.Add(quoteContainer);
 
             // 在折叠的引用之间也添加分割线
-            if (i > 0) collapsedContent.Children.Add(CreateSeparator());
+            if (i > 0) collapsedContent.Children.Add(CreateSeparator(context));
         }
 
         // 按钮点击事件
@@ -863,13 +885,13 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
     }
 
 
-    // 创建分割线
-    private static Border CreateSeparator()
+    // 创建分隔线(由前景色推导,替代原先写死的 #33000000)
+    private static Border CreateSeparator(RenderContext context)
     {
         return new()
         {
             Height = 1,
-            Background = new SolidColorBrush(Color.FromArgb(0x33, 0x00, 0x00, 0x00)),
+            Background = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
             Margin = new(0, 5, 0, 5),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -897,10 +919,10 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
         // 渲染引用内容（跳过嵌套的引用，因为它们已经被提取出来了）
         RenderQuoteContent(quoteNode, tempContext);
 
-        // 添加左侧边框作为视觉指示
+        // 左侧竖条作为引用视觉标识(颜色由 QuoteBorderBrush 控制,默认由前景色推导)
         return new()
         {
-            Background = new SolidColorBrush(Colors.Transparent),
+            Background = UbbBrushHelper.Transparent,
             Padding = new(8, 6, 8, 6),
             Margin = new(0, 2, 0, 2),
             Child = contentPanel
@@ -977,6 +999,34 @@ public class VideoRenderStrategy : IRenderStrategy
                 context.AddToContainer(player);
             }
         }
+    }
+}
+
+public class BilibiliRenderStrategy : IRenderStrategy
+{
+    /// <summary>BV 号补全用的视频页前缀。</summary>
+    private const string VideoUrlPrefix = "https://www.bilibili.com/video/";
+
+    public void Render(UbbNode node, RenderContext context)
+    {
+        // 取值顺序:属性 [bili=BVxxx] → 子文本 [bili]BVxxx[/bili]
+        var raw = node is TagNode tagNode ? tagNode.GetAttribute("value") : string.Empty;
+        if (string.IsNullOrWhiteSpace(raw)) raw = RenderHelper.CollectText(node);
+        raw = raw.Trim();
+
+        if (string.IsNullOrEmpty(raw)) return;
+
+        // 已是完整地址则原样使用,否则按 BV/av 号补全为视频页地址
+        var url = raw.StartsWith("http", StringComparison.OrdinalIgnoreCase)
+            ? raw
+            : VideoUrlPrefix + raw.TrimStart('/');
+
+        var hyperlink = new Hyperlink();
+        RenderHelper.ApplyLinkStyle(hyperlink, context);
+        hyperlink.Inlines.Add(new Run { Text = raw });
+        hyperlink.Click += (_, _) => context.Control.OnMediaClicked(url, MediaType.Link);
+
+        context.AddInline(hyperlink);
     }
 }
 
@@ -1070,7 +1120,8 @@ public class TableRenderStrategy : IRenderStrategy
     {
         var container = new Border
         {
-            BorderBrush = new SolidColorBrush(Color.FromArgb(0xFF, 0xDD, 0xDD, 0xDD)),
+            // 由前景色推导,替代原先写死的 #DDDDDD
+            BorderBrush = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
             BorderThickness = new(1),
             Padding = new(8, 4, 8, 4)
         };
@@ -1146,11 +1197,8 @@ public class TopicRenderStrategy : IRenderStrategy
     {
         if (node is TagNode tagNode)
         {
-            var hyperlink = new Hyperlink
-            {
-                Foreground = new SolidColorBrush(Colors.LightSeaGreen),
-                TextDecorations = TextDecorations.Underline
-            };
+            var hyperlink = new Hyperlink();
+            RenderHelper.ApplyLinkStyle(hyperlink, context);
             var topicId = tagNode.GetAttribute("value");
             if (!topicId.All(char.IsDigit))
                 //必须是纯数字，否则不渲染
@@ -1173,11 +1221,9 @@ public class AtRenderStrategy : IRenderStrategy
     {
         if (node is AtNode atNode)
         {
-            var hyperlink = new Hyperlink
-            {
-                Foreground = new SolidColorBrush(Colors.LightSeaGreen),
-                TextDecorations = TextDecorations.None
-            };
+            var hyperlink = new Hyperlink();
+            // @ 提及沿用链接色,但保持无下划线
+            RenderHelper.ApplyLinkStyle(hyperlink, context, underline: false);
             hyperlink.Inlines.Add(new Run { Text = $"@{atNode.Username}" });
             // 点击事件
             hyperlink.Click += (sender, e) => { context.Control.OnMediaClicked(atNode.Username, MediaType.AtUser); };
@@ -1219,7 +1265,12 @@ public class ReplyViewRenderStrategy : IRenderStrategy
 {
     public void Render(UbbNode node, RenderContext context)
     {
-        var run = new Run { Text = "此消息回复可见", Foreground = new SolidColorBrush(Colors.LightSeaGreen) };
+        var run = new Run
+        {
+            Text = "此消息回复可见",
+            Foreground = RenderHelper.GetBrush(context, "LinkForeground") ??
+                         new SolidColorBrush(Colors.LightSeaGreen)
+        };
         context.AddInline(run);
     }
 }

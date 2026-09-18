@@ -21,62 +21,76 @@ public sealed partial class UbbTextBlock : Control
             nameof(UbbText),
             typeof(string),
             typeof(UbbTextBlock),
-            new(string.Empty, OnUbbTextChanged));
+            new(string.Empty, OnRenderPropertyChanged));
 
     public new static readonly DependencyProperty FontSizeProperty =
         DependencyProperty.Register(
             nameof(FontSize),
             typeof(double),
             typeof(UbbTextBlock),
-            new(14.0, OnFontSizeChanged));
+            new(14.0, OnRenderPropertyChanged));
 
     public static readonly DependencyProperty BoldFontFamilyProperty =
         DependencyProperty.Register(
             nameof(BoldFontFamily),
             typeof(FontFamily),
             typeof(UbbTextBlock),
-            new(null));
+            new(null, OnRenderPropertyChanged));
 
     public new static readonly DependencyProperty ForegroundProperty =
         DependencyProperty.Register(
             nameof(Foreground),
             typeof(Brush),
             typeof(UbbTextBlock),
-            new(null, OnForegroundChanged));
+            new(null, OnRenderPropertyChanged));
 
     public static readonly DependencyProperty CodeBackgroundProperty =
         DependencyProperty.Register(
             nameof(CodeBackground),
             typeof(Brush),
             typeof(UbbTextBlock),
-            new(null));
+            new(null, OnRenderPropertyChanged));
 
     public static readonly DependencyProperty QuoteBackgroundProperty =
         DependencyProperty.Register(
             nameof(QuoteBackground),
             typeof(Brush),
             typeof(UbbTextBlock),
-            new(null));
+            new(null, OnRenderPropertyChanged));
+
+    public static readonly DependencyProperty QuoteBorderBrushProperty =
+        DependencyProperty.Register(
+            nameof(QuoteBorderBrush),
+            typeof(Brush),
+            typeof(UbbTextBlock),
+            new(null, OnRenderPropertyChanged));
+
+    public static readonly DependencyProperty LinkForegroundProperty =
+        DependencyProperty.Register(
+            nameof(LinkForeground),
+            typeof(Brush),
+            typeof(UbbTextBlock),
+            new(null, OnRenderPropertyChanged));
 
     public static readonly DependencyProperty ImageMaxWidthProperty =
         DependencyProperty.Register(
             nameof(ImageMaxWidth),
             typeof(double),
             typeof(UbbTextBlock),
-            new(double.PositiveInfinity));
+            new(double.PositiveInfinity, OnRenderPropertyChanged));
     public static readonly DependencyProperty ImageMaxHeightProperty =
         DependencyProperty.Register(
             nameof(ImageMaxHeight),
             typeof(double),
             typeof(UbbTextBlock),
-            new(double.PositiveInfinity));
+            new(double.PositiveInfinity, OnRenderPropertyChanged));
 
     public static readonly DependencyProperty HideImageProperty =
         DependencyProperty.Register(
             nameof(HideImage),
             typeof(bool),
             typeof(UbbTextBlock),
-            new(false, OnHideImageChanged));
+            new(false, OnRenderPropertyChanged));
 
 
     public string UbbText
@@ -115,6 +129,20 @@ public sealed partial class UbbTextBlock : Control
         set => SetValue(QuoteBackgroundProperty, value);
     }
 
+    /// <summary>引用块左侧竖条画刷(为空时由 <see cref="Foreground" /> 推导)。</summary>
+    public Brush? QuoteBorderBrush
+    {
+        get => GetValue(QuoteBorderBrushProperty) as Brush;
+        set => SetValue(QuoteBorderBrushProperty, value);
+    }
+
+    /// <summary>链接颜色(为空时使用 CC98 传统色 LightSeaGreen)。</summary>
+    public Brush? LinkForeground
+    {
+        get => GetValue(LinkForegroundProperty) as Brush;
+        set => SetValue(LinkForegroundProperty, value);
+    }
+
     public double ImageMaxWidth
     {
         get => (double)GetValue(ImageMaxWidthProperty);
@@ -151,6 +179,7 @@ public sealed partial class UbbTextBlock : Control
             [UbbNodeType.Image] = new ImageRenderStrategy(),
             [UbbNodeType.Audio] = new AudioRenderStrategy(),
             [UbbNodeType.Video] = new VideoRenderStrategy(),
+            [UbbNodeType.Bilibili] = new BilibiliRenderStrategy(),
             [UbbNodeType.Upload] = new FileRenderStrategy(),
             [UbbNodeType.Code] = new CodeRenderStrategy(),
             [UbbNodeType.Quote] = new FlatQuoteRenderStrategy(),
@@ -178,22 +207,11 @@ public sealed partial class UbbTextBlock : Control
 
     #region 属性变更处理
 
-    private static void OnUbbTextChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is UbbTextBlock control && control._rootPanel != null) control.RenderContent();
-    }
-
-    private static void OnFontSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is UbbTextBlock control && control._rootPanel != null) control.RenderContent();
-    }
-
-    private static void OnForegroundChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-    {
-        if (d is UbbTextBlock control && control._rootPanel != null) control.RenderContent();
-    }
-
-    private static void OnHideImageChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    /// <summary>
+    ///     所有影响渲染的属性共用同一个回调:任一变更即重建内容。
+    /// </summary>
+    /// <remarks>模板尚未应用(根面板为空)时不需要渲染,OnApplyTemplate 里会补一次。</remarks>
+    private static void OnRenderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is UbbTextBlock control && control._rootPanel != null) control.RenderContent();
     }
@@ -248,33 +266,52 @@ public sealed partial class UbbTextBlock : Control
             Context.Properties ??= [];
             Context.PanelStack ??= new();
 
-            // 填充默认属性
+            // 填充默认属性(颜色类默认值统一改为"半透明 / 由前景色推导",以便深浅主题自适应)
             Context.Properties["FontSize"] = FontSize;
-            Context.Properties["Foreground"] = Foreground ?? new SolidColorBrush(Colors.Gray);
+            Context.Properties["Foreground"] = Foreground;                     // 为空表示继承外层,不写死颜色
             Context.Properties["BoldFontFamily"] = BoldFontFamily ?? new FontFamily("HarmonyOS Sans SC Bold");
             Context.Properties["CodeBackground"] =
-                CodeBackground ?? new SolidColorBrush(Color.FromArgb(0xff, 0xe8, 0xf4, 0xf9));
+                CodeBackground ?? new SolidColorBrush(Color.FromArgb(0x1F, 0x88, 0x88, 0x88));
             Context.Properties["QuoteBackground"] =
-                QuoteBackground ?? new SolidColorBrush(Color.FromArgb(20, 0, 120, 215));
+                QuoteBackground ?? new SolidColorBrush(Color.FromArgb(0x14, 0x88, 0x88, 0x88));
+            Context.Properties["QuoteBorderBrush"] =
+                QuoteBorderBrush ?? UbbBrushHelper.CreateSubtleBrush(Foreground, 0x99);
+            Context.Properties["LinkForeground"] =
+                LinkForeground ?? new SolidColorBrush(Colors.LightSeaGreen);   // 传统色
             Context.Properties["ImageMaxWidth"] = ImageMaxWidth;
             Context.Properties["ImageMaxHeight"] = ImageMaxHeight;
 
-            // 渲染文档
-            Context.RenderNode(_document.Root);
+            // 渲染文档:逐个顶层节点渲染,单个节点出错不影响其余内容
+            foreach (var node in _document.Root.Children)
+                try
+                {
+                    Context.RenderNode(node);
+                }
+                catch (Exception nodeException)
+                {
+                    Context.FinalizeCurrentTextBlock();
+                    _rootPanel.Children.Add(CreateErrorText($"{node.Type} 渲染失败:{nodeException.Message}"));
+                }
 
             // 结束最后一个文本块
             Context.FinalizeCurrentTextBlock();
         }
         catch (Exception ex)
         {
-            // 显示错误
-            var errorText = new TextBlock
-            {
-                Text = $"渲染错误: {ex.Message}",
-                Foreground = new SolidColorBrush(Colors.Red)
-            };
-            _rootPanel.Children.Add(errorText);
+            // 解析级错误:整篇无法渲染
+            _rootPanel.Children.Clear();
+            _rootPanel.Children.Add(CreateErrorText($"渲染错误: {ex.Message}"));
         }
+    }
+
+    private static TextBlock CreateErrorText(string message)
+    {
+        return new TextBlock
+        {
+            Text = message,
+            Foreground = new SolidColorBrush(Colors.Red),
+            TextWrapping = TextWrapping.Wrap
+        };
     }
 
     #endregion
