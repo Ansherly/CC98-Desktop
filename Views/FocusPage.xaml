@@ -26,7 +26,7 @@
             <SelectorBarItem Text="收藏更新" Tag="1" />
         </SelectorBar>
 
-        <ScrollViewer Grid.Row="1" CornerRadius="4">
+        <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" CornerRadius="4">
             <ItemsRepeater x:Name="MomentRepeater" ItemsSource="{x:Bind Topics}"
                            ElementPrepared="MomentRepeater_ElementPrepared">
                 <ItemsRepeater.Layout>

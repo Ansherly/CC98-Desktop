@@ -114,9 +114,11 @@ public class Increment(int pageSize = 10, int currentPage = 0, bool hasMore = fa
     //强制加载下一页
     public async Task LoadNextPage(Func<Task<bool>> load)
     {
+        // 注意:必须先判条件再置防重入标志 —— 提前 return 时不会走 finally,
+        // 否则 _loading 会永久停在 true,该分页器此后再也无法增量加载。
         if (_loading) return;
+        if (!HasMore) return;
         _loading = true;
-        if(!HasMore) return;
         CurrentPage++;
         try
         {
@@ -132,9 +134,10 @@ public class Increment(int pageSize = 10, int currentPage = 0, bool hasMore = fa
 
     public async Task LoadLastPage(Func<Task<bool>> load)
     {
+        // 同上:条件判断务必在置位之前
         if (_loading) return;
-        _loading = true;
         if (CurrentPage <= 0) return;
+        _loading = true;
         CurrentPage--;
         try
         {

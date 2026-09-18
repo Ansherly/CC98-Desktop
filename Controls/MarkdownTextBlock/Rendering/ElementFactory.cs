@@ -6,11 +6,12 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
+using LatexBlockControl = CC98.Controls.LatexBlock.LatexBlock;
 
 namespace CC98.Controls.MarkdownTextBlock.Rendering;
 
 /// <summary>
-///     XAML 元素工厂:链接、图片、任务列表勾选框。
+///     XAML 元素工厂:链接、图片、任务列表勾选框、公式。
 /// </summary>
 internal static class ElementFactory
 {
@@ -94,7 +95,8 @@ internal static class ElementFactory
             Text = text,
             FontFamily = context.GetProperty<FontFamily>(RenderPropertyKeys.MonoFontFamily),
             FontSize = fontSize * 0.92,
-            VerticalAlignment = VerticalAlignment.Bottom
+            VerticalAlignment = VerticalAlignment.Bottom,
+            IsTextSelectionEnabled=true
         };
 
         if (context.Control.Foreground is not null) textBlock.Foreground = context.Control.Foreground;
@@ -131,5 +133,39 @@ internal static class ElementFactory
         };
 
         return new InlineUIContainer { Child = checkBox };
+    }
+
+    /// <summary>
+    ///     创建行内公式($...$)。字号跟随正文。
+    ///     颜色刻意不在这里指定:LatexBlock 会按控件【实际主题】自行解析;
+    ///     若在此处透传 MarkdownTextBlock.Foreground,主题切换后公式会一直用着旧画刷实例。
+    /// </summary>
+    public static Inline CreateInlineLatex(RenderContext context, string latex)
+    {
+        var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+
+        return new InlineUIContainer
+        {
+            Child = new LatexBlockControl
+            {
+                FontSize = fontSize,
+                LaTeX = latex,
+                DisplayStyle = false   // 行内公式用紧凑的文本样式,避免撑高行高
+            }
+        };
+    }
+
+    /// <summary>创建块级公式($$...$$)。LatexBlock 自身水平居中,这里只补上下外边距。</summary>
+    public static UIElement CreateBlockLatex(RenderContext context, string latex)
+    {
+        var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+
+        return new LatexBlockControl
+        {
+            FontSize = fontSize,
+            LaTeX = latex,
+            DisplayStyle = true,   // 独立公式块用 Display 样式(分式展开、上下限居中)
+            Margin = new Thickness(0, 4, 0, 8)
+        };
     }
 }

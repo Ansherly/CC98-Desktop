@@ -14,7 +14,10 @@ public class RenderContext
 {
     // 临时存储当前正在构建的内联容器
     private Inline CurrentInline;
-    public Stack<Inline> InlineStack = new();
+
+    /// <summary>未完成的内联容器栈(仅渲染实现内部使用,不对外暴露)。</summary>
+    internal Stack<Inline> InlineStack = new();
+
     public UbbTextBlock Control { get; set; }
 
     public Panel Container { get; set; }
@@ -23,7 +26,6 @@ public class RenderContext
     public RichTextBlock CurrentRichTextBlock { get; set; }
     private Paragraph CurrentParagraph { get; set; }
 
-    public Stack<Panel> PanelStack { get; set; } = new();
     public int QuoteNestingLevel { get; set; }
     public Dictionary<string, object> Properties { get; set; } = [];
 
@@ -48,24 +50,21 @@ public class RenderContext
     {
         //如果还没有文本块，就新建一个
         if (CurrentParagraph == null || CurrentRichTextBlock == null) StartNewTextBlock();
-        //如果有当前正在构建的内联容器，根据容器类型添加到其中
-        if (CurrentInline != null)
-        {
-            if (CurrentInline is Span span)
-                span.Inlines.Add(inline);
-            else if (CurrentInline is Bold bold)
-                bold.Inlines.Add(inline);
-            else if (CurrentInline is Italic italic)
-                italic.Inlines.Add(inline);
-            else if (CurrentInline is Underline underline)
-                underline.Inlines.Add(inline);
-            else if (CurrentInline is Hyperlink hyperlink) hyperlink.Inlines.Add(inline);
-        }
-        else
-        {
-            // 否则添加到当前段落
-            CurrentParagraph?.Inlines.Add(inline);
-        }
+
+        // 优先追加到正在构建的内联容器,否则落到当前段落
+        var target = GetInlineCollection(CurrentInline) ?? CurrentParagraph?.Inlines;
+        target?.Add(inline);
+    }
+
+    /// <summary>
+    ///     取得内联元素承载子元素用的集合;非容器型内联元素返回 null。
+    /// </summary>
+    /// <remarks>
+    ///     WinUI 里 Bold / Italic / Underline / Hyperlink 都派生自 Span,因此这里只需判断 Span 一种类型。
+    /// </remarks>
+    private static InlineCollection? GetInlineCollection(Inline? inline)
+    {
+        return inline is Span span ? span.Inlines : null;
     }
 
     /// <summary>
@@ -85,59 +84,29 @@ public class RenderContext
     public void EndInlineContainer()
     {
         if (CurrentInline == null) return;
+
         var completedInline = CurrentInline;
+
         if (InlineStack.Count > 0)
         {
-            // 从栈中取出父容器
+            // 从栈中取出父容器,把刚完成的容器挂进去
             var parentContainer = InlineStack.Pop();
-
-            // 将当前容器添加到父容器
-            if (parentContainer is Span parentSpan)
-            {
-                parentSpan.Inlines.Add(completedInline);
-                CurrentInline = parentSpan;
-            }
-            else if (parentContainer is Bold parentBold)
-            {
-                parentBold.Inlines.Add(completedInline);
-                CurrentInline = parentBold;
-            }
-            else if (parentContainer is Italic parentItalic)
-            {
-                parentItalic.Inlines.Add(completedInline);
-                CurrentInline = parentItalic;
-            }
-            //其他容器类型
-            else if (parentContainer is Underline parentUnderline)
-            {
-                parentUnderline.Inlines.Add(completedInline);
-                CurrentInline = parentUnderline;
-            }
-            else if (parentContainer is Hyperlink parentHyperlink)
-            {
-                parentHyperlink.Inlines.Add(completedInline);
-                CurrentInline = parentHyperlink;
-            }
+            GetInlineCollection(parentContainer)?.Add(completedInline);
+            CurrentInline = parentContainer;
+            return;
         }
-        else
+
+        // 没有父容器,直接落到当前段落
+        if (CurrentParagraph == null || CurrentRichTextBlock == null)
         {
-            // 如果没有父容器，添加到当前段落
-            if (CurrentParagraph == null || CurrentRichTextBlock == null)
-            {
-                //直接创建新的 RichTextBlock，避免循环调用 StartNewTextBlock()
-                CurrentRichTextBlock = new()
-                {
-                    FontSize = Control.FontSize,
-                    Foreground = Control.Foreground, // 为空则继承外层,不写死颜色
-                    TextWrapping = TextWrapping.Wrap
-                };
-                CurrentParagraph = new();
-                CurrentRichTextBlock.Blocks.Add(CurrentParagraph);
-            }
-
-            CurrentParagraph?.Inlines.Add(completedInline);
-            CurrentInline = null;
+            // 这里不能调 StartNewTextBlock():它会回头再走一遍 EndInlineContainer
+            CurrentRichTextBlock = CreateRichTextBlock();
+            CurrentParagraph = new();
+            CurrentRichTextBlock.Blocks.Add(CurrentParagraph);
         }
+
+        CurrentParagraph.Inlines.Add(completedInline);
+        CurrentInline = null;
     }
 
 
@@ -147,6 +116,43 @@ public class RenderContext
         FinalizeCurrentTextBlock();
         Container.Children.Add(element);
     }
+
+    #region 嵌套容器
+
+    // 嵌套块级容器时暂存的父容器(嵌套层级本身由调用栈表达)
+    private readonly Stack<Panel> _containerStates = new();
+
+    /// <summary>切入一个嵌套块级容器(引用 / 对齐等),与 <see cref="PopContainer" /> 成对使用。</summary>
+    public void PushContainer(Panel container)
+    {
+        _containerStates.Push(Container);
+        Container = container;
+    }
+
+    /// <summary>恢复到 <see cref="PushContainer" /> 之前的容器。</summary>
+    public void PopContainer()
+    {
+        if (_containerStates.Count == 0) return;
+
+        Container = _containerStates.Pop();
+    }
+
+    /// <summary>
+    ///     为"独立渲染"的块创建子上下文(表格单元格、分层引用里的单条引用等):
+    ///     共享控件引用与属性袋,但拥有独立的容器 / 段落 / 内联状态。
+    /// </summary>
+    public RenderContext CreateChildContext(Panel container)
+    {
+        return new RenderContext
+        {
+            Control = Control,
+            Container = container,
+            Properties = Properties,
+            QuoteNestingLevel = QuoteNestingLevel
+        };
+    }
+
+    #endregion
 
     //结束当前文本块的构建
     public void FinalizeCurrentTextBlock()
@@ -168,16 +174,20 @@ public class RenderContext
     {
         FinalizeCurrentTextBlock();
 
-        CurrentRichTextBlock = new()
-        {
-            FontSize = Control.FontSize,
-            // Foreground 为空时不要赋值:交给外层继承,避免在深色主题下写死成黑色
-            Foreground = Control.Foreground,
-            TextWrapping = TextWrapping.Wrap,
-        };
-
+        CurrentRichTextBlock = CreateRichTextBlock();
         CurrentParagraph = new();
         CurrentRichTextBlock.Blocks.Add(CurrentParagraph);
+    }
+
+    /// <summary>按控件当前的字号 / 前景色创建文本块(前景色为空时交给外层继承)。</summary>
+    private RichTextBlock CreateRichTextBlock()
+    {
+        return new RichTextBlock
+        {
+            FontSize = Control.FontSize,
+            Foreground = Control.Foreground,
+            TextWrapping = TextWrapping.Wrap
+        };
     }
 
     

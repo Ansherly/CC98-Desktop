@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using Windows.Foundation;
+using CSharpMath.Atom;
 using CSharpMath.SkiaSharp;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -20,6 +21,9 @@ public sealed partial class LatexBlock : UserControl
     private float _contentHeight;
     private float _contentWidth;
     private string _latex = "";
+
+    /// <summary>是否按独立公式(Display)排版,详见 <see cref="DisplayStyle" />。</summary>
+    private bool _displayStyle = true;
 
     /// <summary>行间距(相对行高的比例)。</summary>
     private float _lineSpacing = 0.2f;
@@ -50,6 +54,8 @@ public sealed partial class LatexBlock : UserControl
 
         _canvas.PaintSurface += OnPaintSurface;
         OnFontSizeChanged(); // 同步 _painter 字号
+        // 显式同步一次排版样式,不依赖 MathPainter 自身的 LineStyle 默认值
+        _painter.LineStyle = _displayStyle ? LineStyle.Display : LineStyle.Text;
 
         // 公式颜色的主题自适应。
         // MathPainter.TextColor 的默认值是纯黑 (#FF000000),深色背景下完全看不见,
@@ -107,6 +113,25 @@ public sealed partial class LatexBlock : UserControl
         set
         {
             _lineSpacing = (float)value;
+            InvalidateMeasure();
+        }
+    }
+
+    /// <summary>
+    ///     是否按独立公式(Display)排版。
+    ///     行内公式应设为 false —— 对应 LaTeX 的「文本样式」:分式更紧凑、
+    ///     求和/积分的上下限移到右侧,不会把所在行的行高撑开。
+    ///     MathPainter.LineStyle 默认为 Display,故这里默认 true 与之一致。
+    /// </summary>
+    public bool DisplayStyle
+    {
+        get => _displayStyle;
+        set
+        {
+            if (_displayStyle == value) return;
+
+            _displayStyle = value;
+            _painter.LineStyle = value ? LineStyle.Display : LineStyle.Text;
             InvalidateMeasure();
         }
     }

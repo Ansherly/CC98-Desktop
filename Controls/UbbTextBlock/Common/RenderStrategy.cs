@@ -54,7 +54,7 @@ public class BoldRenderStrategy : IRenderStrategy
         var bold = new Bold();
 
         // 字体为空时不能赋值:FontFamily 赋 null 会抛异常,且应以宿主设置为准
-        var boldFontFamily = RenderHelper.GetFontFamily(context, "BoldFontFamily");
+        var boldFontFamily = RenderHelper.GetFontFamily(context, RenderPropertyKeys.BoldFontFamily);
         if (boldFontFamily is not null) bold.FontFamily = boldFontFamily;
 
         context.BeginInlineContainer(bold);
@@ -101,17 +101,6 @@ public class StrikethroughRenderStrategy : IRenderStrategy
         context.EndInlineContainer();
     }
 
-    private static string CollectText(UbbNode node)
-    {
-        var text = "";
-        foreach (var child in node.Children)
-            if (child is TextNode textNode)
-                text += textNode.Content;
-            else
-                text += CollectText(child);
-
-        return text;
-    }
 }
 
 // 字体大小渲染策略
@@ -218,8 +207,8 @@ public class ImageRenderStrategy : IRenderStrategy
                     //UBB隐藏图片语法
                     Hide = context.Control.HideImage || value == "1",
                     Src = src,
-                    MaxWidth = (double)context.Properties["ImageMaxWidth"],
-                    MaxHeight = (double)context.Properties["ImageMaxHeight"],
+                    MaxWidth = (double)context.Properties[RenderPropertyKeys.ImageMaxWidth],
+                    MaxHeight = (double)context.Properties[RenderPropertyKeys.ImageMaxHeight],
                     Stretch = Stretch.Uniform
                 };
                 var hyperlinkButton = new HyperlinkButton
@@ -245,12 +234,12 @@ public class CodeRenderStrategy : IRenderStrategy
     {
         context.FinalizeCurrentTextBlock();
         var languageName = node is TagNode tagNode ? tagNode.GetAttribute("language") : "plaintext";
-        var foreground = RenderHelper.GetBrush(context, "Foreground");
+        var foreground = RenderHelper.GetBrush(context, RenderPropertyKeys.Foreground);
         var viewer = new CodeBlock
         {
             LanguageName = languageName,
             Code = RenderHelper.CollectText(node),
-            Background = RenderHelper.GetBrush(context, "CodeBackground") ?? UbbBrushHelper.CreateFillBrush(foreground),
+            Background = RenderHelper.GetBrush(context, RenderPropertyKeys.CodeBackground) ?? UbbBrushHelper.CreateFillBrush(foreground),
             // 共享的 CodeBlock 模板使用 TemplateBinding BorderBrush,不传画刷时边框不可见
             BorderBrush = UbbBrushHelper.CreateSubtleBrush(foreground),
             Padding = new(12),
@@ -259,83 +248,6 @@ public class CodeRenderStrategy : IRenderStrategy
             CornerRadius = new(6)
         };
         context.AddToContainer(viewer);
-    }
-}
-
-// 引用渲染策略
-public class QuoteRenderStrategy : IRenderStrategy
-{
-    public void Render(UbbNode node, RenderContext context)
-    {
-        context.FinalizeCurrentTextBlock();
-        context.QuoteNestingLevel++;
-        var isOutermostQuote = context.QuoteNestingLevel == 1;
-
-        var border = CreateQuoteBorder(context, isOutermostQuote);
-        var contentPanel = new StackPanel
-        {
-            Spacing = 8,
-            Margin = new(0)
-        };
-
-
-        // 保存当前容器状态以便恢复
-        var previousContainer = context.Container;
-        var previousPanelStack = context.PanelStack != null ? new Stack<Panel>(context.PanelStack) : new Stack<Panel>();
-
-        // 切换到新的内容容器
-        context.Container = contentPanel;
-        if (context.PanelStack != null)
-        {
-            context.PanelStack.Clear();
-            context.PanelStack.Push(contentPanel);
-        }
-
-        // 渲染子节点
-        foreach (var child in node.Children) context.RenderNode(child);
-
-        // 确保最后的文本块被结束
-        context.FinalizeCurrentTextBlock();
-
-        // 恢复之前的容器状态
-        context.Container = previousContainer;
-        if (context.PanelStack != null)
-        {
-            context.PanelStack.Clear();
-            foreach (var panel in previousPanelStack.Reverse()) context.PanelStack.Push(panel);
-        }
-
-        // 将内容面板添加到边框
-        border.Child = contentPanel;
-
-        // 将整个引用块添加到容器
-        context.AddToContainer(border);
-    }
-
-    private static Border CreateQuoteBorder(RenderContext context, bool isOutermostQuote)
-    {
-        var border = new Border
-        {
-            BorderBrush = new SolidColorBrush(Color.FromArgb(255, 255, 196, 174)),
-            BorderThickness = new(2, 0, 0, 0),
-            Padding = new(6, 6, 6, 6)
-        };
-        // 只有最外层引用块有背景色
-        if (isOutermostQuote)
-        {
-            border.Background = (Brush)context.Properties["QuoteBackground"] ??
-                                new SolidColorBrush(Color.FromArgb(255, 232, 244, 249));
-            border.Margin = new(4, 6, 4, 6);
-        }
-        else
-        {
-            border.Background = new SolidColorBrush(Colors.Transparent);
-            border.BorderThickness = new(2, 0, 0, 0);
-            border.BorderBrush = new SolidColorBrush(Color.FromArgb(255, 220, 176, 154));
-            border.Margin = new(2, 2, 0, 2); // 内层缩进
-        }
-
-        return border;
     }
 }
 
@@ -606,7 +518,7 @@ public class DividerRenderStrategy : IRenderStrategy
             X2 = 1, // 相对坐标，Stretch.Fill会处理
             Y2 = 0,
             // 由前景色推导,深浅主题都可见
-            Stroke = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
+            Stroke = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, RenderPropertyKeys.Foreground)),
             StrokeThickness = 2,
             StrokeDashArray = { 2, 2 },
             Stretch = Stretch.Fill, // 自动拉伸
@@ -659,7 +571,7 @@ public class RenderHelper
     /// <remarks>颜色读取属性袋的 <c>LinkForeground</c>(M2 会由同名依赖属性填充);未设置时保持 CC98 传统色。</remarks>
     public static void ApplyLinkStyle(Hyperlink hyperlink, RenderContext context, bool underline = true)
     {
-        hyperlink.Foreground = GetBrush(context, "LinkForeground") ??
+        hyperlink.Foreground = GetBrush(context, RenderPropertyKeys.LinkForeground) ??
                                new SolidColorBrush(Colors.LightSeaGreen);
         hyperlink.TextDecorations = underline ? TextDecorations.Underline : TextDecorations.None;
     }
@@ -677,33 +589,11 @@ public class RenderHelper
             }
         };
 
-        // 保存当前容器
-        var previousContainer = context.Container;
-        var previousPanelStack = context.PanelStack != null ? new Stack<Panel>(context.PanelStack) : null;
-
-        context.Container = panel;
-        context.PanelStack ??= new();
-        context.PanelStack.Push(panel);
-
-        // 渲染子节点
+        // 切入面板渲染子节点(容器状态的保存 / 恢复由 RenderContext 统一负责)
+        context.PushContainer(panel);
         foreach (var child in node.Children) context.RenderNode(child);
-
-        // 确保当前文本块结束
         context.FinalizeCurrentTextBlock();
-
-        // 恢复之前的容器
-        context.Container = previousContainer;
-        if (previousPanelStack != null)
-        {
-            context.PanelStack.Clear();
-            foreach (var p in previousPanelStack.Reverse())
-                context.PanelStack.Push(p);
-        }
-        else
-        {
-            // 如果之前没有 PanelStack，则清空当前栈
-            context.PanelStack.Clear();
-        }
+        context.PopContainer();
 
         // 将 panel 添加回之前的容器
         context.AddToContainer(panel);
@@ -809,7 +699,7 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
         // 添加外部边框
         return new()
         {
-            Background = RenderHelper.GetBrush(context, "QuoteBackground"),
+            Background = RenderHelper.GetBrush(context, RenderPropertyKeys.QuoteBackground),
             Padding = new(12, 8, 12, 8),
             Margin = new(0, 8, 0, 8),
             CornerRadius = new(4),
@@ -891,7 +781,7 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
         return new()
         {
             Height = 1,
-            Background = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
+            Background = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, RenderPropertyKeys.Foreground)),
             Margin = new(0, 5, 0, 5),
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -906,20 +796,12 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
             Margin = new(0)
         };
 
-        // 创建临时渲染上下文，确保复制 Control
-        var tempContext = new RenderContext
-        {
-            Control = context.Control, // 关键：复制 Control 引用
-            Container = contentPanel,
-            Properties = context.Properties,
-            PanelStack = new(),
-            QuoteNestingLevel = context.QuoteNestingLevel
-        };
+        // 子上下文:共享控件引用与属性袋,容器 / 段落状态独立
+        var tempContext = context.CreateChildContext(contentPanel);
 
         // 渲染引用内容（跳过嵌套的引用，因为它们已经被提取出来了）
         RenderQuoteContent(quoteNode, tempContext);
 
-        // 左侧竖条作为引用视觉标识(颜色由 QuoteBorderBrush 控制,默认由前景色推导)
         return new()
         {
             Background = UbbBrushHelper.Transparent,
@@ -1121,7 +1003,7 @@ public class TableRenderStrategy : IRenderStrategy
         var container = new Border
         {
             // 由前景色推导,替代原先写死的 #DDDDDD
-            BorderBrush = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, "Foreground")),
+            BorderBrush = UbbBrushHelper.CreateSubtleBrush(RenderHelper.GetBrush(context, RenderPropertyKeys.Foreground)),
             BorderThickness = new(1),
             Padding = new(8, 4, 8, 4)
         };
@@ -1129,14 +1011,8 @@ public class TableRenderStrategy : IRenderStrategy
         var contentPanel = new StackPanel();
         container.Child = contentPanel;
 
-        // 创建临时上下文渲染单元格内容
-        var tempContext = new RenderContext
-        {
-            Control = context.Control,
-            Container = contentPanel,
-            Properties = context.Properties,
-            PanelStack = new()
-        };
+        // 子上下文:单元格独立渲染
+        var tempContext = context.CreateChildContext(contentPanel);
 
         foreach (var child in cellNode.Children) tempContext.RenderNode(child);
         tempContext.FinalizeCurrentTextBlock();
@@ -1268,7 +1144,7 @@ public class ReplyViewRenderStrategy : IRenderStrategy
         var run = new Run
         {
             Text = "此消息回复可见",
-            Foreground = RenderHelper.GetBrush(context, "LinkForeground") ??
+            Foreground = RenderHelper.GetBrush(context, RenderPropertyKeys.LinkForeground) ??
                          new SolidColorBrush(Colors.LightSeaGreen)
         };
         context.AddInline(run);

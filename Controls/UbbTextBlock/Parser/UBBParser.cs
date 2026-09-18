@@ -11,7 +11,6 @@ namespace CC98.Controls.UbbTextBlock.Parser;
 /// </summary>
 public class UbbParser(IEnumerable<Token> tokens)
 {
-    private readonly List<UbbNode> _allNodes = [];
     private readonly List<Token> _tokens = [.. tokens];
     private int _index;
 

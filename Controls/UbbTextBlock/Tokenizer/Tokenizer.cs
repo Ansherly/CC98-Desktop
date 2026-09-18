@@ -124,6 +124,8 @@ public class UbbTokenizer(string input)
         var nameStart = _pos;
         //这个长度是字符长度
         var nameLength = 0;
+        // 等效长度:字母数字算 1、汉字等东亚文字算 2,边扫描边累加,避免每个字符都从头重算一遍
+        var nameWidth = 0;
         var isValid = true;
 
         // 解析用户名
@@ -135,18 +137,16 @@ public class UbbTokenizer(string input)
             if (c == ' ') break;
 
             // 检查字符是否合法
-            var isValidChar = IsValidUsernameChar(c);
-            if (!isValidChar)
+            if (!IsValidUsernameChar(c))
             {
                 isValid = false;
                 break;
             }
 
             nameLength++;
+            nameWidth += char.IsLetterOrDigit(c) ? 1 : 2;
 
-            // 这里的长度是等效长度，每个汉字占2字节（而实际上有的字是3）
-            var length = GetUserNameLength(_input, nameStart, nameLength);
-            if (length > 10) // 总字节长度限制为10
+            if (nameWidth > 10) // 总等效长度限制为 10
             {
                 isValid = false;
                 break;
@@ -212,27 +212,6 @@ public class UbbTokenizer(string input)
             return true;
 
         return false;
-    }
-
-    /// <summary>
-    ///     获取用户名的字节长度（UTF-8编码）
-    /// </summary>
-    private static int GetUserNameLength(string input, int start, int length)
-    {
-        var totalLength = 0;
-        for (var i = start; i < start + length && i < input.Length; i++)
-        {
-            var c = input[i];
-
-            // 字母或数字计1
-            if (char.IsLetterOrDigit(c))
-                totalLength += 1;
-            else
-                // 汉字/日文/韩文等东亚文字计2
-                totalLength += 2;
-        }
-
-        return totalLength;
     }
 
     #endregion

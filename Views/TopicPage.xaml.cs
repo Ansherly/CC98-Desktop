@@ -48,10 +48,45 @@ public sealed partial class TopicPage : Page
     public int CurrentPage = 0;
     public int PageSize = 10;
 
-    // 最近一次浏览位置:用于"进入本页的子页面(编辑器、用户资料等)后返回同一主题"时恢复分页。
-    // 本页是 NavigationCacheMode=Disabled(每次导航都会重建),故用静态字段跨实例传递。
-    private static int _recentTopicId;
-    private static int _recentPage;
+    // 主题浏览位置记忆:用于"进入本页的子页面(编辑器、用户资料等)后返回同一主题"时恢复分页。
+    // 本页是 NavigationCacheMode=Disabled(每次导航都会重建),故用静态表跨实例传递。
+    // 按主题 Id 分别记忆(而不是只记"最近一次"),因此 A → B → 返回 A 也能回到 A 的页码;
+    // 容量有上限,长时间使用不会无限增长,超限时淘汰最久未使用的条目。
+    private const int MaxRememberedPositions = 30;
+    private static readonly List<(int TopicId, int Page)> RecentPositions = [];
+
+    /// <summary>记录某主题离开时的页码(命中即前移,维持"最近使用"顺序)。</summary>
+    private static void RememberPosition(int topicId, int page)
+    {
+        if (topicId <= 0) return;
+
+        RecentPositions.RemoveAll(p => p.TopicId == topicId);
+        RecentPositions.Insert(0, (topicId, page));
+        if (RecentPositions.Count > MaxRememberedPositions)
+            RecentPositions.RemoveRange(MaxRememberedPositions, RecentPositions.Count - MaxRememberedPositions);
+    }
+
+    /// <summary>取出某主题上次离开时的页码(命中即前移,维持"最近使用"顺序)。</summary>
+    private static bool TryGetRememberedPosition(int topicId, out int page)
+    {
+        var index = RecentPositions.FindIndex(p => p.TopicId == topicId);
+        if (index < 0)
+        {
+            page = 0;
+            return false;
+        }
+
+        var entry = RecentPositions[index];
+        if (index > 0)
+        {
+            RecentPositions.RemoveAt(index);
+            RecentPositions.Insert(0, entry);
+        }
+
+        page = entry.Page;
+        return true;
+    }
+
     public ApiService ApiService = App.Current.GetService<ApiService>();
     public TopicPage()
     {
@@ -70,8 +105,7 @@ public sealed partial class TopicPage : Page
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
         // 记录离开时的浏览位置,供返回同一主题时恢复分页(例如进入编辑器后未发送就返回)。
-        _recentTopicId = TopicId;
-        _recentPage = CurrentPage;
+        RememberPosition(TopicId, CurrentPage);
 
         //释放资源
         base.OnNavigatedFrom(e);
@@ -82,9 +116,6 @@ public sealed partial class TopicPage : Page
         }
         CollectionMenu.Items.Clear();
         Pager?.SelectedIndexChanged -= Pager_SelectedIndexChanged;
-        VotePanel?.IsOpen = false;
-        VotePanel?.Target = null;
-        VotePanel?.Content = null;
         VotePanel?.IsOpen = false;
         VotePanel?.Target = null;
         VotePanel?.Content = null;
@@ -102,10 +133,20 @@ public sealed partial class TopicPage : Page
         // 优先采用发起方登记的覆盖参数:例如 SketchPage 发帖/编辑成功后返回本页时,
         // 后退栈里的原始参数只有 TopicId、没有目标楼层,必须用覆盖参数才能跳到指定楼层。
         // 其余情况一律使用导航参数本身。
-        TopicNavigationInfo? args = NavigationArgs.TryConsume<TopicPage, TopicNavigationInfo>(out var overridden)
-            ? overridden
-            : e.TryGetParameter<TopicNavigationInfo>();
-        if (args == null) return;
+        // 覆盖通道只在"返回导航"上取用:发起方都是先登记再 GoBack,
+        // 不加这个门控的话,万一有残留载荷,会被此后任意一次进入本页的导航误用。
+        TopicNavigationInfo? args =
+            e.NavigationMode == NavigationMode.Back
+            && NavigationArgs.TryConsume<TopicPage, TopicNavigationInfo>(out var overridden)
+                ? overridden
+                : e.TryGetParameter<TopicNavigationInfo>();
+        if (args == null)
+        {
+            // 缺少导航参数(例如被错误地直接导航到本页):给出提示,而不是留一个空白页
+            Flower.Play(FlowStatus.Fail, "缺少主题参数,无法打开该主题");
+            return;
+        }
+
         TopicId = args.TopicId;
         if (args.GoToLatest || args.IsJumpingMode)
         {
@@ -113,7 +154,12 @@ public sealed partial class TopicPage : Page
             await LoadTopicInfo();
             if (args.GoToLatest)
             {
-                Pager.SelectedPageIndex = Pager.NumberOfPages - 1;
+                // 回复数为 0 时 NumberOfPages 可能为 0,这里退化成加载第 0 页,避免索引越界
+                var lastPage = System.Math.Max(Pager.NumberOfPages - 1, 0);
+                if (lastPage > 0)
+                    Pager.SelectedPageIndex = lastPage;
+                else
+                    await LoadReply();
                 return;
             }
             IsJumping = true;
@@ -123,12 +169,15 @@ public sealed partial class TopicPage : Page
 
         // 若本次是"返回同一主题"(进入编辑器未发送就返回、看完用户资料返回等),
         // 恢复到离开时的分页位置,而不是回到第 1 页。
-        if (e.NavigationMode == NavigationMode.Back && args.TopicId == _recentTopicId && _recentPage > 0)
+        // 位置按主题记忆,因此 A → B → 返回 A 也能恢复到 A 的页码(命中的条目会被移到表头)。
+        if (e.NavigationMode == NavigationMode.Back
+            && TryGetRememberedPosition(args.TopicId, out var rememberedPage)
+            && rememberedPage > 0)
         {
             // 需要先由 LoadTopicInfo 设置 Pager.NumberOfPages 才能定位页码
             await LoadTopicInfo();
             // 主题回复数可能已变化,越界时夹取到有效范围
-            var target = System.Math.Clamp(_recentPage, 0, System.Math.Max(Pager.NumberOfPages - 1, 0));
+            var target = System.Math.Clamp(rememberedPage, 0, System.Math.Max(Pager.NumberOfPages - 1, 0));
             if (target > 0)
                 Pager.SelectedPageIndex = target; // 触发 Pager_SelectedIndexChanged,由它完成 LoadReply
             else

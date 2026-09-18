@@ -1,4 +1,5 @@
 using System;
+using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -191,6 +192,25 @@ public class TaskListRenderStrategy : IRenderStrategy
         if (node is not TaskList taskList) return;
 
         context.AddInline(ElementFactory.CreateTaskListCheckBox(taskList.Checked));
+    }
+}
+
+#endregion
+
+#region 数学
+
+/// <summary>行内公式($...$):交由 LatexBlock 渲染,字号跟随正文。</summary>
+public class MathInlineRenderStrategy : IRenderStrategy
+{
+    public void Render(MarkdownObject node, RenderContext context)
+    {
+        if (node is not MathInline math) return;
+
+        // MathInline.Content 是公开【字段】(不是属性),类型为 StringSlice
+        var latex = math.Content.ToString()?.Trim() ?? string.Empty;
+        if (latex.Length == 0) return;
+
+        context.AddInline(ElementFactory.CreateInlineLatex(context, latex));
     }
 }
 

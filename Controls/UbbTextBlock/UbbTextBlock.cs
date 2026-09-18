@@ -58,13 +58,6 @@ public sealed partial class UbbTextBlock : Control
             typeof(UbbTextBlock),
             new(null, OnRenderPropertyChanged));
 
-    public static readonly DependencyProperty QuoteBorderBrushProperty =
-        DependencyProperty.Register(
-            nameof(QuoteBorderBrush),
-            typeof(Brush),
-            typeof(UbbTextBlock),
-            new(null, OnRenderPropertyChanged));
-
     public static readonly DependencyProperty LinkForegroundProperty =
         DependencyProperty.Register(
             nameof(LinkForeground),
@@ -127,13 +120,6 @@ public sealed partial class UbbTextBlock : Control
     {
         get => (Brush)GetValue(QuoteBackgroundProperty);
         set => SetValue(QuoteBackgroundProperty, value);
-    }
-
-    /// <summary>引用块左侧竖条画刷(为空时由 <see cref="Foreground" /> 推导)。</summary>
-    public Brush? QuoteBorderBrush
-    {
-        get => GetValue(QuoteBorderBrushProperty) as Brush;
-        set => SetValue(QuoteBorderBrushProperty, value);
     }
 
     /// <summary>链接颜色(为空时使用 CC98 传统色 LightSeaGreen)。</summary>
@@ -201,7 +187,11 @@ public sealed partial class UbbTextBlock : Control
             [UbbNodeType.NeedReply] = new ReplyViewRenderStrategy()
         };
 
-    public RenderContext Context;
+    /// <summary>
+    ///     最近一次渲染使用的上下文(渲染策略的入参即此对象);首次渲染前为 <see langword="null" />。
+    /// </summary>
+    /// <remarks>只允许控件自身在 <c>RenderContent</c> 中赋值,外部只能读取。</remarks>
+    public RenderContext? Context { get; private set; }
 
     #endregion
 
@@ -264,22 +254,19 @@ public sealed partial class UbbTextBlock : Control
             };
 
             Context.Properties ??= [];
-            Context.PanelStack ??= new();
 
             // 填充默认属性(颜色类默认值统一改为"半透明 / 由前景色推导",以便深浅主题自适应)
-            Context.Properties["FontSize"] = FontSize;
-            Context.Properties["Foreground"] = Foreground;                     // 为空表示继承外层,不写死颜色
-            Context.Properties["BoldFontFamily"] = BoldFontFamily ?? new FontFamily("HarmonyOS Sans SC Bold");
-            Context.Properties["CodeBackground"] =
+            Context.Properties[RenderPropertyKeys.FontSize] = FontSize;
+            Context.Properties[RenderPropertyKeys.Foreground] = Foreground;                     // 为空表示继承外层,不写死颜色
+            Context.Properties[RenderPropertyKeys.BoldFontFamily] = BoldFontFamily ?? new FontFamily("HarmonyOS Sans SC Bold");
+            Context.Properties[RenderPropertyKeys.CodeBackground] =
                 CodeBackground ?? new SolidColorBrush(Color.FromArgb(0x1F, 0x88, 0x88, 0x88));
-            Context.Properties["QuoteBackground"] =
+            Context.Properties[RenderPropertyKeys.QuoteBackground] =
                 QuoteBackground ?? new SolidColorBrush(Color.FromArgb(0x14, 0x88, 0x88, 0x88));
-            Context.Properties["QuoteBorderBrush"] =
-                QuoteBorderBrush ?? UbbBrushHelper.CreateSubtleBrush(Foreground, 0x99);
-            Context.Properties["LinkForeground"] =
+            Context.Properties[RenderPropertyKeys.LinkForeground] =
                 LinkForeground ?? new SolidColorBrush(Colors.LightSeaGreen);   // 传统色
-            Context.Properties["ImageMaxWidth"] = ImageMaxWidth;
-            Context.Properties["ImageMaxHeight"] = ImageMaxHeight;
+            Context.Properties[RenderPropertyKeys.ImageMaxWidth] = ImageMaxWidth;
+            Context.Properties[RenderPropertyKeys.ImageMaxHeight] = ImageMaxHeight;
 
             // 渲染文档:逐个顶层节点渲染,单个节点出错不影响其余内容
             foreach (var node in _document.Root.Children)

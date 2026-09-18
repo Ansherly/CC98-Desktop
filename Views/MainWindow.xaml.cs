@@ -179,7 +179,6 @@ public sealed partial class MainWindow : Window
             {
                 var data = profileResult.Data;
                 AppSettings.Current.UserId = data.Id;
-                await RefreshPortraitIfNeeded(data.PortraitUrl);
                 var refreshTask = RefreshPortraitIfNeeded(data.PortraitUrl);
                 var loadBoardsTask = LoadFocusBoardsIfNeeded(data, customBoards);
                 await Task.WhenAll(refreshTask, loadBoardsTask);
@@ -195,11 +194,17 @@ public sealed partial class MainWindow : Window
     }
     private async Task RefreshPortraitIfNeeded(string url)
     {
+        //如果缓存的地址和当前地址相同，则不进行下载
         if (AppSettings.Current.PortraitUrl == url) return;
+        //如果不同，则保存新地址，并下载缓存
         AppSettings.Current.PortraitUrl = url;
         //进行下载缓存,并使用缓存图片
         var portraitPath = await Downloader.DownloadFileAsync(url, ApplicationData.Current.LocalCacheFolder.Path);
-        if (portraitPath == null) return;
+        if (portraitPath == null)
+        {
+            Debug.WriteLine("下载头像失败");
+            return;
+        }
         AppSettings.Current.LocalPortraitUrl = portraitPath;
     }
     private async Task LoadFocusBoardsIfNeeded(UserInfo data, List<int>? customBoards)

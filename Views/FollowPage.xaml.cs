@@ -6,6 +6,7 @@ using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -28,6 +29,10 @@ public sealed partial class FollowPage : Page
     public Increment Increment = new();
     public string Type = "follower";
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
+    // 离开本页时的滚动位置(本页是 NavigationCacheMode=Required,返回时要放回原位)
+    private double _savedScrollOffset;
+
     public FollowPage()
     {
         InitializeComponent();
@@ -40,9 +45,15 @@ public sealed partial class FollowPage : Page
 
         // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
         // 返回时 Type 与已加载的列表都还在,直接沿用即可,不要重新加载。
-        if (e.NavigationMode == NavigationMode.Back) return;
+        if (e.NavigationMode == NavigationMode.Back)
+        {
+            // 缓存实例重新挂载时滚动位置可能被重置,这里显式放回离开时的位置
+            RestoreScrollOffset();
+            return;
+        }
 
         // 前进进入:按导航参数重新设定类型(同一种页面会由不同入口用不同参数打开)。
+        _savedScrollOffset = 0;
         Type = e.TryGetParameter<string>() ?? "follower";
         FriendType.Text = Type == "follower" ? "粉丝" : "关注";
 
@@ -51,6 +62,27 @@ public sealed partial class FollowPage : Page
         Friends.Clear();
 
         await LoadFriend();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        // 记录离开时的滚动位置,供返回本页时恢复(与 DiscoverPage 的处理一致)
+        _savedScrollOffset = ContentScrollViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    ///     恢复离开本页前的滚动位置。需等重新挂载后的布局完成,否则设置的偏移会被钳制为 0;
+    ///     若框架本身就保留了偏移,这里等价于原地不动。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            ContentScrollViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
     }
 
 

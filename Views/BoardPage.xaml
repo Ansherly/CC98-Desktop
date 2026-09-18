@@ -86,7 +86,7 @@
                 </Grid>
             </SplitView.Pane>
             <SplitView.Content>
-                <ScrollViewer Grid.Row="0" Padding="15,0,15,0">
+                <ScrollViewer x:Name="TopicScrollViewer" Grid.Row="0" Padding="15,0,15,0">
                     <StackPanel>
                         <Grid>
                             <Grid.RowDefinitions>

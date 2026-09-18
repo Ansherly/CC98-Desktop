@@ -27,7 +27,7 @@
                        VerticalAlignment="Center" HorizontalAlignment="Left" />
         </Grid>
 
-        <ScrollViewer Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="7"
+        <ScrollViewer x:Name="ContentScrollViewer" Grid.Row="1" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="7"
                       Margin="0,0,0,30">
             <ItemsRepeater x:Name="FriendRepeater" ItemsSource="{x:Bind Friends}"
                            ElementPrepared="FriendRepeater_ElementPrepared">

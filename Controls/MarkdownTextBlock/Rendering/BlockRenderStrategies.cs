@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Microsoft.UI.Text;
@@ -394,6 +395,29 @@ public class HtmlBlockRenderStrategy : IRenderStrategy
         context.StartNewTextBlock();
         context.HtmlMapper.ProcessHtmlBlock(html);
         context.FinalizeCurrentTextBlock();
+    }
+}
+
+#endregion
+
+#region 数学
+
+/// <summary>
+///     块级公式($$...$$)。
+///     MathBlock 派生自 FencedCodeBlock(因此不会命中 CodeBlockRenderStrategy 的
+///     精确类型匹配),内容同样存放在 Lines 中,复用围栏块的取文本逻辑。
+///     内容可能多行,LatexBlock 的约定是「每行一个独立公式」,原样透传即可。
+/// </summary>
+public class MathBlockRenderStrategy : IRenderStrategy
+{
+    public void Render(MarkdownObject node, RenderContext context)
+    {
+        if (node is not MathBlock mathBlock) return;
+
+        var latex = RenderHelper.GetLeafText(mathBlock).Trim();
+        if (latex.Length == 0) return;
+
+        context.AddToContainer(ElementFactory.CreateBlockLatex(context, latex));
     }
 }
 

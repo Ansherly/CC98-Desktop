@@ -883,11 +883,10 @@ public sealed partial class SketchPage : Page
     {
         if (!Frame.CanGoBack) return;
 
-        // 仅当返回目标确实是主题页时才登记:本页也可能从版面页(投票入口)进入,
-        // 那种情况下登记会留下无人消费的陈旧载荷,并影响后续真正的主题页导航。
-        var backStack = Frame.BackStack;
-        if (backStack.Count > 0 && backStack[backStack.Count - 1].SourcePageType == typeof(TopicPage))
-            NavigationArgs.Set<TopicPage>(param);
+        // 仅当返回目标确实是主题页时才登记(本页也可能从版面页的投票入口进入,
+        // 那种情况下登记会留下无人消费的陈旧载荷、影响后续真正的主题页导航)。
+        // 该判断已下沉到 NavigationArgs.SetIfBackTargetIs。
+        NavigationArgs.SetIfBackTargetIs<TopicPage>(Frame, param);
 
         Frame.GoBack();
     }

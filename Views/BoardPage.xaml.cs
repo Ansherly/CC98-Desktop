@@ -31,10 +31,7 @@ public sealed partial class BoardPage
     public ObservableCollection<SimpleTopicInfo> Topics = [];
     public ObservableCollection<SearchTopicInfo> searchResultTopics= [];
     
-    public ApiService ApiService = App.Current.GetService<ApiService>();
-
-    //是否精华帖
-    public bool IsBest { get; } = false;
+    private ApiService ApiService = App.Current.GetService<ApiService>();
 
     public int BoardId { get; set; } = 0;
     private string searchKeyword = string.Empty;
@@ -58,15 +55,36 @@ public sealed partial class BoardPage
         var args = e.TryGetParameter<int>();
 
         // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
-        // 返回同一版面(如从主题页返回)时,筛选标签、已加载列表、滚动位置与搜索面板都还在,
-        // 直接沿用即可,不要重新加载。
+        // 返回同一版面(如从主题页返回)、或再次进入当前版面时,
+        // 筛选标签、已加载列表、滚动位置与搜索面板都还在,直接沿用即可,不要重新加载。
+        // 「再次进入当前版面」按产品决策等价于无操作;只有 NavigationMode.Refresh 才重新加载。
         // 注意:这里比较的是"本次传入的版面"与"当前实例正在展示的版面",
         // 因此返回到了另一个版面时会正确地走下面的重置逻辑。
-        if (e.NavigationMode == NavigationMode.Back && args == BoardId) return;
+        if (args == BoardId && e.NavigationMode != NavigationMode.Refresh)
+        {
+            // 缓存实例重新挂载时滚动位置可能被重置,这里显式放回离开时的位置
+            RestoreScrollOffset();
+            return;
+        }
 
         // 前进进入,或返回到了另一个版面:完全重置为默认的"最新"标签。
         BoardId = args;
         BoardSymbol.Symbol = BoardIconHelper.GetSymbol(BoardId, "");
+        _savedScrollOffset = 0; // 换版面后旧偏移无意义
+
+        // 换版面:代次自增以作废在途请求的结果,并允许新的加载会话立即开始
+        // (否则旧版面在途的响应会把数据追加到新版面的列表里)。
+        _boardGeneration++;
+        _isLoading = false;
+
+        // 搜索面板是"版面级"状态,必须随版面一起复位,
+        // 否则从新版面打开搜索面板会看到上一个版面的搜索结果。
+        searchKeyword = string.Empty;
+        BoardSearchBox.Text = string.Empty;
+        searchIncrement.Clear();
+        searchResultTopics.Clear();
+        SearchProgressRing.IsActive = false;
+        SearchView.IsPaneOpen = false;
 
         // 程序化复位选中项同样会触发 TypeSelectorBar_SelectionChanged,这里抑制它,
         // 统一由下面的 RefreshAsync 加载一次,避免重复加载。
@@ -82,12 +100,40 @@ public sealed partial class BoardPage
         await RefreshAsync();
     }
 
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        // 记录离开时的滚动位置,供返回本页时恢复(与 DiscoverPage 的处理一致)
+        _savedScrollOffset = TopicScrollViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    ///     恢复离开本页前的滚动位置。
+    ///     需等重新挂载后的布局完成,否则 ExtentHeight 仍为 0、设置的偏移会被钳制为 0;
+    ///     若框架本身就保留了偏移,这里等价于原地不动。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+        {
+            TopicScrollViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
+    }
 
 
-    private async Task GetData()
+
+    /// <summary>
+    ///     版面数据加载。
+    /// </summary>
+    /// <param name="generation">发起时的版面代次;响应回来时若版面已切换则丢弃结果。</param>
+    private async Task GetData(int generation)
     {
         var boardDataUrl = ApiEndpoints.Board.BoardInfo(BoardId);
         var boardDataResult = await ApiService.Fetch<BoardData>(boardDataUrl);
+        if (generation != _boardGeneration) return; // 版面已切换,丢弃过期响应
+
         if (!boardDataResult.IsSuccess || boardDataResult.Data == null)
         {
             Flower.Play(FlowStatus.Fail, boardDataResult.Message);
@@ -104,13 +150,18 @@ public sealed partial class BoardPage
         BoardData.TodayCount = data.TodayCount;
     }
 
-    private async Task<bool> LoadTopics()
+    /// <summary>
+    ///     主题列表加载(每页一组)。
+    /// </summary>
+    /// <param name="generation">发起时的版面代次;响应回来时若版面已切换则丢弃结果。</param>
+    private async Task<bool> LoadTopics(int generation)
     {
         var topicUrl = ApiEndpoints.Board.TopicList((int)FilterType, BoardId, Increment.StartIndex);
 
         if (FilterType == BoardTopicFilterType.Best)
         {
             var result = await ApiService.Fetch<BoardBest>(topicUrl);
+            if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
             if (result.IsNotValid)
             {
                 Flower.Play(FlowStatus.Fail, result.Message);
@@ -124,6 +175,7 @@ public sealed partial class BoardPage
         }
 
         var topicResult = await ApiService.Fetch<List<SimpleTopicInfo>>(topicUrl);
+        if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
         if (topicResult.IsNotValid)
         {
             Flower.Play(FlowStatus.Fail, topicResult.Message);
@@ -151,7 +203,8 @@ public sealed partial class BoardPage
 
     private async void TopicRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
     {
-        await Increment.LoadMore(args.Index, LoadTopics);
+        // 取"当前代次"再加载:若期间换了版面,LoadTopics 内部会丢弃这次响应
+        await Increment.LoadMore(args.Index, () => LoadTopics(_boardGeneration));
     }
 
     private async void BoardAction_Click(object sender, RoutedEventArgs e)
@@ -239,23 +292,32 @@ public sealed partial class BoardPage
     // 版面数据加载防重入标志
     private bool _isLoading;
 
+    // 版面代次:每次"换版面"自增,用于判断在途请求的响应是否已经过期
+    private int _boardGeneration;
+
+    // 离开本页时的滚动位置(本页是 NavigationCacheMode=Required,返回时要放回原位)
+    private double _savedScrollOffset;
+
     // 程序化复位筛选标签时置位,用于抑制 TypeSelectorBar_SelectionChanged 触发的加载
     private bool _suppressTypeChange;
 
     /// <summary>
-    /// 版面信息与主题列表并行加载,并防止并发触发。
+    /// 版面信息与主题列表并行加载,并防止同一版面内的并发触发。
     /// </summary>
     private async Task RefreshAsync()
     {
         if (_isLoading) return;
+
+        var generation = _boardGeneration;
         _isLoading = true;
         try
         {
-            await Task.WhenAll(GetData(), LoadTopics());
+            await Task.WhenAll(GetData(generation), LoadTopics(generation));
         }
         finally
         {
-            _isLoading = false;
+            // 只有"当前代次"的会话才有资格复位标志,避免旧会话提前清掉新会话的加载状态
+            if (generation == _boardGeneration) _isLoading = false;
         }
     }
 
@@ -303,28 +365,37 @@ public sealed partial class BoardPage
     }
     private async Task<bool> Search()
     {
+        var generation = _boardGeneration;
         SearchProgressRing.IsActive = true;
         searchResultTopics.Clear();
-        var searchUrl = ApiEndpoints.Topic.SearchTopicInBoard(BoardId, HttpUtility.UrlEncode(searchKeyword), searchIncrement.StartIndex);
-        var result = await ApiService.Fetch<List<SearchTopicInfo>>(searchUrl);
-        if(!result.IsSuccess||result.Data==null)
+        try
         {
-            Flower.Play(FlowStatus.Fail, result?.Message ?? "搜索失败");
-            return false;
-        }
-        var data = result.Data;
-        searchIncrement.HasMore = data.Count == searchIncrement.PageSize;
-        foreach (var topic in data)
-        {
-            if (topic.IsAnonymous)
+            var searchUrl = ApiEndpoints.Topic.SearchTopicInBoard(BoardId, HttpUtility.UrlEncode(searchKeyword), searchIncrement.StartIndex);
+            var result = await ApiService.Fetch<List<SearchTopicInfo>>(searchUrl);
+            if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期结果
+            if (!result.IsSuccess || result.Data == null)
             {
-                topic.UserName = $"匿名{topic.UserName.ToUpper()}";
+                Flower.Play(FlowStatus.Fail, result?.Message ?? "搜索失败");
+                return false;
             }
-            topic.Keyword = searchKeyword; 
+            var data = result.Data;
+            searchIncrement.HasMore = data.Count == searchIncrement.PageSize;
+            foreach (var topic in data)
+            {
+                if (topic.IsAnonymous)
+                {
+                    topic.UserName = $"匿名{topic.UserName.ToUpper()}";
+                }
+                topic.Keyword = searchKeyword;
+            }
+            searchResultTopics.AddRange(data);
+            return true;
         }
-        searchResultTopics.AddRange(data);
-        SearchProgressRing.IsActive = false;
-        return true;
+        finally
+        {
+            // 失败路径也要收掉进度环;换过版面则交给新会话管理
+            if (generation == _boardGeneration) SearchProgressRing.IsActive = false;
+        }
     }
 
     private async void NextPageButton_Click(object sender, RoutedEventArgs e)

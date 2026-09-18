@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Markdig;
+using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
@@ -158,6 +159,7 @@ public sealed partial class MarkdownTextBlock : Control
             [typeof(CodeBlock)] = new CodeBlockRenderStrategy(),
             [typeof(ThematicBreakBlock)] = new ThematicBreakRenderStrategy(),
             [typeof(HtmlBlock)] = new HtmlBlockRenderStrategy(),
+            [typeof(MathBlock)] = new MathBlockRenderStrategy(),
             [typeof(Table)] = new TableRenderStrategy(),
             [typeof(TableRow)] = new TableRowRenderStrategy(),
             [typeof(TableCell)] = new TableCellRenderStrategy(),
@@ -171,6 +173,7 @@ public sealed partial class MarkdownTextBlock : Control
             [typeof(LineBreakInline)] = new LineBreakRenderStrategy(),
             [typeof(HtmlInline)] = new HtmlInlineRenderStrategy(),
             [typeof(HtmlEntityInline)] = new HtmlEntityRenderStrategy(),
+            [typeof(MathInline)] = new MathInlineRenderStrategy(),
             [typeof(Markdig.Extensions.TaskLists.TaskList)] = new TaskListRenderStrategy()
         };
 

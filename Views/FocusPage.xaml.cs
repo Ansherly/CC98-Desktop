@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using CC98.Services.Extensions;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using CC98.Services.Helpers;
 
 // To learn more about WinUI, the WinUI project structure,
@@ -31,6 +32,10 @@ public sealed partial class FocusPage : Page
     public HashSet<int> TopicIds = [];
     public ObservableCollection<TopicInfo> Topics = [];
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
+    // 离开本页时的滚动位置(本页是 NavigationCacheMode=Required,返回时要放回原位)
+    private double _savedScrollOffset;
+
     public FocusPage()
     {
         InitializeComponent();
@@ -42,10 +47,16 @@ public sealed partial class FocusPage : Page
 
         // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
         // 返回时选中的标签与已加载的数据都还在,直接沿用即可,不要重新加载。
-        if (e.NavigationMode == NavigationMode.Back) return;
+        if (e.NavigationMode == NavigationMode.Back)
+        {
+            // 缓存实例重新挂载时滚动位置可能被重置,这里显式放回离开时的位置
+            RestoreScrollOffset();
+            return;
+        }
 
         // 前进进入(例如从导航菜单再次点击"动态"):缓存实例上会残留上次的集合与分页游标,
         // 必须先重置,否则 GetMoments 会往旧集合里追加、并从非 0 页开始取数据。
+        _savedScrollOffset = 0;
         Mode = FocusContentType.Followee;
         if (!ReferenceEquals(Navibar.SelectedItem, Navibar.Items[0]))
         {
@@ -59,6 +70,27 @@ public sealed partial class FocusPage : Page
         Topics.Clear();
         TopicIds.Clear();
         await GetMoments();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        // 记录离开时的滚动位置,供返回本页时恢复(与 DiscoverPage 的处理一致)
+        _savedScrollOffset = ContentScrollViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    ///     恢复离开本页前的滚动位置。需等重新挂载后的布局完成,否则设置的偏移会被钳制为 0;
+    ///     若框架本身就保留了偏移,这里等价于原地不动。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            ContentScrollViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
     }
 
 
