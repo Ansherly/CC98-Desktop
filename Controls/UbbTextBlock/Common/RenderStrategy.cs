@@ -24,6 +24,7 @@ public interface IRenderStrategy
     void Render(UbbNode node, RenderContext context);
 }
 
+// 文本渲染策略(含裸 URL 自动链接)
 public class TextRenderStrategy : IRenderStrategy
 {
     public void Render(UbbNode node, RenderContext context)
@@ -40,8 +41,37 @@ public class TextRenderStrategy : IRenderStrategy
                 if (nextIsBlock) content = content.TrimEnd('\r', '\n');
             }
 
-            var run = new Run { Text = content };
-            context.AddInline(run);
+            if (content.Length == 0) return;
+
+            // 裸 URL 自动链接:开关关闭、或文本处于 [url] 内部时,一律按原文输出
+            var enableAutoLink = RenderHelper.GetBool(context, RenderPropertyKeys.AutoLink, true)
+                                 && AutoLinkDetector.IsAutoLinkAllowed(node);
+            var spans = enableAutoLink ? AutoLinkDetector.Detect(content) : [];
+
+            if (spans.Count == 0)
+            {
+                context.AddInline(new Run { Text = content });
+                return;
+            }
+
+            // 按识别结果分段输出:普通文本 → Run,链接 → Hyperlink(样式与 [url] 一致,点击同样抛 MediaClicked)
+            var cursor = 0;
+            foreach (var span in spans)
+            {
+                if (span.Start > cursor) context.AddInline(new Run { Text = content[cursor..span.Start] });
+
+                var hyperlink = new Hyperlink();
+                RenderHelper.ApplyLinkStyle(hyperlink, context);
+                hyperlink.Inlines.Add(new Run { Text = content.Substring(span.Start, span.Length) });
+
+                var url = span.Url;
+                hyperlink.Click += (_, _) => context.Control.OnMediaClicked(url, MediaType.Link);
+                context.AddInline(hyperlink);
+
+                cursor = span.Start + span.Length;
+            }
+
+            if (cursor < content.Length) context.AddInline(new Run { Text = content[cursor..] });
         }
     }
 }
@@ -563,6 +593,12 @@ public class RenderHelper
     public static FontFamily? GetFontFamily(RenderContext context, string key)
     {
         return context.Properties.TryGetValue(key, out var value) ? value as FontFamily : null;
+    }
+
+    /// <summary>从渲染属性袋中取出 bool(键不存在或类型不符时返回 <paramref name="fallback" />)。</summary>
+    public static bool GetBool(RenderContext context, string key, bool fallback = false)
+    {
+        return context.Properties.TryGetValue(key, out var value) && value is bool flag ? flag : fallback;
     }
 
     /// <summary>

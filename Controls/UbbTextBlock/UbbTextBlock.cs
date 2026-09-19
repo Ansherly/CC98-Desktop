@@ -85,6 +85,12 @@ public sealed partial class UbbTextBlock : Control
             typeof(UbbTextBlock),
             new(false, OnRenderPropertyChanged));
 
+    public static readonly DependencyProperty AutoLinkProperty =
+        DependencyProperty.Register(
+            nameof(AutoLink),
+            typeof(bool),
+            typeof(UbbTextBlock),
+            new(true, OnRenderPropertyChanged));
 
     public string UbbText
     {
@@ -144,6 +150,13 @@ public sealed partial class UbbTextBlock : Control
     {
         get => (bool)GetValue(HideImageProperty);
         set => SetValue(HideImageProperty, value);
+    }
+
+    /// <summary>是否把正文里的裸 URL 自动渲染成可点击链接(默认开启)。</summary>
+    public bool AutoLink
+    {
+        get => (bool)GetValue(AutoLinkProperty);
+        set => SetValue(AutoLinkProperty, value);
     }
 
     private StackPanel _rootPanel;
@@ -267,6 +280,7 @@ public sealed partial class UbbTextBlock : Control
                 LinkForeground ?? new SolidColorBrush(Colors.LightSeaGreen);   // 传统色
             Context.Properties[RenderPropertyKeys.ImageMaxWidth] = ImageMaxWidth;
             Context.Properties[RenderPropertyKeys.ImageMaxHeight] = ImageMaxHeight;
+            Context.Properties[RenderPropertyKeys.AutoLink] = AutoLink;
 
             // 渲染文档:逐个顶层节点渲染,单个节点出错不影响其余内容
             foreach (var node in _document.Root.Children)

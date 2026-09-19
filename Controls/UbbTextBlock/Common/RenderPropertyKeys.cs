@@ -16,4 +16,6 @@ internal static class RenderPropertyKeys
     public const string LinkForeground = "LinkForeground";
     public const string ImageMaxWidth = "ImageMaxWidth";
     public const string ImageMaxHeight = "ImageMaxHeight";
+    /// <summary>是否自动链接裸 URL(与 UbbTextBlock.AutoLink 对应)。</summary>
+    public const string AutoLink = "AutoLink";
 }
