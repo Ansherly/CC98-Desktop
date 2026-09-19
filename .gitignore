@@ -365,3 +365,4 @@ FodyWeavers.xsd
 # DSH 编辑器的本地状态数据(不应提交)
 .dsh_better_edit/
 /UbbTextBlock优化规划书.md
+/UBB自动链接功能规划书.md
