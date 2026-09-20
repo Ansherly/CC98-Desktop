@@ -28,40 +28,58 @@ internal static class ElementFactory
     /// <summary>
     ///     创建图片控件。
     /// </summary>
-    public static Picture.Picture CreatePicture(RenderContext context, string src, string alt)
+    /// <param name="context">渲染上下文。</param>
+    /// <param name="src">图片地址。</param>
+    /// <param name="alt">替代文本。</param>
+    /// <param name="width">HTML <c>width</c> 属性指定的宽度(像素);为空时用属性袋里的最大宽度。</param>
+    /// <param name="height">HTML <c>height</c> 属性指定的高度(像素);为空时用属性袋里的最大高度。</param>
+    public static Picture.Picture CreatePicture(RenderContext context, string src, string alt,
+        double? width = null, double? height = null)
     {
         var maxWidth = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxWidth) ?? double.PositiveInfinity;
         var maxHeight = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxHeight) ?? double.PositiveInfinity;
         var hideImage = context.GetProperty<bool?>(RenderPropertyKeys.HideImage) ?? false;
 
-        return new Picture.Picture
+        var picture = new Picture.Picture
         {
             LoadImageCallback = SmartImageLoader.Default,
             Hide = hideImage, // 无图模式,与 UBB 的 Hide = Control.HideImage 对齐
             Src = src,
-            MaxWidth = maxWidth,
-            MaxHeight = maxHeight,
+            MaxWidth = width ?? maxWidth,
+            MaxHeight = height ?? maxHeight,
             Stretch = Stretch.Uniform
         };
+
+        // HTML 的 width/height 是"目标尺寸"而不是上限,这里按浏览器行为固定尺寸
+        if (width is > 0) picture.Width = width.Value;
+        if (height is > 0) picture.Height = height.Value;
+
+        return picture;
     }
 
     /// <summary>
     ///     创建块级图片(独占段落时使用)。
     /// </summary>
-    public static UIElement CreateBlockImage(RenderContext context, string src, string alt)
+    public static UIElement CreateBlockImage(RenderContext context, string src, string alt,
+        double? width = null, double? height = null)
     {
-        var picture = CreatePicture(context, src, alt);
+        var picture = CreatePicture(context, src, alt, width, height);
         return CreateImageButton(context, picture, alt);
     }
 
     /// <summary>
-    ///     创建行内图片(限高,避免撑破段落行高)。
+    ///     创建行内图片。未指定尺寸时限高,避免撑破段落行高;指定了 width/height 时按指定尺寸渲染
+    ///     (HTML 里 <c>&lt;a&gt;&lt;img width=144&gt;&lt;/a&gt;</c> 这类用法很常见)。
     /// </summary>
-    public static Inline CreateInlineImage(RenderContext context, string src, string alt)
+    public static Inline CreateInlineImage(RenderContext context, string src, string alt,
+        double? width = null, double? height = null)
     {
-        var picture = CreatePicture(context, src, alt);
-        var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
-        picture.MaxHeight = fontSize * 1.5;
+        var picture = CreatePicture(context, src, alt, width, height);
+        if (width is null && height is null)
+        {
+            var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+            picture.MaxHeight = fontSize * 1.5;
+        }
 
         return new InlineUIContainer { Child = CreateImageButton(context, picture, alt) };
     }
@@ -111,15 +129,27 @@ internal static class ElementFactory
 
         if (context.Control.Foreground is not null) textBlock.Foreground = context.Control.Foreground;
 
+        const double borderThickness = 1;
+        const double paddingBottom = 1;
+        // 等宽字体的下降部高度 ≈ 0.25 em(Consolas 实测;换其它等宽字体时这里可能要微调)
+        const double monoDescentEm = 0.25;
+
+        // ⚠️ `InlineUIContainer` 把子元素的**外边距盒底边**对齐到**文本基线**,并没有"按文字基线对齐"
+        // 的开关(Inline / InlineUIContainer 上都不存在 BaselineAlignment 之类的属性,那是 WPF 才有的)。
+        // 因此若不补偿,代码字的字底(基线下方还有一整个下降部)会整体落在基线的**上方**,
+        // 看起来比周围文字高一截。这里把底边再下移"下边框 + 底部内边距 + 下降部",
+        // 代码字的基线才会与同一行的普通文字齐平。
+        var bottomOverflow = borderThickness + paddingBottom + fontSize * 0.92 * monoDescentEm;
+
         var border = new Border
         {
             Background = context.GetProperty<Brush>(RenderPropertyKeys.CodeBackground),
             BorderBrush = context.GetBrush(RenderPropertyKeys.BorderBrush,
                 BrushHelper.CreateSubtleBrush(context.Control.Foreground, 0x33)),
-            BorderThickness = new Thickness(1),
+            BorderThickness = new Thickness(borderThickness),
             CornerRadius = new CornerRadius(3),
-            Padding = new Thickness(4, 0, 4, 1),
-            Margin = new Thickness(1, 0, 1, -1),
+            Padding = new Thickness(4, 0, 4, paddingBottom),
+            Margin = new Thickness(1, 0, 1, -bottomOverflow),
             VerticalAlignment = VerticalAlignment.Bottom,
             Child = textBlock
         };

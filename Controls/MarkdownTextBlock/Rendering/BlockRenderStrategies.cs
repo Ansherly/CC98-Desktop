@@ -90,6 +90,9 @@ public class QuoteRenderStrategy : IRenderStrategy
         context.ParagraphSpacing = previousSpacing;
         context.QuoteNestingLevel--;
 
+        // 末尾段落的段后距会与引用块底部内边距叠加,导致下方留白大于上方;这里抹平
+        RenderHelper.TrimVerticalEdgeMargins(contentPanel);
+
         context.AddToContainer(border);
     }
 }
@@ -337,6 +340,9 @@ public class TableRenderStrategy : IRenderStrategy
         foreach (var child in cell) childContext.RenderNode(child);
         childContext.FinalizeCurrentTextBlock();
 
+        // 单元格的内边距是上下对称的,末尾段落的段后距会把文字顶得偏上;这里抹平
+        RenderHelper.TrimVerticalEdgeMargins(contentPanel);
+
         // 单元格对齐(基于列定义)
         var textAlignment = alignment switch
         {
@@ -384,7 +390,7 @@ public class TableCellRenderStrategy : IRenderStrategy
 
 #region HTML 块
 
-/// <summary>HTML 块:走白名单状态机,逐段解析标签与文本。</summary>
+/// <summary>HTML 块:交给 AngleSharp 解析 DOM,再按白名单映射为 WinUI 元素(见 <see cref="HtmlBlockRenderer" />)。</summary>
 public class HtmlBlockRenderStrategy : IRenderStrategy
 {
     public void Render(MarkdownObject node, RenderContext context)
@@ -392,8 +398,8 @@ public class HtmlBlockRenderStrategy : IRenderStrategy
         if (node is not LeafBlock leaf) return;
 
         var html = RenderHelper.GetLeafText(leaf);
-        context.StartNewTextBlock();
-        context.HtmlMapper.ProcessHtmlBlock(html);
+        context.FinalizeCurrentTextBlock();
+        new HtmlBlockRenderer(context).Render(html);
         context.FinalizeCurrentTextBlock();
     }
 }

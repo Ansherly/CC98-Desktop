@@ -1,6 +1,8 @@
-using System.Text;
+﻿using System.Text;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Microsoft.UI.Xaml;
+using Microsoft.UI.Xaml.Controls;
 
 namespace CC98.Controls.MarkdownTextBlock.Common;
 
@@ -73,7 +75,27 @@ public static class RenderHelper
     }
 
     /// <summary>
-    ///     判断图片是否独占一个段落(独占时按块级图片渲染,否则按行内图片渲染)。
+    ///     抹平首尾子元素的竖向外边距,使容器内部的上下留白等于容器自身的内边距。
+    /// </summary>
+    /// <remarks>
+    ///     引用块这类"带内边距的容器"里,末尾段落自带的段后距会和容器底部内边距**叠加**,
+    ///     表现为文本下方留白明显大于上方(看起来没有垂直居中);第一个块若带段前距同理。
+    ///     中间段落的外边距保留,用作段落间距。
+    /// </remarks>
+    /// <param name="panel">容器面板。</param>
+    public static void TrimVerticalEdgeMargins(Panel panel)
+    {
+        if (panel.Children.Count == 0) return;
+
+        if (panel.Children[0] is FrameworkElement first && first.Margin.Top > 0)
+            first.Margin = new Thickness(first.Margin.Left, 0, first.Margin.Right, first.Margin.Bottom);
+
+        if (panel.Children[^1] is FrameworkElement last && last.Margin.Bottom > 0)
+            last.Margin = new Thickness(last.Margin.Left, last.Margin.Top, last.Margin.Right, 0);
+    }
+
+    /// <summary>
+    ///     判断链接是否为"独占一段的图片"。
     /// </summary>
     public static bool IsStandaloneImage(LinkInline link)
     {

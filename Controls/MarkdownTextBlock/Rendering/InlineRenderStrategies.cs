@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Markdig.Extensions.Mathematics;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
@@ -75,7 +75,9 @@ public class CodeInlineRenderStrategy : IRenderStrategy
     {
         if (node is not CodeInline code) return;
 
-        context.AddInline(ElementFactory.CreateInlineCode(context, code.Content ?? string.Empty));
+        // 行内代码用 InlineUIContainer 承载背景色(Span 没有背景色):
+        // 一旦它出现在链接里,同样只能退出链接落地(见 RenderContext.AddInlineElement)
+        context.AddInlineElement(ElementFactory.CreateInlineCode(context, code.Content ?? string.Empty));
     }
 }
 
@@ -102,8 +104,13 @@ public class LinkRenderStrategy : IRenderStrategy
                 return;
             }
 
-            if (RenderHelper.IsStandaloneImage(link))
-                context.AddToContainer(ElementFactory.CreateBlockImage(context, src, alt));
+            // 独占一段、或被链接包住(`[![alt](src)](url)`)时,一律按块级图片落地:
+            // 后者是因为 Hyperlink 不接受 InlineUIContainer(WinUI 限制),必须退出链接;
+            // 也因此不能走行内图片工厂(它会给未指尺寸的图片按行高限高)。
+            // 用 AddBlockElement 而不是 AddToContainer:块级图片要跟随当前块级对齐
+            // (HTML 的 align / text-align / <center> 会写 RenderContext.BlockAlignment)
+            if (RenderHelper.IsStandaloneImage(link) || context.IsInsideHyperlink)
+                context.AddBlockElement(ElementFactory.CreateBlockImage(context, src, alt));
             else
                 context.AddInline(ElementFactory.CreateInlineImage(context, src, alt));
 
@@ -191,7 +198,8 @@ public class TaskListRenderStrategy : IRenderStrategy
     {
         if (node is not TaskList taskList) return;
 
-        context.AddInline(ElementFactory.CreateTaskListCheckBox(taskList.Checked));
+        // 勾选框是 UI 元素:嵌在链接里时同样要退出链接(见 RenderContext.AddInlineElement)
+        context.AddInlineElement(ElementFactory.CreateTaskListCheckBox(taskList.Checked));
     }
 }
 
@@ -210,7 +218,7 @@ public class MathInlineRenderStrategy : IRenderStrategy
         var latex = math.Content.ToString()?.Trim() ?? string.Empty;
         if (latex.Length == 0) return;
 
-        context.AddInline(ElementFactory.CreateInlineLatex(context, latex));
+        context.AddInlineElement(ElementFactory.CreateInlineLatex(context, latex));
     }
 }
 

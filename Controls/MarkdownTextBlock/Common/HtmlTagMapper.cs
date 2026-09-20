@@ -1,9 +1,10 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using Markdig.Syntax.Inlines;
 using Microsoft.UI.Text;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using CC98.Controls.MarkdownTextBlock.Rendering;
@@ -12,21 +13,19 @@ using Inline = Microsoft.UI.Xaml.Documents.Inline;
 namespace CC98.Controls.MarkdownTextBlock.Common;
 
 /// <summary>
-///     HTML 基本解析:以白名单状态机把 Markdig 产出的 HTML 标签 / 块映射为行内格式。
-///     白名单:b / strong / i / em / u / s / strike / del / code / a / img / br / p。
-///     白名单以外的标签按纯文本原样显示(不静默丢弃内容)。
+///     HTML 基本解析:以白名单状态机把 Markdig 产出的行内 HTML 标签映射为行内格式。
+///     白名单见 <see cref="HtmlTagFacts.InlineContainers" />(b / strong / i / em / u / s / del / code / a / span / mark / font …)。
+///     白名单以外的标签按原文显示(不静默丢弃内容);<c>script</c>/<c>style</c> 一类由块级渲染器整段丢弃。
 /// </summary>
 public class HtmlTagMapper
 {
-    private static readonly HashSet<string> ContainerTags = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "b", "strong", "i", "em", "u", "s", "strike", "del", "code", "a"
-    };
+    /// <summary>行内容器标签(与块级渲染器共用同一张表,避免两处白名单走偏)。</summary>
+    private static readonly HashSet<string> ContainerTags = HtmlTagFacts.InlineContainers;
 
     private readonly RenderContext _context;
 
-    /// <summary>当前打开的 HTML 容器标签栈(标签名 + 容器实例)。</summary>
-    private readonly List<(string Name, Inline Container)> _openTags = new();
+    /// <summary>当前打开的 HTML 容器标签栈(标签名 + 容器实例 + 打开时保存的块级对齐)。</summary>
+    private readonly List<(string Name, Inline Container, HorizontalAlignment? SavedAlignment)> _openTags = new();
 
     public HtmlTagMapper(RenderContext context)
     {
@@ -38,12 +37,40 @@ public class HtmlTagMapper
     {
         while (_openTags.Count > 0)
         {
+            var closing = _openTags[^1];
             _openTags.RemoveAt(_openTags.Count - 1);
             _context.EndInlineContainer();
+            _context.BlockAlignment = closing.SavedAlignment;
         }
     }
 
+    /// <summary>
+    ///     登记一个已打开的行内容器:同时记录当前块级对齐,并在标签声明了 <c>align</c> / <c>text-align</c> 时更新它。
+    /// </summary>
+    /// <param name="name">标签名。</param>
+    /// <param name="container">容器实例。</param>
+    /// <param name="attributes">标签属性。</param>
+    private void PushOpenTag(string name, Inline container, IReadOnlyDictionary<string, string> attributes)
+    {
+        _openTags.Add((name, container, _context.BlockAlignment));
+
+        if (HtmlAlignment.TryParse(attributes, out var declared)) _context.BlockAlignment = declared;
+    }
+
     #region 行内 HTML
+
+    /// <summary>追加一段纯文本(HTML 文本节点):解码实体后写入当前段落。</summary>
+    public void ProcessText(string? text)
+    {
+        if (!string.IsNullOrEmpty(text)) AppendText(text);
+    }
+
+    /// <summary>按标签名闭合一个行内容器(供块级渲染器遍历 DOM 时调用)。</summary>
+    public void ProcessEndTag(string? tagName)
+    {
+        if (string.IsNullOrWhiteSpace(tagName)) return;
+        CloseTag(tagName.Trim().TrimStart('/').ToLowerInvariant());
+    }
 
     /// <summary>
     ///     处理单个行内标签。
@@ -81,12 +108,24 @@ public class HtmlTagMapper
             var attributes = ParseAttributes(tag);
             var src = attributes.GetValueOrDefault("src", string.Empty);
             var alt = attributes.GetValueOrDefault("alt", string.Empty);
-            if (string.IsNullOrWhiteSpace(src)) return;
 
-            if (blockContext)
-                _context.AddToContainer(ElementFactory.CreateBlockImage(_context, src, alt));
+            // 不可信地址(javascript: / data: …)一律不加载,按原文显示
+            if (!HtmlTagFacts.IsSafeImageUrl(src))
+            {
+                AppendText(tag);
+                return;
+            }
+
+            // 链接内不能放 InlineUIContainer(WinUI 限制:Hyperlink.Inlines 会抛 E_INVALIDARG),
+            // 必须退出链接、按【块级】图片落地 —— 与 UBB 的 [url][img][/url] 行为一致;
+            // 也因此不能套用行内图片工厂(它会给未指尺寸的图片按行高限高)。
+            var width = HtmlTagFacts.ParsePixelLength(attributes.GetValueOrDefault("width"));
+            var height = HtmlTagFacts.ParsePixelLength(attributes.GetValueOrDefault("height"));
+
+            if (blockContext || _context.IsInsideHyperlink)
+                _context.AddBlockElement(ElementFactory.CreateBlockImage(_context, src, alt, width, height));
             else
-                _context.AddInline(ElementFactory.CreateInlineImage(_context, src, alt));
+                _context.AddInline(ElementFactory.CreateInlineImage(_context, src, alt, width, height));
 
             return;
         }
@@ -117,53 +156,77 @@ public class HtmlTagMapper
         if (isSelfClosing) CloseTag(name);
     }
 
+    /// <summary>打开一个行内容器:按标签映射样式,并应用 style / font 等属性。</summary>
     private void OpenTag(string name, string rawTag)
     {
-        switch (name)
+        var attributes = ParseAttributes(rawTag);
+        var style = HtmlStyle.Parse(attributes.GetValueOrDefault("style"));
+        var baseFontSize = _context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
+
+        // 链接:先做 URL 安全校验;不可信的地址整段按原文显示,不产生可点击元素
+        if (name is "a")
         {
-            case "b":
-            case "strong":
+            var href = attributes.GetValueOrDefault("href", string.Empty);
+            if (!HtmlTagFacts.IsSafeLinkUrl(href))
             {
-                var bold = new Bold();
-                var boldFontFamily = _context.GetProperty<FontFamily>(RenderPropertyKeys.BoldFontFamily);
-                if (boldFontFamily is not null) bold.FontFamily = boldFontFamily;
-                _context.BeginInlineContainer(bold);
-                break;
-            }
-            case "i":
-            case "em":
-                _context.BeginInlineContainer(new Italic());
-                break;
-            case "u":
-                _context.BeginInlineContainer(new Underline());
-                break;
-            case "s":
-            case "strike":
-            case "del":
-                _context.BeginInlineContainer(new Span { TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough });
-                break;
-            case "code":
-                _context.BeginInlineContainer(new Span
-                {
-                    FontFamily = _context.GetProperty<FontFamily>(RenderPropertyKeys.MonoFontFamily)
-                });
-                break;
-            case "a":
-            {
-                var attributes = ParseAttributes(rawTag);
-                var href = attributes.GetValueOrDefault("href", string.Empty);
-                var hyperlink = new Hyperlink();
-                hyperlink.Click += (_, _) =>
-                    _context.Control.RaiseLinkClicked(href, CollectText(hyperlink));
-                _context.BeginInlineContainer(hyperlink);
-                _openTags.Add((name, hyperlink));
+                AppendText(rawTag);
                 return;
             }
-            default:
-                return;
+
+            var hyperlink = new Hyperlink();
+            hyperlink.Click += (_, _) => _context.Control.RaiseLinkClicked(href, CollectText(hyperlink));
+            HtmlInlineFormatting.ApplyStyle(hyperlink, _context, style);
+            _context.BeginInlineContainer(hyperlink);
+            PushOpenTag(name, hyperlink, attributes);
+            return;
         }
 
-        _openTags.Add((name, null!));
+        Span container = name switch
+        {
+            "b" or "strong" => CreateBold(),
+            "i" or "em" => new Italic(),
+            "u" or "ins" => new Underline(),
+            "s" or "strike" or "del" => new Span { TextDecorations = Windows.UI.Text.TextDecorations.Strikethrough },
+            "code" or "kbd" or "samp" or "var" or "tt" => new Span
+            {
+                FontFamily = _context.GetProperty<FontFamily>(RenderPropertyKeys.MonoFontFamily)
+            },
+            "small" => new Span { FontSize = baseFontSize * 0.85 },
+            "big" => new Span { FontSize = baseFontSize * 1.2 },
+            "sub" => CreateSubSuperscript(false, baseFontSize),
+            "sup" => CreateSubSuperscript(true, baseFontSize),
+            // span / cite / q / abbr / dfn / time / bdi / bdo / label / font 等:只承载属性,不加默认格式
+            _ => new Span()
+        };
+
+        // <font color= size= face=>:传统属性(face 忽略,不引入任意字体)
+        if (name is "font") HtmlInlineFormatting.ApplyFontAttributes(container, _context, attributes);
+
+        // <mark>:WinUI 的 Span 没有背景色,退化为"加粗"提示重点(见 HtmlInlineFormatting 的说明)
+        if (name is "mark") container.FontWeight = FontWeights.Bold;
+
+        HtmlInlineFormatting.ApplyStyle(container, _context, style);
+
+        _context.BeginInlineContainer(container);
+        PushOpenTag(name, container, attributes);
+    }
+
+    private Bold CreateBold()
+    {
+        var bold = new Bold();
+        var boldFontFamily = _context.GetProperty<FontFamily>(RenderPropertyKeys.BoldFontFamily);
+        if (boldFontFamily is not null) bold.FontFamily = boldFontFamily;
+        return bold;
+    }
+
+    /// <summary>
+    ///     上下标:缩小字号。
+    ///     WinUI 的 Span 没有基线上移,字体变体(Typography.FontVariants)在不同字体下表现不一致,
+    ///     这里只做缩小处理 —— 需要严格排版时请让作者用图片或公式。
+    /// </summary>
+    private static Span CreateSubSuperscript(bool isSuperscript, double baseFontSize)
+    {
+        return new Span { FontSize = baseFontSize * 0.75 };
     }
 
     private void CloseTag(string name)
@@ -173,8 +236,10 @@ public class HtmlTagMapper
             {
                 while (_openTags.Count > i)
                 {
+                    var closing = _openTags[^1];
                     _openTags.RemoveAt(_openTags.Count - 1);
                     _context.EndInlineContainer();
+                    _context.BlockAlignment = closing.SavedAlignment; // 恢复外层对齐
                 }
 
                 return;
@@ -187,48 +252,8 @@ public class HtmlTagMapper
 
     #region 块级 HTML
 
-    /// <summary>
-    ///     处理整段 HTML 块:按标签切分,文本按纯文本追加。
-    /// </summary>
-    public void ProcessHtmlBlock(string? html)
-    {
-        if (string.IsNullOrWhiteSpace(html)) return;
-
-        var index = 0;
-        while (index < html.Length)
-        {
-            var open = html.IndexOf('<', index);
-
-            // 标签之前的纯文本
-            if (open < 0)
-            {
-                AppendText(html[index..]);
-                break;
-            }
-
-            if (open > index) AppendText(html[index..open]);
-
-            var close = html.IndexOf('>', open);
-            if (close < 0)
-            {
-                AppendText(html[open..]);
-                break;
-            }
-
-            // 跳过注释 <!-- -->
-            if (html.AsSpan(open, close - open + 1).StartsWith("<!--"))
-            {
-                var end = html.IndexOf("-->", open, StringComparison.Ordinal);
-                index = end < 0 ? html.Length : end + 3;
-                continue;
-            }
-
-            ProcessTag(html[open..(close + 1)], true);
-            index = close + 1;
-        }
-
-        Reset();
-    }
+    // 块级 HTML 自 2026-09-19 起由 `Rendering/HtmlBlockRenderer`(AngleSharp DOM + 白名单映射)负责,
+    // 原先"按 < > 切分"的 ProcessHtmlBlock 已移除 —— 需要块级能力请走 HtmlBlockRenderer。
 
     #endregion
 

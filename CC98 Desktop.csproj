@@ -177,6 +177,7 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+	<PackageReference Include="AngleSharp" Version="1.8.2" />
 	<PackageReference Include="ColorCode.WinUI" Version="2.0.15" />
 	<PackageReference Include="CommunityToolkit.Labs.WinUI.Controls.Shimmer" Version="0.1.260415-build.2574" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.Ribbon" Version="0.1.250811-build.10" />
