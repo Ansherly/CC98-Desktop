@@ -496,9 +496,10 @@ public sealed partial class MainWindow : Window
                     {
                         ContentFrame.Navigate(typeof(BoardPage), int.Parse(tag));
                     }
-                    catch
+                    catch(Exception ex)
                     {
-                        Flower.Play(FlowStatus.Fail, "无效的版块ID");
+                        Debug.WriteLine(ex.Message);
+                        Flower.Play(FlowStatus.Fail, ex.Message);
                     }
                 }
                 break;

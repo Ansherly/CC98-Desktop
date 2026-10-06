@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using System;
 using System.Collections.Generic;
+using CC98.Objects;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -35,13 +36,33 @@ public static class TextBlockExtensions
         obj.SetValue(HighlightedTextProperty, value);
     }
 
+    /// <summary>
+    ///     高亮信息(CC98 的 HighlightInfo:Color / IsBold / IsItalic)。
+    ///     **本属性为 null 时整条高亮逻辑不生效**,TextBlock 退化为原生行为(只赋 Text)。
+    ///     用对象整体传入而不是拆成多个附加属性,一是让"是否高亮"有唯一判据,
+    ///     二是把每个标题要触发的重算次数从 6 次降到 1 次。
+    /// </summary>
+    public static readonly DependencyProperty HighlightInfoProperty =
+        DependencyProperty.RegisterAttached(
+            "HighlightInfo",
+            typeof(object),
+            typeof(TextBlockExtensions),
+            new PropertyMetadata(null, OnHighlightedTextChanged));
+
+    public static object? GetHighlightInfo(TextBlock obj) => obj.GetValue(HighlightInfoProperty);
+
+    public static void SetHighlightInfo(TextBlock obj, object? value) => obj.SetValue(HighlightInfoProperty, value);
+
     // 可选的：高亮颜色
+    // 注意:必须挂回调。元素被列表回收复用时,新条目会重设本属性(常为 null);
+    // 若无回调,最后一次重算可能仍使用上一个条目残留的颜色,导致无 HighlightInfo
+    // 的帖子"随机"带上别的帖子的高亮色。
     public static readonly DependencyProperty HighlightColorProperty =
         DependencyProperty.RegisterAttached(
             "HighlightColor",
             typeof(string),
             typeof(TextBlockExtensions),
-            new PropertyMetadata(""));
+            new PropertyMetadata("", OnHighlightedTextChanged));
     public static readonly DependencyProperty BoldFontFamilyProperty =
     DependencyProperty.RegisterAttached(
         "BoldFontFamily",
@@ -116,10 +137,7 @@ public static class TextBlockExtensions
     {
         var text = GetHighlightedText(textBlock);
         var keywordsStr = GetKeywords(textBlock);
-        var colorStr = GetHighlightColor(textBlock);
-        var isBold = GetIsBold(textBlock);
-        var isItalic = GetIsItalic(textBlock);
-        var boldFontFamily = GetBoldFontFamily(textBlock);
+        var info = GetHighlightInfo(textBlock) as HighlightInfo;
 
         if (string.IsNullOrEmpty(text))
         {
@@ -128,12 +146,24 @@ public static class TextBlockExtensions
             return;
         }
 
-        if (string.IsNullOrEmpty(keywordsStr))
+        // 既没有 HighlightInfo 也没有关键词 → 完全按原生 TextBlock 处理:
+        // 直接赋 Text(Text 与 Inlines 互斥,等价于一个普通 Run),不构造 Run、不做正则匹配。
+        // 版面页的普通主题行走的就是这条路径;幂等判断让重复回调(多个附加属性各触发一次)
+        // 在第二次之后直接返回,不再产生任何原生文本重排。
+        if (info is null && string.IsNullOrEmpty(keywordsStr))
         {
+            if (textBlock.Inlines.Count == 0 && textBlock.Text == text) return;
+
             textBlock.Inlines.Clear();
-            textBlock.Inlines.Add(CreatePlainRun(text));
+            textBlock.Text = text;
             return;
         }
+
+        // 样式来源:HighlightInfo 优先,缺省回退到旧的独立属性(搜索模板仍在用那一套)
+        var colorStr = string.IsNullOrEmpty(info?.Color) ? GetHighlightColor(textBlock) : info!.Color;
+        var isBold = info?.IsBold ?? GetIsBold(textBlock);
+        var isItalic = info?.IsItalic ?? GetIsItalic(textBlock);
+        var boldFontFamily = GetBoldFontFamily(textBlock);
 
         // 未指定高亮颜色时 highlightBrush 为 null：高亮 Run 不覆盖前景色，
         // 从而继承 TextBlock 的 ThemeResource(主题感知)前景色，避免深色模式下黑字不可读。
@@ -144,6 +174,15 @@ public static class TextBlockExtensions
         }
 
         textBlock.Inlines.Clear();
+
+        // 有 HighlightInfo 但没有关键词:整段套用该样式。
+        // CC98 的 HighlightInfo 语义本来就是"整条标题命中关注关键词",无需再做关键词切分,
+        // 因此这里省掉了每行一次 Regex 构造 + 逐段匹配。
+        if (info is not null && string.IsNullOrEmpty(keywordsStr))
+        {
+            textBlock.Inlines.Add(CreateStyledRun(text, highlightBrush, isBold, isItalic, boldFontFamily, textBlock.FontFamily));
+            return;
+        }
 
         var keywords = keywordsStr.Split(new[] { ' ' }, StringSplitOptions.RemoveEmptyEntries);
         var pattern = string.Join("|", keywords.Select(k => Regex.Escape(k)));

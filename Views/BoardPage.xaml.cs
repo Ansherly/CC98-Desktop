@@ -20,6 +20,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System.Web;
 using System.Linq;
 using System.Net.WebSockets;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace CC98.Views;
 
@@ -54,23 +55,10 @@ public sealed partial class BoardPage
 
         var args = e.TryGetParameter<int>();
 
-        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
-        // 返回同一版面(如从主题页返回)、或再次进入当前版面时,
-        // 筛选标签、已加载列表、滚动位置与搜索面板都还在,直接沿用即可,不要重新加载。
-        // 「再次进入当前版面」按产品决策等价于无操作;只有 NavigationMode.Refresh 才重新加载。
-        // 注意:这里比较的是"本次传入的版面"与"当前实例正在展示的版面",
-        // 因此返回到了另一个版面时会正确地走下面的重置逻辑。
-        if (args == BoardId && e.NavigationMode != NavigationMode.Refresh)
-        {
-            // 缓存实例重新挂载时滚动位置可能被重置,这里显式放回离开时的位置
-            RestoreScrollOffset();
-            return;
-        }
-
-        // 前进进入,或返回到了另一个版面:完全重置为默认的"最新"标签。
+        // 本页不再使用 NavigationCacheMode=Required:每次进入都是新实例,
+        // 不需要"沿用上次状态"的分支,一律按本次传入的版面完全重置。
         BoardId = args;
         BoardSymbol.Symbol = BoardIconHelper.GetSymbol(BoardId, "");
-        _savedScrollOffset = 0; // 换版面后旧偏移无意义
 
         // 换版面:代次自增以作废在途请求的结果,并允许新的加载会话立即开始
         // (否则旧版面在途的响应会把数据追加到新版面的列表里)。
@@ -89,6 +77,8 @@ public sealed partial class BoardPage
         // 程序化复位选中项同样会触发 TypeSelectorBar_SelectionChanged,这里抑制它,
         // 统一由下面的 RefreshAsync 加载一次,避免重复加载。
         _suppressTypeChange = true;
+        // IsSelected 决定下划线的位置,SelectedItem 是逻辑选中项 —— 两者一起改才不会错位
+        TypeSelectorBar.Items[0].IsSelected = true;
         TypeSelectorBar.SelectedItem = TypeSelectorBar.Items[0];
         _suppressTypeChange = false;
 
@@ -96,30 +86,14 @@ public sealed partial class BoardPage
         Increment.Clear();
         Topics.Clear();
 
+        // 换版面后回到第一页(抑制事件,真正的加载交给下面的 RefreshAsync)
+        _syncingPager = true;
+        Pager.SelectedPageIndex = 0;
+        Pager.NumberOfPages = 1;
+        _syncingPager = false;
+
         // 版面信息与主题列表互不依赖,并行加载
         await RefreshAsync();
-    }
-
-    protected override void OnNavigatedFrom(NavigationEventArgs e)
-    {
-        base.OnNavigatedFrom(e);
-        // 记录离开时的滚动位置,供返回本页时恢复(与 DiscoverPage 的处理一致)
-        _savedScrollOffset = TopicScrollViewer.VerticalOffset;
-    }
-
-    /// <summary>
-    ///     恢复离开本页前的滚动位置。
-    ///     需等重新挂载后的布局完成,否则 ExtentHeight 仍为 0、设置的偏移会被钳制为 0;
-    ///     若框架本身就保留了偏移,这里等价于原地不动。
-    /// </summary>
-    private void RestoreScrollOffset()
-    {
-        if (_savedScrollOffset <= 0) return;
-
-        DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
-        {
-            TopicScrollViewer.ChangeView(null, _savedScrollOffset, null, true);
-        });
     }
 
 
@@ -148,6 +122,9 @@ public sealed partial class BoardPage
         BoardData.BoardMasters = data.BoardMasters;
         BoardData.TopicCount = data.TopicCount;
         BoardData.TodayCount = data.TodayCount;
+
+        // 分页组件按"总条数 / 每页条数"向上取整,至少 1 页
+        Pager.NumberOfPages = Math.Max((data.TopicCount + Increment.PageSize - 1) / Increment.PageSize, 1);
     }
 
     /// <summary>
@@ -167,11 +144,8 @@ public sealed partial class BoardPage
                 Flower.Play(FlowStatus.Fail, result.Message);
                 return false;
             }
-            var bests = result.Data?.Topics;
-            Increment.HasMore = bests.Count == Increment.PageSize;
-            Topics.AddRange(bests);
-            Topics.TrimToCount(MaxTopicsKept);
-            BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+            ReplaceTopics(result.Data?.Topics ?? []);
             return true;
         }
 
@@ -183,17 +157,9 @@ public sealed partial class BoardPage
             return false;
         }
 
-        var data = topicResult.Data;
-        Increment.HasMore = data.Count == Increment.PageSize;
-        Topics.AddRange(data);
-        Topics.TrimToCount(MaxTopicsKept);
-        BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        ReplaceTopics(topicResult.Data);
         return true;
     }
-
-    // Required 缓存页伴生命全周期:限制常驻主题条数,超出时从头部移除最早的条目
-    private const int MaxTopicsKept = 300;
-
 
     private void TileContent_Click(object sender, RoutedEventArgs e)
     {
@@ -202,14 +168,42 @@ public sealed partial class BoardPage
         var param = new TopicNavigationInfo { TopicId = t.Id };
         Frame.Navigate(typeof(TopicPage), param);
     }
-
-
-
-
-    private async void TopicRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+    /// <summary>
+    ///     分页组件请求翻页。代次在请求发起时取,响应回来时若已换版面则丢弃。
+    /// </summary>
+    private async void Pager_SelectedIndexChanged(object? sender, int pageIndex)
     {
-        // 取"当前代次"再加载:若期间换了版面,LoadTopics 内部会丢弃这次响应
-        await Increment.LoadMore(args.Index, () => LoadTopics(_boardGeneration));
+        // 加载失败回退时我们也会去改 Pager.SelectedPageIndex,这里避免那次同步再次触发加载
+        if (_syncingPager) return;
+
+        await LoadPageAsync(_boardGeneration, pageIndex);
+    }
+
+    /// <summary>
+    ///     加载指定页(0-based)并整体替换主题列表。
+    /// </summary>
+    private async Task LoadPageAsync(int generation, int pageIndex)
+    {
+        var success = await Increment.LoadPage(pageIndex, () => LoadTopics(generation));
+
+        // 加载失败时 Increment 已把页码回退,这里把分页组件同步回"实际展示的那一页"
+        if (!success && generation == _boardGeneration && Pager.SelectedPageIndex != Increment.CurrentPage)
+        {
+            _syncingPager = true;
+            Pager.SelectedPageIndex = Increment.CurrentPage;
+            _syncingPager = false;
+        }
+    }
+
+    /// <summary>
+    ///     用新的一页整体替换列表。
+    ///     翻页是替换而不是追加:集合大小恒定为一页,不会像无限下拉那样把几百条堆进集合,
+    ///     每次翻页的实现/回收规模也因此可预期。
+    /// </summary>
+    private void ReplaceTopics(IReadOnlyList<SimpleTopicInfo> page)
+    {
+        Topics.Clear();
+        Topics.AddRange(page);
     }
 
     private async void BoardAction_Click(object sender, RoutedEventArgs e)
@@ -300,11 +294,11 @@ public sealed partial class BoardPage
     // 版面代次:每次"换版面"自增,用于判断在途请求的响应是否已经过期
     private int _boardGeneration;
 
-    // 离开本页时的滚动位置(本页是 NavigationCacheMode=Required,返回时要放回原位)
-    private double _savedScrollOffset;
-
     // 程序化复位筛选标签时置位,用于抑制 TypeSelectorBar_SelectionChanged 触发的加载
     private bool _suppressTypeChange;
+
+    // 把分页组件同步回实际页码时置位,避免那次同步又触发一次翻页加载
+    private bool _syncingPager;
 
     /// <summary>
     /// 版面信息与主题列表并行加载,并防止同一版面内的并发触发。
@@ -426,5 +420,9 @@ public sealed partial class BoardPage
         }
     }
 
-    
+    private void MoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        var hyperlinkButton = sender as HyperlinkButton;
+        FlyoutBase.ShowAttachedFlyout(hyperlinkButton);
+    }
 }

@@ -97,6 +97,14 @@ public sealed partial class DiscoverPage : Page
 
     private async Task<bool> GetNewTopic()
     {
+        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
+        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
+        if (Topics.Count >= MaxTopicsKept)
+        {
+            Increment.HasMore = false;
+            return true;
+        }
+
         var newTopicUrl = ApiEndpoints.Topic.NewTopicList(Increment.StartIndex);
         var newTopicResult = await ApiService.Fetch<List<TopicInfo>>(newTopicUrl);
         if (!newTopicResult.IsSuccess || newTopicResult.Data == null)
@@ -133,13 +141,12 @@ public sealed partial class DiscoverPage : Page
 
         data = [.. data.Where(x => !TopicIds.Contains(x.Id))];
         Topics.AddRange(data);
-        Topics.TrimToCount(MaxTopicsKept);
         TopicIds.AddRange(data.Select(x => x.Id));
         DiscoverEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         return true;
     }
 
-    // Required 缓存页伴生命全周期:限制常驻主题条数,超出时从头部移除最早的条目
+    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
     private const int MaxTopicsKept = 300;
 
     private async Task GetRandomTile()
@@ -149,7 +156,6 @@ public sealed partial class DiscoverPage : Page
         if (!randomTopicResult.IsSuccess || randomTopicResult.Data == null) return;
         var data = randomTopicResult.Data;
         RandomTopics.AddRange(data);
-        RandomTopics.TrimToCount(MaxTopicsKept);
     }
 
     private async void RefRandomTiles_Click(object sender, RoutedEventArgs e)

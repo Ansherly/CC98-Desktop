@@ -94,7 +94,7 @@
                 </Button.Flyout>
                 <ic:SymbolIcon Symbol="Remote" FontSize="14"></ic:SymbolIcon>
             </Button>
-            <TextBlock Grid.Column="4" Text="CC98 Desktop" x:Name="de" Margin="10,0,5,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="15" />
+            <TextBlock Grid.Column="4" Text="CC98" x:Name="de" Margin="10,0,5,0" HorizontalAlignment="Left" VerticalAlignment="Center" FontSize="15" />
             <Button Grid.Column="5" HorizontalAlignment="Right" Width="30" Height="30" BorderThickness="0"
                     Background="Transparent" VerticalAlignment="Center" x:Name="Me" CornerRadius="9999" Padding="0"
                     RenderTransformOrigin="0.5,0.5" PointerEntered="Me_PointerEntered" PointerExited="Me_PointerExited"

@@ -54,21 +54,19 @@ public sealed partial class FocusPage : Page
             return;
         }
 
-        // 前进进入(例如从导航菜单再次点击"动态"):缓存实例上会残留上次的集合与分页游标,
-        // 必须先重置,否则 GetMoments 会往旧集合里追加、并从非 0 页开始取数据。
+        // 前进进入(例如从导航菜单再次点击"动态"):缓存实例上残留着上次的标签与集合状态。
+        // 选中状态有两份,必须一起复位:
+        //   · SelectorBarItem.IsSelected —— 下划线/视觉;
+        //   · SelectorBar.SelectedItem —— 逻辑选中项,TypeChoice_SelectionChanged 读的是它。
+        // 只改其中一个就会错位成"下划线停在上次那个标签、内容却已经回到第一项"。
+        // 两个属性都改完之后由这里显式加载,不再依赖赋值 SelectedItem 的副作用。
         _savedScrollOffset = 0;
-        Mode = FocusContentType.Followee;
-        if (!ReferenceEquals(Navibar.SelectedItem, Navibar.Items[0]))
-        {
-            // 切换选中项会触发 TypeChoice_SelectionChanged,由它完成清空与加载,
-            // 这里直接返回以避免重复请求。
-            Navibar.SelectedItem = Navibar.Items[0];
-            return;
-        }
+        SelectFirstTab();
 
         Increment.Clear();
         Topics.Clear();
         TopicIds.Clear();
+        Mode = FocusContentType.Followee;
         await GetMoments();
     }
 
@@ -93,9 +91,32 @@ public sealed partial class FocusPage : Page
         });
     }
 
+    /// <summary>
+    ///     把标签复位到第一项。选中状态有两份,必须一起改:<c>SelectorBarItem.IsSelected</c> 决定下划线的位置,
+    ///     <c>SelectedItem</c> 是逻辑选中项(事件处理器读的是它)。只改一个就会出现错位。
+    ///     置抑制标志是为了让这次程序化改动不触发 <see cref="TypeChoice_SelectionChanged" /> —— 加载由调用方显式完成。
+    /// </summary>
+    private void SelectFirstTab()
+    {
+        _suppressTypeChange = true;
+        Navibar.Items[0].IsSelected = true;
+        Navibar.SelectedItem = Navibar.Items[0];
+        _suppressTypeChange = false;
+    }
+
+    // 程序化复位标签时置位,用于抑制 TypeChoice_SelectionChanged 触发的加载
+    private bool _suppressTypeChange;
 
     private async Task<bool> GetMoments()
     {
+        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
+        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
+        if (Topics.Count >= MaxTopicsKept)
+        {
+            Increment.HasMore = false;
+            return true;
+        }
+
         var url = Mode == FocusContentType.Followee
             ? ApiEndpoints.User.Moment(Increment.StartIndex)
             : ApiEndpoints.User.FavoriteTopicUpdate(Increment.StartIndex);
@@ -134,18 +155,20 @@ public sealed partial class FocusPage : Page
 
         data = [.. data.Where(x => !TopicIds.Contains(x.Id))];
         Topics.AddRange(data);
-        Topics.TrimToCount(MaxTopicsKept);
         FocusEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         TopicIds.AddRange(data.Select(x => x.Id));
         return true;
     }
 
-    // Required 缓存页伴生命全周期:限制常驻主题条数,超出时从头部移除最早的条目
+    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
     private const int MaxTopicsKept = 300;
 
 
     private async void TypeChoice_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
+        // 程序化复位(SelectFirstTab)不会走到这里
+        if (_suppressTypeChange) return;
+
         var s = Navibar.SelectedItem;
         if (s?.Tag is not string tag) return;
         Mode = tag == "0" ? FocusContentType.Followee : FocusContentType.FavoriteUpdate;

@@ -18,13 +18,10 @@
     xmlns:dev="using:DevWinUI"
     xmlns:helper="using:CC98.Services.Helpers"
     xmlns:empty="using:CC98.Controls.EmptyState"
-    NavigationCacheMode="Required"
+    xmlns:sp="using:CC98.Controls.SmartPager"
+    NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
         <SplitView x:Name="SearchView" PanePlacement="Right" DisplayMode="Overlay" PaneBackground="Transparent" OpenPaneLength="380">
             <SplitView.Pane>
                 <Grid BorderBrush="{ThemeResource AcrylicCardBrush}" Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}" BorderThickness="2" Margin="0,10,20,10" CornerRadius="6">
@@ -44,7 +41,7 @@
                             </Button>
                         </StackPanel>
                     </Grid>
-                   
+
                     <dev:TextBox Grid.Row="1" Margin="10,0,10,0" x:Name="BoardSearchBox" TextChanged="BoardSearchBox_TextChanged">
                         <Button Padding="0" x:Name="BoardSearchButton" Click="BoardSearchButton_Click">
                             <ic:SymbolIcon Symbol="Search" FontSize="14"></ic:SymbolIcon>
@@ -75,7 +72,7 @@
                                                             helper:TextBlockExtensions.Keywords="{x:Bind Keyword}"
                                                             helper:TextBlockExtensions.HighlightColor="#C4ABD4"/>
                                             </Border>
-                                            
+
                                         </Grid>
                                     </Button>
                                 </DataTemplate>
@@ -127,19 +124,55 @@
                                        ImageMaxHeight="200"
                                        MediaClicked="Banner_MediaClicked" />
                         </Border>
-
-                        <SelectorBar x:Name="TypeSelectorBar" SelectionChanged="TypeSelectorBar_SelectionChanged">
-                            <SelectorBarItem Text="最新"  Tag="latest"></SelectorBarItem>
-                            <SelectorBarItem Text="置顶" Tag="top"></SelectorBarItem>
-                            <SelectorBarItem  Text="精华" Tag="best"></SelectorBarItem>
-                        </SelectorBar>
-                        <Border Margin="0,10,0,0" BorderThickness="1"
-                BorderBrush="{ThemeResource AcrylicCardBrush}" CornerRadius="4">
-                            <ItemsRepeater x:Name="TopicRepeater" ElementPrepared="TopicRepeater_ElementPrepared"
-                           ItemsSource="{x:Bind Topics}">
+                        <Grid Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="4,4,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"></ColumnDefinition>
+                                <ColumnDefinition Width="*"></ColumnDefinition>
+                                <ColumnDefinition Width="Auto"></ColumnDefinition>
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Orientation="Horizontal" Spacing="10">
+                                <SelectorBar Grid.Column="0" x:Name="TypeSelectorBar" SelectionChanged="TypeSelectorBar_SelectionChanged">
+                                    <SelectorBarItem Text="最新"  Tag="latest"></SelectorBarItem>
+                                    <SelectorBarItem Text="置顶" Tag="top"></SelectorBarItem>
+                                    <SelectorBarItem  Text="精华" Tag="best"></SelectorBarItem>
+                                </SelectorBar>
+                                <Border Background="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,6,0,6"></Border>
+                                <HyperlinkButton Padding="10" ToolTipService.ToolTip="发主题">
+                                    <ic:SymbolIcon Symbol="Drafts" FontSize="16"></ic:SymbolIcon>
+                                </HyperlinkButton>
+                                <HyperlinkButton Padding="10" >
+                                    <ic:SymbolIcon Symbol="Search" FontSize="16" ToolTipService.ToolTip="版内搜索"></ic:SymbolIcon>
+                                </HyperlinkButton>
+                                <HyperlinkButton Padding="10">
+                                    <ic:SymbolIcon Symbol="Pin" FontSize="16" ToolTipService.ToolTip="关注版面"></ic:SymbolIcon>
+                                </HyperlinkButton>
+                                <HyperlinkButton  Padding="10"  x:Name="MoreButton" ToolTipService.ToolTip="更多操作" Click="MoreButton_Click">
+                                    <ic:SymbolIcon Symbol="MoreHorizontal" FontSize="16"></ic:SymbolIcon>
+                                    <FlyoutBase.AttachedFlyout>
+                                        <MenuFlyout>
+                                            <MenuFlyoutItem  Text="浏览器打开">
+                                                <MenuFlyoutItem.Icon>
+                                                    <FontIcon Glyph="&#xEB41;" />
+                                                </MenuFlyoutItem.Icon>
+                                            </MenuFlyoutItem>
+                                            <MenuFlyoutItem Text="刷新">
+                                                <MenuFlyoutItem.Icon>
+                                                    <FontIcon Glyph="&#xE72C;"/>
+                                                </MenuFlyoutItem.Icon>
+                                            </MenuFlyoutItem>
+                                        </MenuFlyout>
+                                    </FlyoutBase.AttachedFlyout>
+                                </HyperlinkButton>
+                            </StackPanel>
+                           
+                            <sp:SmartPager Grid.Column="2" x:Name="Pager" Margin="0,4,0,4" NumberOfPages="1" SelectedIndexChanged="Pager_SelectedIndexChanged"/>
+                        </Grid>
+                        
+                        <Border Margin="0,0,0,10" BorderThickness="1,0,1,1" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}" CornerRadius="0,0,4,4">
+                            <ItemsRepeater x:Name="TopicRepeater" ItemsSource="{x:Bind Topics}">
                                 <ItemsRepeater.ItemTemplate>
                                     <DataTemplate x:DataType="obj:SimpleTopicInfo">
-                                        <HyperlinkButton HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0.5,0,0.5"
+                                        <HyperlinkButton HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch"
                                          CornerRadius="0" x:Name="TileContent" DataContext="{x:Bind}"
                                          Click="TileContent_Click">
                                             <Grid Padding="0,6,0,6" ColumnSpacing="8">
@@ -154,11 +187,8 @@
                                                Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" />
                                                 <TextBlock Grid.Column="1" VerticalAlignment="Center"
                                            Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                           helper:TextBlockExtensions.HighlightInfo="{x:Bind HighlightInfo}"
                                                            helper:TextBlockExtensions.HighlightedText="{x:Bind Title}"
-                                                           helper:TextBlockExtensions.Keywords="{x:Bind Title}"
-                                                           helper:TextBlockExtensions.HighlightColor="{x:Bind HighlightInfo.Color}"
-                                                           helper:TextBlockExtensions.IsBold="{x:Bind HighlightInfo.IsBold}"
-                                                           helper:TextBlockExtensions.IsItalic="{x:Bind HighlightInfo.IsItalic}"
                                                            helper:TextBlockExtensions.BoldFontFamily="{ThemeResource HarmonySansBold}"
                                            MaxLines="2" />
                                                 <TextBlock Text="{x:Bind UserName}" FontSize="12" Grid.Column="2"
@@ -184,47 +214,11 @@
                                 </ItemsRepeater.ItemTemplate>
                             </ItemsRepeater>
                         </Border>
-
-                        <empty:EmptyStateControl x:Name="BoardEmptyState" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无主题" Subtitle="该版面还没有帖子" />
-
                     </StackPanel>
                 </ScrollViewer>
             </SplitView.Content>
         </SplitView>
-        
-
-        <CommandBar Grid.Row="1" dev:MaterialAttach.UseAcrylicBackground="True">
-            <CommandBar.Background>
-                <ImageBrush ImageSource="{x:Bind sv:AppSettings.Current.ThemePicture,Mode=OneWay}" Stretch="UniformToFill" Opacity="{ThemeResource AdaptiveOpacity}"></ImageBrush>
-            </CommandBar.Background>
-            <AppBarButton Label="刷新" Tag="refresh" Click="BoardAction_Click" ToolTipService.ToolTip="刷新">
-                <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xE72C;" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="在浏览器中打开" Tag="browse" Click="BoardAction_Click" ToolTipService.ToolTip="在浏览器中打开">
-                <AppBarButton.Icon>
-                    <FontIcon Glyph="&#xEB41;" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="关注" Tag="pin" Click="BoardAction_Click" ToolTipService.ToolTip="关注">
-                <AppBarButton.Icon>
-                    <ic:SymbolIcon Symbol="Pin" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="搜索" Tag="search" Click="BoardAction_Click" ToolTipService.ToolTip="发投票">
-                <AppBarButton.Icon>
-                    <ic:SymbolIcon Symbol="Search" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-            <AppBarButton Label="发主题" Tag="draft" Click="BoardAction_Click" ToolTipService.ToolTip="发主题">
-                <AppBarButton.Icon>
-                    <ic:SymbolIcon Symbol="Drafts" />
-                </AppBarButton.Icon>
-            </AppBarButton>
-
-        </CommandBar>
-        <infoFlower:InfoFlower Grid.Row="0" Grid.RowSpan="2" x:Name="Flower" HorizontalAlignment="Center"
+        <infoFlower:InfoFlower x:Name="Flower" HorizontalAlignment="Center"
                                VerticalAlignment="Bottom" />
     </Grid>
 </Page>

@@ -130,16 +130,9 @@ public sealed partial class TopicPage : Page
     {
         base.OnNavigatedTo(e);
 
-        // 优先采用发起方登记的覆盖参数:例如 SketchPage 发帖/编辑成功后返回本页时,
-        // 后退栈里的原始参数只有 TopicId、没有目标楼层,必须用覆盖参数才能跳到指定楼层。
-        // 其余情况一律使用导航参数本身。
-        // 覆盖通道只在"返回导航"上取用:发起方都是先登记再 GoBack,
-        // 不加这个门控的话,万一有残留载荷,会被此后任意一次进入本页的导航误用。
-        TopicNavigationInfo? args =
-            e.NavigationMode == NavigationMode.Back
-            && NavigationArgs.TryConsume<TopicPage, TopicNavigationInfo>(out var overridden)
-                ? overridden
-                : e.TryGetParameter<TopicNavigationInfo>();
+        // 导航参数一律取自本次导航自带的参数(前进栈/后退栈里的那一份)。
+        // 原先还有一条"发起方登记、由本页一次性消费"的覆盖通道,已整体下线待重新设计。
+        TopicNavigationInfo? args = e.TryGetParameter<TopicNavigationInfo>();
         if (args == null)
         {
             // 缺少导航参数(例如被错误地直接导航到本页):给出提示,而不是留一个空白页
@@ -735,6 +728,9 @@ public sealed partial class TopicPage : Page
 
         //默认选中"正面";若与当前选择相同则不触发 SelectionChanged,需显式加载
         _isSettingRatingType = true;
+        // IsSelected 决定下划线的位置,SelectedItem 是逻辑选中项,两者一起改才不会出现
+        // "下划线停在负面、风评理由却按正面加载"的错位
+        RatingTypeBar.Items[0].IsSelected = true;
         RatingTypeBar.SelectedItem = RatingTypeBar.Items[0];
         _isSettingRatingType = false;
         if (RatingTypeBar.SelectedItem == RatingTypeBar.Items[0])

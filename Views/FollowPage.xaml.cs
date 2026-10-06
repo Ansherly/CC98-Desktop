@@ -88,6 +88,14 @@ public sealed partial class FollowPage : Page
 
     private async Task<bool> LoadFriend()
     {
+        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
+        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
+        if (Friends.Count >= MaxFriendsKept)
+        {
+            Increment.HasMore = false;
+            return true;
+        }
+
         //获取好友ID列表
         var friendListUrl = ApiEndpoints.User.FreiendList(Type, Increment.StartIndex);
         var friendIdsResult = await ApiService.Fetch<List<int>>(friendListUrl);
@@ -121,12 +129,11 @@ public sealed partial class FollowPage : Page
             friend.IsFollowee = Type == "followee";
         }
         Friends.AddRange(data);
-        Friends.TrimToCount(MaxFriendsKept);
         FollowEmptyState.Visibility = Friends.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         return true;
     }
 
-    // Required 缓存页伴生命全周期:限制常驻条数,超出时从头部移除最早的条目
+    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
     private const int MaxFriendsKept = 300;
 
     private void TileContent_Click(object sender, RoutedEventArgs e)
