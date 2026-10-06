@@ -52,12 +52,18 @@ where T : class
     /// <param name="entry">要配置缓存项目。</param>
     private static void ConfigureCacheEntry(ICacheEntry entry)
     {
-        // 目前设置为从不过期
-
-        entry.AbsoluteExpirationRelativeToNow = null;
-        entry.SlidingExpiration = null;
-        entry.Priority = CacheItemPriority.NeverRemove;
+        entry.SetOptions(CreateEntryOptions());
     }
+
+    /// <summary>
+    /// 构建缓存条目选项。内存缓存只是磁盘文件的"热副本":滑动过期后按需从磁盘重新反序列化即可。
+    /// 之前 NeverRemove + 永不过期会让大对象图(版面树/首页数据等)在进程内永驻。
+    /// </summary>
+    private static MemoryCacheEntryOptions CreateEntryOptions() => new()
+    {
+        SlidingExpiration = TimeSpan.FromMinutes(10),
+        Priority = CacheItemPriority.Normal,
+    };
 
     /// <summary>
     /// 尝试加载缓存的数据。
@@ -82,8 +88,8 @@ where T : class
     /// <returns>表示异步操作的任务。</returns>
     public async Task UpdateDataAsync(T data, CancellationToken cancellationToken = default)
     {
-        // 强制改写内存缓存
-        App.Current.MemoryCache.Set(MemoryCacheKey, data);
+        // 强制改写内存缓存(应用与读取一致的过期策略,否则 Set 路径会绕开过期配置)
+        App.Current.MemoryCache.Set(MemoryCacheKey, data, CreateEntryOptions());
 
         // 尝试保存数据
         await WriteRetryExecutor.ExecuteAsync(async ct =>

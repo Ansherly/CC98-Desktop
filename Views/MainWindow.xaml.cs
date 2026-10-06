@@ -75,6 +75,10 @@ public sealed partial class MainWindow : Window
         _portScaleStoryboard.Children.Add(_portScaleX);
         _portScaleStoryboard.Children.Add(_portScaleY);
         App.ThemeChanged += OnAppThemeChanged;
+        //窗口关闭时退订静态/单例事件并停止同步定时器,避免被关闭的窗口被静态委托钉住
+        Closed += OnWindowClosed;
+        //后退栈超过上限时修剪最早的条目
+        ContentFrame.Navigated += ContentFrame_Navigated;
         //设置窗口状态
         SetWindowState();
         //加载自定义设置
@@ -336,12 +340,48 @@ public sealed partial class MainWindow : Window
         {
             Interval = TimeSpan.FromSeconds(240)
         };
-        SyncTimer.Tick += async (s, e) => 
+        SyncTimer.Tick += async (s, e) =>
         {
-            // 刷新首页缓存与刷新未读数互不依赖,并行执行
-            await Task.WhenAll(FetchIndex(), RefreshMessage());
+            //重入保护:上一轮网络请求尚未完成(挂起)时跳过本轮,避免任务叠加
+            if (_syncInProgress) return;
+            _syncInProgress = true;
+            try
+            {
+                // 刷新首页缓存与刷新未读数互不依赖,并行执行
+                await Task.WhenAll(FetchIndex(), RefreshMessage());
+            }
+            finally
+            {
+                _syncInProgress = false;
+            }
         };
         SyncTimer.Start();
+    }
+
+    private bool _syncInProgress;
+
+    /// <summary>
+    /// 窗口关闭时清理:退订静态/单例事件、停止同步定时器。
+    /// 否则 App.ThemeChanged(静态事件)与 Messenger.Instance.NavigationItemAdded(单例事件)
+    /// 的委托会强引用本窗口,连同 ContentFrame 后退栈与全部缓存页面一起泄漏;
+    /// SyncTimer 也会在关闭后的窗口里继续每 240 秒发起网络请求。
+    /// </summary>
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        App.ThemeChanged -= OnAppThemeChanged;
+        Messenger.Instance.NavigationItemAdded -= OnNavigationItemAdded;
+        SyncTimer?.Stop();
+    }
+
+    // 后退栈上限:仅保存类型与参数,单条很小,但超限修剪可防止长时间使用后无限增长
+    private const int MaxBackStackDepth = 25;
+
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+    {
+        while (ContentFrame.BackStackDepth > MaxBackStackDepth)
+        {
+            ContentFrame.BackStack.RemoveAt(0);
+        }
     }
 
 

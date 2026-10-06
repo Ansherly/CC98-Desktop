@@ -121,9 +121,13 @@ public sealed partial class FollowPage : Page
             friend.IsFollowee = Type == "followee";
         }
         Friends.AddRange(data);
+        Friends.TrimToCount(MaxFriendsKept);
         FollowEmptyState.Visibility = Friends.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         return true;
     }
+
+    // Required 缓存页伴生命全周期:限制常驻条数,超出时从头部移除最早的条目
+    private const int MaxFriendsKept = 300;
 
     private void TileContent_Click(object sender, RoutedEventArgs e)
     {

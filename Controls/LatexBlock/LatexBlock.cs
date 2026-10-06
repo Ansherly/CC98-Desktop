@@ -271,7 +271,11 @@ public sealed partial class LatexBlock : UserControl
         {
             if (ShowDebugBounds && string.IsNullOrEmpty(LaTeX))
             {
-                canvas.DrawText(SKTextBlob.Create("无公式", new SKFont()), 10f, 30f, new SKPaint { Color = SKColors.Gray, IsAntialias = true });
+                // SKTextBlob/SKFont/SKPaint 是 SkiaSharp 原生资源包装,用完必须释放
+                using var font = new SKFont();
+                using var blob = SKTextBlob.Create("无公式", font);
+                using var paint = new SKPaint { Color = SKColors.Gray, IsAntialias = true };
+                canvas.DrawText(blob, 10f, 30f, paint);
             }
             return;
         }

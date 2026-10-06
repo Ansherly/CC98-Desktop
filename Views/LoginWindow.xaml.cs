@@ -79,6 +79,8 @@ public sealed partial class LoginWindow : Window
         {
             this.DispatcherQueue.TryEnqueue(() => Flower.Play(message.FlowStatus, message.Message));
         });
+        //关闭时注销 Messenger 注册,避免在 WeakReferenceMessenger 中残留死条目
+        Closed += (_, _) => WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)

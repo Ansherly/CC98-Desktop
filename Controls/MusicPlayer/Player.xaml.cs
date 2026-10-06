@@ -19,12 +19,17 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
     private bool _isInitialized;
     private bool _isPlaying;
     private DispatcherTimer _progressTimer;
+    private DispatcherTimer? _errorTimer;
 
     public MusicPlayer()
     {
         InitializeComponent();
-        InitializeMediaPlayer();
+        _globalPlayer = GlobalMediaPlayer.Instance;
         SetupProgressTimer();
+        //事件订阅改由 Loaded/Unloaded 管理:单例的事件委托是强引用,
+        //控件脱离可视树后若不退订,会把整棵页面树(连同数据与已解码位图)钉在内存里
+        Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
     }
 
     #region 下载功能
@@ -86,16 +91,47 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     #region 初始化
 
-    private void InitializeMediaPlayer()
-    {
-        // 使用全局单例 MediaPlayer
-        _globalPlayer = GlobalMediaPlayer.Instance;
+    private bool _eventsSubscribed;
 
-        //订阅事件（只订阅，不处理底层释放）
+    private void SubscribeGlobalPlayerEvents()
+    {
+        if (_eventsSubscribed) return;
+        _eventsSubscribed = true;
+
         _globalPlayer.MediaOpened += OnMediaOpened;
         _globalPlayer.MediaEnded += OnMediaEnded;
         _globalPlayer.MediaFailed += OnMediaFailed;
         _globalPlayer.CurrentStateChanged += OnCurrentStateChanged;
+    }
+
+    private void UnsubscribeGlobalPlayerEvents()
+    {
+        if (!_eventsSubscribed) return;
+        _eventsSubscribed = false;
+
+        _globalPlayer.MediaOpened -= OnMediaOpened;
+        _globalPlayer.MediaEnded -= OnMediaEnded;
+        _globalPlayer.MediaFailed -= OnMediaFailed;
+        _globalPlayer.CurrentStateChanged -= OnCurrentStateChanged;
+    }
+
+    private void OnLoaded(object sender, RoutedEventArgs e)
+    {
+        SubscribeGlobalPlayerEvents();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        //脱离可视树:停止播放与进度定时器,断开单例事件,避免钉住整页
+        if (_isPlaying)
+        {
+            _globalPlayer.Pause();
+            _isPlaying = false;
+        }
+        _progressTimer.Stop();
+        UnsubscribeGlobalPlayerEvents();
+        _isInitialized = false;
+        UpdatePlayPauseButton();
     }
 
     private void SetupProgressTimer()
@@ -299,14 +335,18 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
         ErrorTextBlock.Text = message;
         ErrorTextBlock.Visibility = Visibility.Visible;
 
-        // 3秒后隐藏错误信息
-        var timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
-        timer.Tick += (s, e) =>
+        //复用同一个定时器:每次新建的 timer 在 3 秒窗口内会持续 tick 并钉住控件
+        if (_errorTimer == null)
         {
-            ErrorTextBlock.Visibility = Visibility.Collapsed;
-            timer.Stop();
-        };
-        timer.Start();
+            _errorTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+            _errorTimer.Tick += (s, e) =>
+            {
+                _errorTimer.Stop();
+                ErrorTextBlock.Visibility = Visibility.Collapsed;
+            };
+        }
+        _errorTimer.Stop();
+        _errorTimer.Start();
     }
 
     #endregion
@@ -321,25 +361,11 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
             _progressTimer?.Stop();
             _progressTimer = null;
+            _errorTimer?.Stop();
 
-            if (_globalPlayer != null)
-            {
-                //只取消订阅事件，不释放全局播放器
-                _globalPlayer.MediaOpened -= OnMediaOpened;
-                _globalPlayer.MediaEnded -= OnMediaEnded;
-                _globalPlayer.MediaFailed -= OnMediaFailed;
-                _globalPlayer.CurrentStateChanged -= OnCurrentStateChanged;
-
-                // 不要调用 Dispose 在全局播放器上
-            }
-
-            GC.SuppressFinalize(this);
+            //只取消订阅事件，不释放全局播放器
+            UnsubscribeGlobalPlayerEvents();
         }
-    }
-
-    ~MusicPlayer()
-    {
-        Dispose();
     }
 
     #endregion

@@ -144,9 +144,13 @@ public sealed partial class MessagePage
         }
 
         Notices.AddRange(data);
+        Notices.TrimToCount(MaxNoticesKept);
         MessageEmptyState.Visibility = Notices.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         return true;
     }
+
+    // Required 缓存页伴生命全周期:限制常驻条数,超出时从头部移除最早的条目
+    private const int MaxNoticesKept = 300;
 
 
     private async Task<List<BasicTopicInfo>> GetBasicTopicInfo(List<int> topicIds)

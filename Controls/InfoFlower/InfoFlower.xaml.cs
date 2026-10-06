@@ -60,8 +60,10 @@ public sealed partial class InfoFlower : UserControl
         FlowerTransform.TranslateY = 0;
         Flower.Opacity = 0;
         Flower.Visibility = Visibility.Visible;
-        FlowerAnimation.Begin();
+        // 先退订再订阅:动画未完成就再次 Play 时避免叠加重复订阅
+        FlowerAnimation.Completed -= OnAnimationCompleted;
         FlowerAnimation.Completed += OnAnimationCompleted;
+        FlowerAnimation.Begin();
     }
 
     public void Play(FlowStatus status, string message)
@@ -71,8 +73,9 @@ public sealed partial class InfoFlower : UserControl
         FlowerTransform.TranslateY = 0;
         Flower.Opacity = 0;
         Flower.Visibility = Visibility.Visible;
-        FlowerAnimation.Begin();
+        FlowerAnimation.Completed -= OnAnimationCompleted;
         FlowerAnimation.Completed += OnAnimationCompleted;
+        FlowerAnimation.Begin();
     }
 
     private void OnAnimationCompleted(object sender, object e)

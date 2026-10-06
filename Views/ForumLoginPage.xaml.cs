@@ -112,6 +112,8 @@ namespace CC98.Views
                 App.Current.AppMainWindow = new MainWindow();
                 App.Current.AppMainWindow.Activate();
                 App.Current.LoginWindow.Close();
+                //释放对已关闭登录窗口的引用
+                App.Current.LoginWindow = null;
             }
             catch(Exception ex)
             {

@@ -1136,9 +1136,11 @@ public sealed partial class TopicPage : Page
         if (p?.Tag is not string tag) return;
         try
         {
-            var bitmap = await ImageHelper.LoadWebImageAsync(tag);
+            // 走弱引用缓存+低分辨率:虚拟化列表每次容器 Loaded 都会触发本方法,
+            // 无缓存路径会反复下载并全尺寸解码同一张头像,产生大量大对象分配
+            var bitmap = await SmartImageLoader.GetInstance(lowRes: true).LoadImage(tag);
             // 加载期间 TeachingTip 可能已关闭,不再向已卸载控件赋值
-            if (p.IsLoaded) p.ProfilePicture = bitmap;
+            if (p.IsLoaded && bitmap != null) p.ProfilePicture = bitmap;
         }
         catch (Exception ex)
         {

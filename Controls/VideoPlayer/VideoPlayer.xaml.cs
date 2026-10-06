@@ -3,6 +3,7 @@
 using System;
 using System.Diagnostics;
 using System.Threading.Tasks;
+using Windows.Media.Core;
 using Windows.Media.Playback;
 using CC98.Controls.Primitives;
 using Microsoft.UI.Xaml;
@@ -26,6 +27,32 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     }
 
     #region 加载
+
+    // 当前媒体源:MediaSource 实现了 IDisposable,显式关闭可立即释放其持有的内存流
+    private MediaSource? _currentSource;
+
+    /// <summary>
+    ///     暂停播放并释放当前媒体源(不清空 _isDisposed,控件可再次加载)。
+    /// </summary>
+    private void ReleaseMedia()
+    {
+        try
+        {
+            if (MediaPlayer.MediaPlayer != null)
+            {
+                MediaPlayer.MediaPlayer.Pause();
+                MediaPlayer.MediaPlayer.Source = null;
+            }
+            MediaPlayer.Source = null;
+        }
+        catch
+        {
+            // 卸载过程中内部播放器可能已失效,忽略
+        }
+        _currentSource?.Dispose();
+        _currentSource = null;
+        _isInitialized = false;
+    }
 
     // 手动请求加载视频
     public async Task<bool> LoadVideoAsync()
@@ -68,7 +95,9 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             // 切换到 UI 线程设置源
             await DispatcherQueue.EnqueueAsync(() =>
             {
+                ReleaseMedia();
                 MediaPlayer.Source = mediaSource;
+                _currentSource = mediaSource;
                 _isInitialized = true;
 
                 HideLoadingIndicator();
@@ -178,13 +207,17 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             MediaPlayer.MediaPlayer.MediaFailed -= OnMediaFailed;
             MediaPlayer.MediaPlayer.MediaEnded -= OnMediaEnded;
         }
+        //脱离可视树:暂停并释放媒体源。MediaSource 持有整个文件的内存流,
+        //不显式关闭会一直滞留到 GC(视频场景下可达几十 MB)
+        ReleaseMedia();
+        ShowPlaceholder();
     }
 
     private static void OnSrcChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         if (d is VideoPlayer player)
         {
-            player._isInitialized = false;
+            player.ReleaseMedia();
             player.ShowPlaceholder();
         }
     }
@@ -306,13 +339,9 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             {
             }
 
-            GC.SuppressFinalize(this);
+            _currentSource?.Dispose();
+            _currentSource = null;
         }
-    }
-
-    ~VideoPlayer()
-    {
-        Dispose();
     }
 
     #endregion

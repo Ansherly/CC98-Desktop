@@ -170,6 +170,7 @@ public sealed partial class BoardPage
             var bests = result.Data?.Topics;
             Increment.HasMore = bests.Count == Increment.PageSize;
             Topics.AddRange(bests);
+            Topics.TrimToCount(MaxTopicsKept);
             BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
             return true;
         }
@@ -185,9 +186,13 @@ public sealed partial class BoardPage
         var data = topicResult.Data;
         Increment.HasMore = data.Count == Increment.PageSize;
         Topics.AddRange(data);
+        Topics.TrimToCount(MaxTopicsKept);
         BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         return true;
     }
+
+    // Required 缓存页伴生命全周期:限制常驻主题条数,超出时从头部移除最早的条目
+    private const int MaxTopicsKept = 300;
 
 
     private void TileContent_Click(object sender, RoutedEventArgs e)

@@ -128,8 +128,9 @@ public sealed partial class ProfilePage : Page
         UserProfile.IsMe = IsMe;
         try
         {
-            var source = await Services.Helpers.ImageHelper.LoadWebImageAsync(UserProfile.PortraitUrl);
-            MyProfile.ProfilePicture = source;
+            // 走弱引用缓存加载:重复进入资料页不再重新下载/解码同一张头像
+            var source = await CC98.Controls.Primitives.SmartImageLoader.GetInstance(lowRes: false).LoadImage(UserProfile.PortraitUrl);
+            if (source != null) MyProfile.ProfilePicture = source;
         }
         catch (Exception ex)
         {

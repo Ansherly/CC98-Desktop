@@ -26,7 +26,6 @@ public class Downloader
             var apiService = App.Current.GetService<ApiService>();
             var imageBytes = await apiService.GetBytesAsync(imageUrl);
             if(imageBytes == null) return false;
-            using var stream = new MemoryStream(imageBytes);
             var randomAccessStream = new InMemoryRandomAccessStream();
             await randomAccessStream.WriteAsync(imageBytes.AsBuffer());
             randomAccessStream.Seek(0);
@@ -76,10 +75,9 @@ public class Downloader
             // 创建文件
             var file = await downloadsFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
             var apiService = App.Current.GetService<ApiService>();
-            var imageBytes = await apiService.GetBytesAsync(sourceUrl);
-            if (imageBytes == null) return null;
+            // 流式写盘:之前把整个附件读成 byte[] 再写入,大附件时内存峰值 = 文件大小
             await using var stream = await file.OpenStreamForWriteAsync();
-            await stream.WriteAsync(imageBytes);
+            if (!await apiService.CopyToStreamAsync(sourceUrl, stream)) return null;
             return file.Path;
         }
         catch (Exception ex)

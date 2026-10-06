@@ -134,10 +134,14 @@ public sealed partial class FocusPage : Page
 
         data = [.. data.Where(x => !TopicIds.Contains(x.Id))];
         Topics.AddRange(data);
+        Topics.TrimToCount(MaxTopicsKept);
         FocusEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
         TopicIds.AddRange(data.Select(x => x.Id));
         return true;
     }
+
+    // Required 缓存页伴生命全周期:限制常驻主题条数,超出时从头部移除最早的条目
+    private const int MaxTopicsKept = 300;
 
 
     private async void TypeChoice_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)

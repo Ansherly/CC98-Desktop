@@ -163,7 +163,7 @@
                 </DataTemplate>
             </NavigationView.FooterMenuItems>
 
-            <Frame x:Name="ContentFrame" />
+            <Frame x:Name="ContentFrame" CacheSize="8" />
 
         </NavigationView>
         <infoFlower:InfoFlower Grid.Row="0" Grid.RowSpan="3" x:Name="Flower" />

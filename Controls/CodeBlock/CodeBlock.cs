@@ -177,6 +177,9 @@ public sealed partial class CodeBlock : Control
             return;
         }
 
+        // ColorCode 的 formatter 是纯追加式的:渲染前必须清空已有内容,
+        // 否则模板重应用/重复渲染时高亮内容会不断叠加
+        _viewer.Blocks.Clear();
         var formatter = new RichTextBlockFormatter();
         formatter.FormatRichTextBlock(Code ?? string.Empty, language, _viewer);
     }

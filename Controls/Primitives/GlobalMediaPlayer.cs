@@ -58,9 +58,16 @@ public sealed partial class GlobalMediaPlayer : IDisposable
     // 如果 UI需要监听 PlaybackSession 的 PositionChanged
     public event TypedEventHandler<MediaPlaybackSession, object> PlaybackSessionPositionChanged;
 
+    // 当前媒体源:MediaSource 实现了 IDisposable,显式关闭可立即释放其持有的内存流
+    private MediaSource? _currentSource;
+
     public void SetSource(MediaSource source)
     {
+        // 先换源再释放旧 MediaSource:旧源持有整个文件的内存流,仅靠 GC 回收时机不可控
+        var old = _currentSource;
+        _currentSource = source;
         _player.Source = source;
+        old?.Dispose();
     }
 
     public void Play()

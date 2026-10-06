@@ -113,6 +113,8 @@ public partial class App : Application
         try
         {
             AppMainWindow.Close();
+            //释放对已关闭主窗口的引用:否则旧窗口连同 ContentFrame 后退栈与全部缓存页面被本属性钉住
+            AppMainWindow = null;
             LoginWindow = new LoginWindow();
             LoginWindow.Activate();
         }
