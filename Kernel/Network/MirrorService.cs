@@ -27,14 +27,16 @@ public class MirrorService(IHttpClientFactory httpClientFactory)
             Debug.WriteLine(response.StatusCode);
             if (response.IsSuccessStatusCode)
             {
-                switch (resText)
+                //防范特殊字符，去除首尾空白和 BOM
+                var normalized = resText.Trim().TrimStart('\uFEFF');
+                switch (normalized)
                 {
                     case "0":
                         return NetworkStatus.NotInCampus;
                     case "1" or "2":
                         return NetworkStatus.InCampus;
                     default:
-                        Debug.WriteLine("访问镜像站失败",$"{response.StatusCode}:{response.ReasonPhrase ?? ""},响应正文{resText}");
+                        Debug.WriteLine("镜像站返回了意外文本",$"原因为{response.ReasonPhrase ?? ""},响应正文为{resText}");
                         return NetworkStatus.MirrorError;
                 }  
             }
@@ -50,7 +52,7 @@ public class MirrorService(IHttpClientFactory httpClientFactory)
         }
         catch (Exception ex)
         {
-            Debug.WriteLine("错误", $"{ex.Message}");
+            Debug.WriteLine("连接镜像站过程发生错误", $"{ex.Message}");
             return NetworkStatus.NoConnection;
         }
     }
@@ -61,7 +63,7 @@ public class MirrorService(IHttpClientFactory httpClientFactory)
             NetworkStatus.InCampus => "处于内网环境",
             NetworkStatus.NotInCampus => "不在内网环境",
             NetworkStatus.ConnectionFail => "无法连接镜像站",
-            NetworkStatus.MirrorError => "IP被镜像站拦截",
+            NetworkStatus.MirrorError => "镜像站返回意外的文本",
             NetworkStatus.NoConnection => "无网络",
             NetworkStatus.VpnCookieExpired => "VPN Cookie过期",
             _ => "未知状态"
