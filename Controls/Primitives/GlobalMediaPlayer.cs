@@ -36,6 +36,13 @@ public sealed partial class GlobalMediaPlayer : IDisposable
 
     public bool IsPlaying { get; private set; }
 
+    /// <summary>音量，0.0 ~ 1.0。所有播放器实例共享同一个底层 MediaPlayer，因此也是一个全局音量。</summary>
+    public double Volume
+    {
+        get => _player.Volume;
+        set => _player.Volume = Math.Clamp(value, 0, 1);
+    }
+
     public void Dispose()
     {
         // 单例通常不需要被释放，除非程序退出或明确需要清理

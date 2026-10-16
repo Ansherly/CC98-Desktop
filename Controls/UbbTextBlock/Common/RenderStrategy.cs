@@ -791,13 +791,17 @@ public class AudioRenderStrategy : IRenderStrategy
         // 地址只从子节点取（audio 不支持把 src 写在主属性里）。
         // 用 CollectText 递归收集全文，[audio][b]http://…[/b][/audio] 这类样式嵌套同样能取到。
         var src = RenderHelper.CollectText(tagNode);
+        var author = tagNode.GetAttribute("author");
         if (src.Length == 0) return;
 
         if (src.IsValidUrl(false))
         {
             var player = new MusicPlayer.MusicPlayer
             {
-                Title = string.IsNullOrEmpty(title) ? "音频" : title,
+                Title = string.IsNullOrEmpty(title) ? "未知音频" : title,
+                Author = string.IsNullOrEmpty(author) ? "--" : author,
+                //Poster为空会使用默认封面图
+                Poster = tagNode.GetAttribute("poster"),
                 LoadMediaCallback = new SmartMediaLoader(),
                 Src = src,
                 Margin = new(10)
