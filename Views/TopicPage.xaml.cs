@@ -93,13 +93,6 @@ public sealed partial class TopicPage : Page
         InitializeComponent();
         LoadSet();
         LoadFavorites();
-        Unloaded += Topic_Unloaded;
-    }
-
-    private void Topic_Unloaded(object sender, RoutedEventArgs e)
-    {
-        Pager?.SelectedIndexChanged -= Pager_SelectedIndexChanged;
-        GlobalMediaPlayer.Instance.Pause();
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -125,14 +118,13 @@ public sealed partial class TopicPage : Page
             ProfileViewer.Target = null;
             ProfileViewer.Content = null;
         }
+        GlobalMediaPlayer.Instance.Pause();
     }
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
-        // 导航参数一律取自本次导航自带的参数(前进栈/后退栈里的那一份)。
-        // 原先还有一条"发起方登记、由本页一次性消费"的覆盖通道,已整体下线待重新设计。
-        TopicNavigationInfo? args = e.TryGetParameter<TopicNavigationInfo>();
+        var args = e.TryGetParameter<TopicNavigationInfo>();
         if (args == null)
         {
             // 缺少导航参数(例如被错误地直接导航到本页):给出提示,而不是留一个空白页
@@ -631,12 +623,19 @@ public sealed partial class TopicPage : Page
             return;
         }
 
+
+        //检查理由
         var reason = WealthReason.Text.Trim();
+        if (string.IsNullOrEmpty(reason))
+        {
+            WealthError.Text = "请输入转账理由";
+            return;
+        }
+
         WealthError.Text = "";
         WealthTransferOk.IsEnabled = false;
         try
         {
-            //使用强类型请求体
             var post = new WealthTransferMessage
             {
                 UserNames = userNames,

@@ -117,7 +117,7 @@
                             </lab:TokenView>
                         </Grid>
 
-                        <Border Padding="10,10,10,0" x:Name="BannerBox" Visibility="{x:Bind sv:AppSettings.Current.ShowBigPaper,Mode=OneWay,Converter={StaticResource BoolToVisibility}}">
+                        <Border Padding="10,10,10,10" x:Name="BannerBox" Visibility="{x:Bind sv:AppSettings.Current.ShowBigPaper,Mode=OneWay,Converter={StaticResource BoolToVisibility}}">
                             <ubbTextBlock:UbbTextBlock x:Name="Banner" UbbText="{x:Bind BoardData.BigPaper,Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        BoldFontFamily="{StaticResource HarmonySansBold}"

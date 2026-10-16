@@ -34,51 +34,12 @@ public sealed partial class MessagePage
     protected override async void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-
-        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存。
-        if (e.NavigationMode == NavigationMode.Back)
-        {
-            // 返回时选中标签与已加载列表都还在,一般直接沿用;
-            // 但"私信"标签只是跳转入口(选中即导航到 ChatPage),不承载列表,
-            // 从 ChatPage 返回后若仍停在它上面,界面会与列表内容不符,故回到第一个内容标签。
-            if ((NaviBar.SelectedItem as SelectorBarItem)?.Tag is "Chat")
-            {
-                SelectFirstTab();
-                await ReloadNoticesAsync();
-            }
-
-            return;
-        }
-
-        // 前进进入:回到第一个内容标签并重新加载。
-        // 选中状态有两份(SelectorBarItem.IsSelected 画下划线、SelectedItem 是逻辑选中项,
-        // 事件处理器读的是后者),缓存实例上两者都可能残留上次的值,必须一起复位;
-        // 复位时抑制了 SelectionChanged,所以加载要在下面显式做。
-        SelectFirstTab();
         await ReloadNoticesAsync();
     }
 
-    /// <summary>
-    ///     把标签复位到第一项。选中状态有两份,必须一起改:<c>SelectorBarItem.IsSelected</c> 决定下划线的位置,
-    ///     <c>SelectedItem</c> 是逻辑选中项(事件处理器读的是它)。只改一个就会出现
-    ///     "下划线还停在私信、列表却已经换成回复"这种错位。
-    /// </summary>
-    private void SelectFirstTab()
-    {
-        _suppressTypeChange = true;
-        NaviBar.Items[0].IsSelected = true;
-        NaviBar.SelectedItem = NaviBar.Items[0];
-        _suppressTypeChange = false;
-    }
-
-    // 程序化复位标签时置位,用于抑制 NaviBar_SelectionChanged 触发的加载
-    private bool _suppressTypeChange;
 
     private async void NaviBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        // 程序化复位(SelectFirstTab)不会走到这里
-        if (_suppressTypeChange) return;
-
         var bar = NaviBar.SelectedItem;
         if (bar?.Tag is "Chat")
         {
@@ -134,21 +95,12 @@ public sealed partial class MessagePage
     }
     private async Task<bool> GetNotice()
     {
-        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
-        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
-        if (Notices.Count >= MaxNoticesKept)
-        {
-            Increment.HasMore = false;
-            return true;
-        }
-
         var url = ApiEndpoints.User.SystemNotice(GetTypeName(noticeType), Increment.StartIndex);
         var result = await ApiService.Fetch<List<Notice>>(url);
         if (!result.IsSuccess || result.Data == null)
         {
             //
             Flower.Play(FlowStatus.Fail, "加载通知失败");
-            //await App.Logger.WriteAsync("NoticeMsg", "加载通知失败", result.Message);
             return false;
         }
 
@@ -176,10 +128,6 @@ public sealed partial class MessagePage
         return true;
     }
 
-    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
-    private const int MaxNoticesKept = 300;
-
-
     private async Task<List<BasicTopicInfo>> GetBasicTopicInfo(List<int> topicIds)
     {
         var param = string.Join("&", topicIds.Select(id => $"id={id}"));
@@ -189,7 +137,6 @@ public sealed partial class MessagePage
         {
             //
             Flower.Play(FlowStatus.Fail, "获取帖子基本信息失败");
-            //await App.Logger.WriteAsync("NoticeMsg", "获取帖子基本信息失败", result.Message);
             return [];
         }
 

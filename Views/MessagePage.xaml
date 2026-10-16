@@ -10,7 +10,7 @@
     xmlns:obj="using:CC98.Objects"
     xmlns:empty="using:CC98.Controls.EmptyState"
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    NavigationCacheMode="Required"
+    NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Page.Resources>
@@ -67,7 +67,7 @@
         </Grid.RowDefinitions>
         <SelectorBar Grid.Row="0" HorizontalAlignment="Left" SelectionChanged="NaviBar_SelectionChanged"
                      x:Name="NaviBar">
-            <SelectorBarItem Text="回复" Tag="Reply"/>
+            <SelectorBarItem Text="回复" Tag="Reply" IsSelected="True"/>
             <SelectorBarItem Text="@我的" Tag="At" />
             <SelectorBarItem Text="系统通知" x:Name="SystemNotice" Tag="System" />
             <SelectorBarItem Text="私信" x:Name="ChatMsg" Tag="Chat" />

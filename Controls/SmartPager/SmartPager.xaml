@@ -91,7 +91,6 @@
                     <TextBox
                         x:Name="DestinationBox"
                         Grid.Column="0"
-                        Padding="0,0,0,6"
                         Background="Transparent"
                         BorderThickness="0"
                         BeforeTextChanging="DestinationBox_BeforeTextChanging"

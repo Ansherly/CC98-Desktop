@@ -352,7 +352,7 @@
                 <TextBlock Text="转账的最小金额不能小于 10。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <TextBox x:Name="WealthReceiver" Header="收款人" PlaceholderText="用户名，多人用空格隔开" IsEnabled="False" />
                 <NumberBox x:Name="WealthAmount" Header="金额（米）" Minimum="0" SpinButtonPlacementMode="Inline" SmallChange="1000" LargeChange="5000" ValueChanged="WealthAmount_ValueChanged" />
-                <TextBox x:Name="WealthReason" Header="理由" PlaceholderText="选填" />
+                <TextBox x:Name="WealthReason" Header="理由" PlaceholderText="必填" />
                 <TextBlock x:Name="WealthPreview" FontSize="12" Foreground="LightSeaGreen" TextWrapping="Wrap" />
                 <TextBlock x:Name="WealthError" FontSize="12" Foreground="Red" TextWrapping="Wrap" />
                 <Grid>
