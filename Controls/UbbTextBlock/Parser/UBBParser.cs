@@ -131,38 +131,40 @@ public class UbbParser(IEnumerable<Token> tokens)
         var attrCount = 0;
 
         // 3. 解析属性循环
+        //    分隔符决定了属性槽位的性质：
+        //      '=' 之后 → 主属性（键名由标签类型决定，如 [url=...] 的 href、[img=1] 的 value）
+        //      ',' 之后 → 键值对属性（键名写在属性里，如 [audio,title=歌,author=某人]）
         while (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Eof)
         {
-            var t = Consume();
+            var separator = Consume();
 
-            if (t.Type == TokenType.Equal || t.Type == TokenType.Comma)
-            {
-                // 关键修复点：如果在等号/逗号后紧跟的是另一个 '['，说明格式非法
-                if (Peek().Type == TokenType.LeftBracket) return FallbackToText(startIndex);
-
-                if (Peek().Type == TokenType.AttrValue)
-                {
-                    var valToken = Consume();
-
-                    // 关键修复点：如果 Scanner 错误地将 '[' 包含在 AttrValue 中，这里进行二次检查
-                    if (valToken.Value.Contains('[')) return FallbackToText(startIndex);
-
-                    var key = attrCount == 0 ? GetAttributeName(type) : $"value{attrCount}";
-                    attributes[key] = valToken.Value;
-                    attrCount++;
-                }
-                else
-                {
-                    // 如果有 = 但后面不是合法的属性值（也不是闭合括号），回退
-                    if (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Comma)
-                        return FallbackToText(startIndex);
-                }
-            }
-            else
-            {
+            if (separator.Type != TokenType.Equal && separator.Type != TokenType.Comma)
                 // 标签内部出现了意料之外的 Token 类型
                 return FallbackToText(startIndex);
+
+            // 关键修复点：如果在等号/逗号后紧跟的是另一个 '['，说明格式非法
+            if (Peek().Type == TokenType.LeftBracket) return FallbackToText(startIndex);
+
+            if (Peek().Type != TokenType.AttrValue)
+            {
+                // 有分隔符但后面不是合法的属性值（也不是闭合括号/下一个分隔符），回退
+                if (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Comma)
+                    return FallbackToText(startIndex);
+                continue;
             }
+
+            var valToken = Consume();
+
+            // 关键修复点：如果 Scanner 错误地将 '[' 包含在 AttrValue 中，这里进行二次检查
+            if (valToken.Value.Contains('[')) return FallbackToText(startIndex);
+
+            if (separator.Type == TokenType.Equal)
+                // 主属性：整体作为值，键名按标签类型映射
+                attributes[GetAttributeName(type)] = valToken.Value.Trim();
+            else
+                AddKeyValueAttribute(attributes, valToken.Value, type, attrCount);
+
+            attrCount++;
         }
 
         if (type == UbbNodeType.Emoji) attributes["code"] = name;
@@ -190,6 +192,29 @@ public class UbbParser(IEnumerable<Token> tokens)
             UbbNodeType.Emoji => "code",
             _ => "value"
         };
+    }
+
+    /// <summary>
+    ///     把一个键值对槽位（<c>,</c> 之后的 <c>键=值</c> 文本）拆开写入属性字典。
+    /// </summary>
+    /// <remarks>
+    ///     只在**第一个** <c>=</c> 处切分，键与值各自去除首尾空白。因此键值对的书写顺序无关紧要，
+    ///     值内部也可以含 <c>=</c> 和英文逗号（逗号是否切分由词法层的 <c>IsCommaBoundary</c> 判定）。
+    ///     没有键名时退回旧的 <c>value{n}</c> 命名，保持向后兼容。
+    /// </remarks>
+    private void AddKeyValueAttribute(Dictionary<string, string> attributes, string raw, UbbNodeType type,
+        int attrCount)
+    {
+        var eq = raw.IndexOf('=');
+        var key = eq > 0 ? raw[..eq].Trim() : "";
+
+        if (key.Length == 0)
+        {
+            attributes[attrCount == 0 ? GetAttributeName(type) : $"value{attrCount}"] = raw.Trim();
+            return;
+        }
+
+        attributes[key] = raw[(eq + 1)..].Trim();
     }
 
     private void ParseVerbatimContent(TagNode parent)

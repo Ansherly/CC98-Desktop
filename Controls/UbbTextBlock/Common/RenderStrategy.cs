@@ -190,10 +190,8 @@ public class UrlRenderStrategy : IRenderStrategy
         if (node is TagNode tagNode)
         {
             var hyperlink = new Hyperlink();
-            var url = tagNode.GetAttribute("href");
-            if (!url.IsValidUrl())
-                if (node.FirstChild is TextNode child)
-                    url = child.Content;
+            // 地址：优先主属性 href，回退到子节点全文（兼容 [url][b]http://…[/b][/url] 这类嵌套）
+            var url = RenderHelper.ResolveAddress(tagNode, "href");
             // 样式统一走 RenderHelper(颜色默认传统色,可由 LinkForeground 覆盖)
             RenderHelper.ApplyLinkStyle(hyperlink, context);
 
@@ -213,18 +211,10 @@ public class ImageRenderStrategy : IRenderStrategy
     {
         if (node is TagNode tagNode)
         {
-            var src = "";
             var value = tagNode.GetAttribute("value");
-            if (!value.IsValidUrl(false))
-            {
-                // 尝试从子节点获取URL（对于 [img]url[/img] 格式）
-                var first = node.FirstChild;
-                if (first is TextNode textNode) src = textNode.Content;
-            }
-            else
-            {
-                src = value;
-            }
+            // 地址：优先主属性（[img=1] 的 1 不是地址），回退到子节点全文
+            //（[img]url[/img]，且允许 [b] 等样式嵌套）
+            var src = RenderHelper.ResolveAddress(tagNode, "value", false);
 
             if (src.IsValidUrl(false))
             {
@@ -793,17 +783,21 @@ public class AudioRenderStrategy : IRenderStrategy
     {
         if (node is not TagNode tagNode) return;
 
-        var title = tagNode.GetAttribute("value");
-        //应当适配子节点是带有样式的非纯文本节点的情况，不能只取纯文本
-        //应补充测试样例
-        if (node.FirstChild is not TextNode child) return;
+        // 标题优先取命名属性 title（[audio,title=歌曲名,author=某人]url[/audio]），
+        // 回退到主属性 value（[audio=歌曲名] 这类写法）
+        var title = tagNode.GetAttribute("title");
+        if (string.IsNullOrEmpty(title)) title = tagNode.GetAttribute("value");
 
-        var src = child.Content;
+        // 地址只从子节点取（audio 不支持把 src 写在主属性里）。
+        // 用 CollectText 递归收集全文，[audio][b]http://…[/b][/audio] 这类样式嵌套同样能取到。
+        var src = RenderHelper.CollectText(tagNode);
+        if (src.Length == 0) return;
+
         if (src.IsValidUrl(false))
         {
             var player = new MusicPlayer.MusicPlayer
             {
-                Title = title == "" ? "音频" : title.Replace("title=", ""),
+                Title = string.IsNullOrEmpty(title) ? "音频" : title,
                 LoadMediaCallback = new SmartMediaLoader(),
                 Src = src,
                 Margin = new(10)
@@ -830,9 +824,8 @@ public class VideoRenderStrategy : IRenderStrategy
         {
             var src = tagNode.GetAttribute("value");
             if (string.IsNullOrEmpty(src))
-                // 尝试从子节点获取URL
-                if (node.FirstChild is TextNode child)
-                    src = child.Content;
+                // 地址在子节点里：[video]http://…[/video]；递归收集全文，允许 [b] 等样式嵌套
+                src = RenderHelper.CollectText(tagNode);
 
             if (!string.IsNullOrEmpty(src))
             {
@@ -1038,23 +1031,36 @@ public class TopicRenderStrategy : IRenderStrategy
 {
     public void Render(UbbNode node, RenderContext context)
     {
-        if (node is TagNode tagNode)
+        if (node is not TagNode tagNode) return;
+
+        // 主题号：优先主属性 [topic=1029383]，回退到子节点文本 [topic]1029383[/topic]
+        var topicId = tagNode.GetAttribute("value").Trim();
+        if (topicId.Length == 0) topicId = RenderHelper.CollectText(tagNode);
+
+        if (!IsTopicId(topicId))
         {
-            var hyperlink = new Hyperlink();
-            RenderHelper.ApplyLinkStyle(hyperlink, context);
-            var topicId = tagNode.GetAttribute("value");
-            if (!topicId.All(char.IsDigit))
-                //必须是纯数字，否则不渲染
-                return;
-            // 点击事件
-            hyperlink.Click += (sender, e) =>
-            {
-                context.Control.OnMediaClicked($"https://www.cc98.org/topic/{topicId}", MediaType.Link);
-            };
-            context.BeginInlineContainer(hyperlink);
+            // 拿不到合法主题号就按普通文本渲染子节点，不再直接 return 丢掉内容。
+            // 注意空串也必须走这里：string.All 对空串返回 true，否则会链到 /topic/ 死链。
             foreach (var child in node.Children) context.RenderNode(child);
-            context.EndInlineContainer();
+            return;
         }
+
+        var hyperlink = new Hyperlink();
+        RenderHelper.ApplyLinkStyle(hyperlink, context);
+        // 点击事件
+        hyperlink.Click += (sender, e) =>
+        {
+            context.Control.OnMediaClicked($"https://www.cc98.org/topic/{topicId}", MediaType.Link);
+        };
+        context.BeginInlineContainer(hyperlink);
+        foreach (var child in node.Children) context.RenderNode(child);
+        context.EndInlineContainer();
+    }
+
+    /// <summary>主题号必须是纯数字且非空。</summary>
+    private static bool IsTopicId(string topicId)
+    {
+        return topicId.Length > 0 && topicId.All(char.IsDigit);
     }
 }
 
@@ -1083,11 +1089,8 @@ public class FileRenderStrategy : IRenderStrategy
     {
         if (node is TagNode tagNode)
         {
-            var src = tagNode.GetAttribute("value");
-            if (!src.IsValidUrl())
-                // 尝试从子节点获取URL
-                if (node.FirstChild is TextNode child)
-                    src = child.Content;
+            // 地址：优先主属性，回退到子节点全文（允许 [b] 等样式嵌套）
+            var src = RenderHelper.ResolveAddress(tagNode, "value");
 
             if (src.IsValidUrl())
             {

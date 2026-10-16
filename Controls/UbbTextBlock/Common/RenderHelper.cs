@@ -1,10 +1,10 @@
-﻿using CC98.Controls.UbbTextBlock.Parser;
+﻿using CC98.Controls.Extensions;
+using CC98.Controls.UbbTextBlock.Parser;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
-using System.Text;
 using Windows.UI.Text;
 namespace CC98.Controls.UbbTextBlock.Common;
 
@@ -63,19 +63,30 @@ public class RenderHelper
     }
 
 
-    public static string CollectText(UbbNode node)
+    /// <summary>
+    ///     取「地址类」标签的地址：优先主属性（且必须本身已是合法地址），取不到再回退到子节点文本。
+    /// </summary>
+    /// <remarks>
+    ///     子节点文本经 <see cref="CollectText" /> 递归收集，因此 <c>[img][b]http://…[/b][/img]</c>、
+    ///     <c>[url][color=red]http://…[/color][/url]</c> 这类带样式的嵌套也能取到地址。
+    ///     旧实现只检查第一个子节点是否为 <see cref="TextNode" />，子节点一旦被 <c>[b]</c>/<c>[color]</c>
+    ///     等包住就取不到地址。
+    /// </remarks>
+    /// <param name="tagNode">标签节点。</param>
+    /// <param name="attributeKey">主属性键名（如 <c>value</c> / <c>href</c>）。</param>
+    /// <param name="allowRelative">是否允许相对路径。</param>
+    public static string ResolveAddress(TagNode tagNode, string attributeKey, bool allowRelative = true)
     {
-        var sb = new StringBuilder();
-        CollectTextRecursive(node, sb);
-        return sb.ToString().Trim();
+        var value = tagNode.GetAttribute(attributeKey).Trim();
+        return value.IsValidUrl(allowRelative) ? value : CollectText(tagNode);
     }
 
-    private static void CollectTextRecursive(UbbNode node, StringBuilder sb)
+    /// <summary>
+    ///     递归收集节点及其所有后代的纯文本。
+    /// </summary>
+    /// <remarks>实现在 <see cref="UbbNodeTextExtensions.CollectText" />（纯 C#，可单独编译测试）。</remarks>
+    public static string CollectText(UbbNode node)
     {
-        foreach (var child in node.Children)
-            if (child is TextNode textNode)
-                sb.Append(textNode.Content);
-            else
-                CollectTextRecursive(child, sb);
+        return node.CollectText();
     }
 }
