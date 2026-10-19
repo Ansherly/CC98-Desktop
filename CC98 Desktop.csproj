@@ -183,8 +183,10 @@
     <PackageReference Include="CommunityToolkit.Labs.WinUI.Ribbon" Version="0.1.250811-build.10" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.TokenView" Version="0.1.250828-build.2223" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- SketchPage 的 <controls:ColorPicker> 还依赖这个包；ComposeEditor 已经改用自带的 ColorPicker -->
     <PackageReference Include="CommunityToolkit.WinUI.Controls.ColorPicker" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Primitives" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />
     <PackageReference Include="CSharpMath.SkiaSharp" Version="1.0.0-pre.1" />

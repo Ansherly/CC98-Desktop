@@ -654,6 +654,8 @@ public class FlatQuoteRenderStrategy : IRenderStrategy
         return new()
         {
             Background = RenderHelper.GetBrush(context, RenderPropertyKeys.QuoteBackground),
+            BorderBrush = RenderHelper.GetBrush(context, RenderPropertyKeys.QuoteBorder),
+            BorderThickness = new(1),
             Padding = new(12, 8, 12, 8),
             Margin = new(0, 8, 0, 8),
             CornerRadius = new(4),
@@ -792,6 +794,7 @@ public class AudioRenderStrategy : IRenderStrategy
         // 用 CollectText 递归收集全文，[audio][b]http://…[/b][/audio] 这类样式嵌套同样能取到。
         var src = RenderHelper.CollectText(tagNode);
         var author = tagNode.GetAttribute("author");
+        var poster = tagNode.GetAttribute("poster");
         if (src.Length == 0) return;
 
         if (src.IsValidUrl(false))
@@ -799,9 +802,9 @@ public class AudioRenderStrategy : IRenderStrategy
             var player = new MusicPlayer.MusicPlayer
             {
                 Title = string.IsNullOrEmpty(title) ? "未知音频" : title,
-                Author = string.IsNullOrEmpty(author) ? "--" : author,
+                Author = author,
                 //Poster为空会使用默认封面图
-                Poster = tagNode.GetAttribute("poster"),
+                Poster = poster,
                 LoadMediaCallback = new SmartMediaLoader(),
                 Src = src,
                 Margin = new(10)

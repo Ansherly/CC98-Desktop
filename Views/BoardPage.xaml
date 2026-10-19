@@ -121,6 +121,8 @@
                             <ubbTextBlock:UbbTextBlock x:Name="Banner" UbbText="{x:Bind BoardData.BigPaper,Mode=OneWay}"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                        BoldFontFamily="{StaticResource HarmonySansBold}"
+                                       QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                       QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}"
                                        ImageMaxHeight="200"
                                        MediaClicked="Banner_MediaClicked" />
                         </Border>

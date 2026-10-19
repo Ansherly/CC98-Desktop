@@ -13,6 +13,7 @@ internal static class RenderPropertyKeys
     public const string BoldFontFamily = "BoldFontFamily";
     public const string CodeBackground = "CodeBackground";
     public const string QuoteBackground = "QuoteBackground";
+    public const string QuoteBorder = "QuoteBorder";
     public const string LinkForeground = "LinkForeground";
     public const string ImageMaxWidth = "ImageMaxWidth";
     public const string ImageMaxHeight = "ImageMaxHeight";

@@ -24,6 +24,7 @@
                     <Color x:Key="AcrylicTintColor">#66ccff</Color>
                     <Color x:Key="PortraitBackgroundColor">#62b3ae</Color>
                     <x:Double x:Key="AdaptiveOpacity">0</x:Double>
+                    <x:String x:Key="EditorBackgroundImage">Assets/Splash/23year.png</x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
                     <Color x:Key="UserNameForegroundColor">#C4ABD4</Color>
@@ -33,6 +34,7 @@
                     <Color x:Key="AcrylicTintColor">#000000</Color>
                     <Color x:Key="PortraitBackgroundColor">#004d9891</Color>
                     <x:Double x:Key="AdaptiveOpacity">0.4</x:Double>
+                    <x:String x:Key="EditorBackgroundImage"></x:String>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
             <SolidColorBrush x:Key="UserNameForegroundBrush" Color="{ThemeResource UserNameForegroundColor}" />
@@ -44,12 +46,14 @@
             <SolidColorBrush x:Key="SoftPurple" Color="#C4ABD4" />
             <SolidColorBrush x:Key="PrimaryPurple" Color="#7D6CAC" />
             <AcrylicBrush x:Key="AcrylicCardBrush" TintOpacity="0.4" TintColor="{ThemeResource AcrylicTintColor}" AlwaysUseFallback="False" />
-
             <FontFamily x:Key="HarmonySans">/Assets/Fonts/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC</FontFamily>
             <FontFamily x:Key="HarmonySansBold">/Assets/Fonts/HarmonyOS_Sans_SC_Bold.ttf#HarmonyOS Sans SC Bold</FontFamily>
 
             <Style TargetType="TextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+            </Style>
+            <Style TargetType="TextBox">
+                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}"></Setter>
             </Style>
             <Style TargetType="RichTextBlock">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
@@ -59,6 +63,11 @@
             </Style>
             <Style TargetType="tool:SettingsExpander">
                 <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+            </Style>
+            <Style x:Key="TextBoxBlankStyle" TargetType="TextBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="0" />
             </Style>
             <primitives:SmartImageLoader x:Key="PortraitLoader" LowRes="True" />
             <primitives:SmartImageLoader x:Key="CustomPortraitLoader" LowRes="False" />

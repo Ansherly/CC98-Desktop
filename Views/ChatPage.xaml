@@ -144,6 +144,7 @@ ToolTipService.ToolTip="最新信息">
                                                                HorizontalAlignment="{x:Bind IsMe,Converter={StaticResource AlignmentConverter}}"
                                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                                                QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                                               QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}"
                                                                BoldFontFamily="{StaticResource HarmonySansBold}"
                                                                ImageMaxWidth="400"
                                                                MediaClicked="UbbTextBlock_MediaClicked" />

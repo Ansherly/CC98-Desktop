@@ -67,10 +67,16 @@ public enum SearchType
     Guide //使用指南
 }
 
-public enum ContentType
+public enum MarkupContentType
 {
     Ubb = 0,
     Markdown = 1
+}
+//区分帖子类型，普通帖子和学术通知
+public enum TopicType 
+{
+    Normal = 0,
+    AcademicNotice = 1
 }
 
 

@@ -102,7 +102,7 @@
                 <TextBlock Text="签名档" FontSize="23" FontWeight="Bold" Foreground="#A9A9A9" Margin="0,5,0,0"></TextBlock>
                 
                 <Border Height="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" HorizontalAlignment="Stretch" BorderThickness="1"></Border>
-                <ubbTextBlock:UbbTextBlock x:Name="SignBoard" UbbText="{x:Bind UserProfile.SignatureCode,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" MediaClicked="UbbTextBlock_MediaClicked" ImageMaxHeight="400" ImageMaxWidth="400"></ubbTextBlock:UbbTextBlock>
+                <ubbTextBlock:UbbTextBlock x:Name="SignBoard" UbbText="{x:Bind UserProfile.SignatureCode,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}" MediaClicked="UbbTextBlock_MediaClicked" ImageMaxHeight="400" ImageMaxWidth="400"></ubbTextBlock:UbbTextBlock>
                 <TextBlock Text="主题" FontSize="23" FontWeight="Bold" Foreground="#A9A9A9" x:Name="de" IsTextSelectionEnabled="True"></TextBlock>
                 <Border Height="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" HorizontalAlignment="Stretch" BorderThickness="1"></Border>
 

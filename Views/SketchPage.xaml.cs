@@ -44,11 +44,15 @@ public sealed partial class SketchPage : Page
     // 表情分组缓存:悬停切换类型时避免重复扫描磁盘与重建整组 Image
     private readonly Dictionary<string, List<Emoji>> _emojiCache = [];
     private string _currentEmojiType = "";
+    //是否匿名发帖。默认不匿名。
     private bool IsAnonymous = false;
     private bool IsTailVisible;
+    //发回复帖时，通知所有回复者和主题作者，还是只通知主题作者。默认只通知主题作者。
     private bool NotifyAllReplier = false;
+    //发主题帖时，是否接收来自回复者的通知。默认接收通知。
     private bool NotifyPoster = true;
-    private int PostTypeValue; //普通帖子
+    //发主题帖时，帖子类型。默认普通帖子。
+    private int PostTypeValue = (int)TopicType.Normal; 
     private ApiService ApiService = App.Current.GetService<ApiService>();
     public SketchPage()
     {
@@ -110,7 +114,7 @@ public sealed partial class SketchPage : Page
     {
         IsTailVisible = AppSettings.Current.IsTailVisible;
         TextContentType = NavigationInfo.ContentType;
-        if (TextContentType == (int)ContentType.Markdown)
+        if (TextContentType == (int)MarkupContentType.Markdown)
         {
             MdViewer.Visibility = Visibility.Visible;
             UbbViewer.Visibility = Visibility.Collapsed;
@@ -172,7 +176,7 @@ public sealed partial class SketchPage : Page
     {
         //关闭预览窗格可以避免卡顿，尤其是在内容较长时
         if (!EditArea.IsPaneOpen) return;
-        if (TextContentType == (int)Objects.ContentType.Ubb)
+        if (TextContentType == (int)Objects.MarkupContentType.Ubb)
             UbbViewer.UbbText = TextContent;
         else
             MdViewer.MarkdownText = TextContent;
@@ -187,7 +191,7 @@ public sealed partial class SketchPage : Page
     {
         var b = sender as AppBarButton;
         if (b == null) return;
-        var isMd = TextContentType == (int)Objects.ContentType.Markdown;
+        var isMd = TextContentType == (int)Objects.MarkupContentType.Markdown;
         switch (b.Label)
         {
             case "预览":
@@ -495,7 +499,7 @@ public sealed partial class SketchPage : Page
                     return;
                 }
 
-                if (TextContentType == (int)Objects.ContentType.Markdown)
+                if (TextContentType == (int)Objects.MarkupContentType.Markdown)
                     InsertMdMedia(CurrentLabel, result.Url);
                 else
                     InsertTag(CurrentLabel, CurrentLabel, result.Url);
@@ -504,7 +508,7 @@ public sealed partial class SketchPage : Page
             {
                 // 仅输入标签:插入空标签,由用户在编辑器中补充内容
                 FileHelper.Hide();
-                if (TextContentType == (int)Objects.ContentType.Markdown)
+                if (TextContentType == (int)Objects.MarkupContentType.Markdown)
                     InsertMdMedia(CurrentLabel, "");
                 else
                     InsertTag(CurrentLabel, CurrentLabel, "");
@@ -625,7 +629,7 @@ public sealed partial class SketchPage : Page
     /// </summary>
     private void InsertMediaTag(string label, string url)
     {
-        if (TextContentType == (int)Objects.ContentType.Markdown)
+        if (TextContentType == (int)Objects.MarkupContentType.Markdown)
             InsertMdMedia(label, url);
         else
             InsertTag(label, label, url);
@@ -802,7 +806,7 @@ public sealed partial class SketchPage : Page
 
     private void SwitchContentType_Click(object sender, RoutedEventArgs e)
     {
-        if (TextContentType == (int)ContentType.Ubb)
+        if (TextContentType == (int)MarkupContentType.Ubb)
         {
             TextContentType = 1;
             MD.Visibility = Visibility.Visible;
@@ -843,7 +847,7 @@ public sealed partial class SketchPage : Page
 
     private void ConfirmCustomLink_Click(object sender, RoutedEventArgs e)
     {
-        if (TextContentType == (int)Objects.ContentType.Markdown)
+        if (TextContentType == (int)Objects.MarkupContentType.Markdown)
             InsertMdMedia(CurrentLabel, CustomLink.Text);
         else
             InsertTag(CurrentLabel, CurrentLabel, CustomLink.Text);

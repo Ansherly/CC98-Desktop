@@ -58,6 +58,13 @@ public sealed partial class UbbTextBlock : Control
             typeof(UbbTextBlock),
             new(null, OnRenderPropertyChanged));
 
+    public static readonly DependencyProperty QuoteBorderProperty =
+        DependencyProperty.Register(
+            nameof(QuoteBorder),
+            typeof(Brush),
+            typeof(UbbTextBlock),
+            new(null, OnRenderPropertyChanged));
+
     public static readonly DependencyProperty LinkForegroundProperty =
         DependencyProperty.Register(
             nameof(LinkForeground),
@@ -126,6 +133,12 @@ public sealed partial class UbbTextBlock : Control
     {
         get => (Brush)GetValue(QuoteBackgroundProperty);
         set => SetValue(QuoteBackgroundProperty, value);
+    }
+
+    public Brush QuoteBorder
+    {
+        get => (Brush)GetValue(QuoteBorderProperty);
+        set => SetValue(QuoteBorderProperty, value);
     }
 
     /// <summary>链接颜色(为空时使用 CC98 传统色 LightSeaGreen)。</summary>
@@ -276,6 +289,8 @@ public sealed partial class UbbTextBlock : Control
                 CodeBackground ?? new SolidColorBrush(Color.FromArgb(0x1F, 0x88, 0x88, 0x88));
             Context.Properties[RenderPropertyKeys.QuoteBackground] =
                 QuoteBackground ?? new SolidColorBrush(Color.FromArgb(0x14, 0x88, 0x88, 0x88));
+            Context.Properties[RenderPropertyKeys.QuoteBorder] =
+                QuoteBorder ?? new SolidColorBrush(Color.FromArgb(0x14, 0x88, 0x88, 0x88));
             Context.Properties[RenderPropertyKeys.LinkForeground] =
                 LinkForeground ?? new SolidColorBrush(Colors.LightSeaGreen);   // 传统色
             Context.Properties[RenderPropertyKeys.ImageMaxWidth] = ImageMaxWidth;

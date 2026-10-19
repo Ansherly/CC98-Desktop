@@ -93,6 +93,13 @@ public sealed partial class TopicPage : Page
         InitializeComponent();
         LoadSet();
         LoadFavorites();
+
+        // 发送成功后刷新：回帖只影响列表，编辑主题还会改标题和正文
+        ComposeOverlay.Sent += async (_, _) =>
+        {
+            await LoadTopicInfo();
+            await LoadReply();
+        };
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
@@ -323,6 +330,8 @@ public sealed partial class TopicPage : Page
         TopicInfo.ReplyCount = data.ReplyCount;
         TopicInfo.IsVote = data.IsVote;
         TopicInfo.IsAnonymous = data.IsAnonymous;
+        TopicInfo.IsMe = data.IsMe;
+
         var isFavoriteResult = await isFavoriteTask;
         if (isFavoriteResult.IsNotValid)
         {
@@ -519,15 +528,17 @@ public sealed partial class TopicPage : Page
 
 
     
+    /// <summary>
+    ///     回复：从底部滑出浮层（不再导航到 SketchPage）。
+    ///     背景图走 XAML 绑定（<c>BackgroundImageSource</c>），这里只交代发送模式和目标。
+    /// </summary>
     private void writereply_Click(object sender, RoutedEventArgs e)
     {
-        var param = new SketchNavigationInfo
-        {
-            EditorMode = EditorMode.ReplyToTopic,
-            TopicId = TopicId,
-            HintText = TopicInfo.Title,
-        };
-        Frame.Navigate(typeof(SketchPage), param);
+        ComposeOverlay.Mode = EditorMode.ReplyToTopic;
+        ComposeOverlay.TopicId = TopicId;
+        ComposeOverlay.HintText = string.Empty; // 普通回复用默认文案，别留着上次引用的「引用某某」
+
+        ComposeOverlay.Show();
     }
 
     #region 赠米(财富转账)
@@ -1021,7 +1032,7 @@ public sealed partial class TopicPage : Page
                 break;
             case "MD":
                 pack = new DataPackage();
-                if (reply.ContentType == (int)ContentType.Ubb)
+                if (reply.ContentType == (int)MarkupContentType.Ubb)
                 {
                     pack.SetText(UbbToMarkdown.Convert(reply.Content, true));
                 }
@@ -1044,36 +1055,70 @@ public sealed partial class TopicPage : Page
                     var page = 1 + floor / 10;
                     var location = floor % 10;
                     var header = $"[b]以下是引用{floor}楼：用户{reply.UserName}在{reply.Time}的发言：[url=/topic/{TopicId}/{page}#{location}]>>查看原帖<<[/url][/b]\r\n";
-                    var param = new SketchNavigationInfo
-                    {
-                        EditorMode = EditorMode.ReplyToPost,
-                        TopicId = TopicId,
-                        QuoteHeader = $"[quote]{header}{reply.Content}[/quote]",
-                        ParentId = reply.Id,
-                        HintText = $"引用{reply.UserName}的回复",
-                        Floor = floor
-                    };
-                    Frame.Navigate(typeof(SketchPage), param);
+                    var quote = $"[quote]{header}{reply.Content}[/quote]";
+
+                    // 引用回复 = ReplyToPost：标题栏显示被引用的人，正文预填引用块（一律 UBB）
+                    ComposeOverlay.Mode = EditorMode.ReplyToPost;
+                    ComposeOverlay.TopicId = TopicId;
+                    ComposeOverlay.ParentId = reply.Id;
+                    ComposeOverlay.InitialTitle = string.Empty;
+                    ComposeOverlay.HintText = $"引用{reply.UserName}的回复";
+                    ComposeOverlay.PrefillQuote(quote);
+                    ComposeOverlay.Show();
                 }
                 break;
             case "EDIT":
-                //使用括号放置param变量名重复
-                {
-                    var param = new SketchNavigationInfo
-                    {
-                        EditorMode = reply.Floor == 1 ? EditorMode.EditMyTopic : EditorMode.EditMyPost,
-                        TopicId = TopicId,
-                        BaseText = reply.Content,
-                        PostId = reply.Id,
-                        HintText = TopicInfo.Title,
-                        Floor = reply.Floor,
-                        ContentType = reply.ContentType
-                    };
-                    Frame.Navigate(typeof(SketchPage), param);
-                }
+                OpenEditorForEdit(reply);
                 break;
         }
     }
+
+    /// <summary>
+    ///     打开编辑器编辑某一楼。<c>Floor == 1</c> 就是主题本身（标题可改），其余都是回复。
+    /// </summary>
+    private void OpenEditorForEdit(Reply reply)
+    {
+        var editingTopic = reply.Floor == 1;
+
+        ComposeOverlay.Mode = editingTopic ? EditorMode.EditMyTopic : EditorMode.EditMyPost;
+        ComposeOverlay.TopicId = TopicId;
+        ComposeOverlay.PostId = reply.Id;
+        // 主题标题两种编辑模式都要带：编辑回复时它只是不能改，但必须原样回传
+        ComposeOverlay.InitialTitle = TopicInfo.Title;
+        ComposeOverlay.Prefill(reply.Content ?? string.Empty, reply.ContentType, reply.IsAnonymous);
+        ComposeOverlay.Show();
+    }
+
+    /// <summary>
+    ///     主题头部菜单里的「编辑主题」。首楼不一定在当前页（翻到后面几页时就没有），
+    ///     缺了就单独去取第 1 页拿回来。
+    /// </summary>
+    private async void EditTopic_Click(object sender, RoutedEventArgs e)
+    {
+        var first = Replies.FirstOrDefault(x => x.Floor == 1);
+
+        if (first == null)
+        {
+            var url = ApiEndpoints.Topic.ReplyList(TopicId, 0);
+            var result = await ApiService.Fetch<List<Reply>>(url);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Flower.Play(FlowStatus.Fail, $"找不到首楼：{result.Message}");
+                return;
+            }
+
+            first = result.Data.FirstOrDefault(x => x.Floor == 1);
+        }
+
+        if (first == null)
+        {
+            Flower.Play(FlowStatus.Fail, "找不到首楼，无法编辑");
+            return;
+        }
+
+        OpenEditorForEdit(first);
+    }
+
     private void PagerFix()
     {
         Pager.NextButtonVisibility = Pager.NumberOfPages == 1 ?

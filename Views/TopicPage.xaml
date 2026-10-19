@@ -16,6 +16,7 @@
     xmlns:picture="using:CC98.Controls.Picture"
     xmlns:md="using:CC98.Controls.MarkdownTextBlock"
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:compose="using:CC98.Controls.ComposeSheet"
     xmlns:empty="using:CC98.Controls.EmptyState"
     NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
@@ -99,7 +100,7 @@
                 </StackPanel>
 
                 <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <ubb:UbbTextBlock UbbText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" CodeBackground="{ThemeResource QuoteBackgroundBrush}" MediaClicked="UbbTextBlock_MediaClicked" HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"></ubb:UbbTextBlock>
+                    <ubb:UbbTextBlock UbbText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}"  CodeBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}" MediaClicked="UbbTextBlock_MediaClicked" HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"></ubb:UbbTextBlock>
                 </Border>
             </Grid>
         </DataTemplate>
@@ -205,6 +206,12 @@
                             <ic:SymbolIcon Symbol="Share"></ic:SymbolIcon>
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
+
+                    <MenuFlyoutItem x:Name="EditTopicMenuItem" Text="编辑主题" Click="EditTopic_Click" Visibility="{x:Bind TopicInfo.IsMe,Converter={StaticResource BoolToVisibility},Mode=OneWay}">
+                        <MenuFlyoutItem.Icon>
+                            <ic:SymbolIcon Symbol="Edit"></ic:SymbolIcon>
+                        </MenuFlyoutItem.Icon>
+                    </MenuFlyoutItem>
                     <MenuFlyoutSubItem Text="收藏" Tag="2" Visibility="{x:Bind TopicInfo.IsFavorite,Converter={StaticResource ReBoolToVisibility},Mode=OneWay}" x:Name="CollectionMenu">
                         <MenuFlyoutSubItem.Icon>
                             <ic:SymbolIcon Symbol="StarAdd"></ic:SymbolIcon>
@@ -260,7 +267,7 @@
         </ScrollViewer>
         <empty:EmptyStateControl Grid.Row="1" x:Name="TopicEmptyState" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无回复" Subtitle="还没有回复，抢个沙发" HorizontalAlignment="Center" VerticalAlignment="Center" />
         
-        <Grid Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Padding="0,5,0,5">
+        <Grid Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,5,0,5">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"></ColumnDefinition>
                 <ColumnDefinition Width="3*" MinWidth="300"></ColumnDefinition>
@@ -315,7 +322,7 @@
             </Grid>
         </TeachingTip>
         <TeachingTip  Target="{x:Bind}" x:Name="ProfileViewer" IsLightDismissEnabled="True" TailVisibility="Collapsed" Closed="ProfileViewer_Closed">
-            <Grid RowSpacing="8" ColumnSpacing="15"  >
+            <Grid RowSpacing="8" ColumnSpacing="15">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"></RowDefinition>
                     <RowDefinition Height="Auto"></RowDefinition>
@@ -401,5 +408,11 @@
         </ContentDialog>
 
         <infoFlower:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="3" HorizontalAlignment="Center" VerticalAlignment="Bottom"></infoFlower:InfoFlower>
+
+        <!-- 发帖浮层：点"回复"从底部滑出，宽度铺满整页；背景图给亚克力当采样源 -->
+        <compose:ComposeSheet
+            x:Name="ComposeOverlay"
+            Grid.RowSpan="3"
+            BackgroundImageSource="{ThemeResource EditorBackgroundImage}" />
     </Grid>
 </Page>
