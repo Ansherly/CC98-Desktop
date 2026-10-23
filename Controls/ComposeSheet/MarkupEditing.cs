@@ -52,14 +52,52 @@ internal static class MarkupEditing
             : new Result(updated, start + prefix.Length + open.Length, placeholder.Length);
     }
 
-    /// <summary>块级字面量（比如 MD 的 <c>---</c>）：前后按需补换行，光标落在后面。</summary>
+    /// <summary>
+    ///     块级字面量（MD 的 <c>---</c>）：前后按需补换行，光标落在后面。
+    /// </summary>
+    /// <remarks>
+    ///     它的前导换行要额外空一行：Markdown 里「上一条文字 + 紧跟一行 ---」不是分割线，
+    ///     而是把上一段变成 setext 二级标题；必须隔一个空行才认作水平线。
+    /// </remarks>
     public static Result BlockLiteral(string text, int start, int length, string literal)
     {
-        var prefix = NeedsLeadingNewline(text, start) ? "\n" : "";
+        var prefix = LeadingBlankLine(text, start);
         var suffix = NeedsTrailingNewline(text, start + length) ? "\n" : "";
         var insert = prefix + literal + suffix;
 
         return new Result(text[..start] + insert + text[(start + length)..], start + insert.Length, 0);
+    }
+
+    /// <summary>为分隔线准备前导：保证它前面正好隔一个空行（不多不少）。</summary>
+    private static string LeadingBlankLine(string text, int index)
+    {
+        // 数一下插入点前面连续有几个换行（\r\n 里的 \r 不算，跳过）
+        var i = index - 1;
+        var breaks = 0;
+        while (i >= 0)
+        {
+            if (text[i] == '\n')
+            {
+                breaks++;
+                i--;
+            }
+            else if (text[i] == '\r')
+            {
+                i--;
+            }
+            else
+            {
+                break;
+            }
+        }
+
+        return breaks switch
+        {
+            0 when index == 0 => "", // 文首：什么都不用补
+            0 => "\n\n", // 行中间：先断行，再空一行
+            1 => "\n", // 已在行首：补成空行
+            _ => "" // 上面已经是空行
+        };
     }
 
     /// <summary>插入一段字面量（分隔线、哔哩 iframe 之类），光标落在末尾。</summary>
@@ -128,9 +166,16 @@ internal static class MarkupEditing
         return index > 0 && text[index - 1] != '\n';
     }
 
-    /// <summary>插入点后既不是换行也不是文末时，才需要补尾随换行。</summary>
+    /// <summary>
+    ///     尾随换行：文末也必须补。
+    /// </summary>
+    /// <remarks>
+    ///     MD 的围栏代码块、&lt;div&gt;、分割线都是「到行尾才收尾」的，后面不留换行会把之后输入的内容并进块里：
+    ///     <c>```code```text</c> 的收尾围栏失效，整段被吞进代码块（看起来就是"该换行的地方没换行"）。
+    ///     只有后面本来就是换行时才不重复补，免得一次点出两个空行。
+    /// </remarks>
     private static bool NeedsTrailingNewline(string text, int index)
     {
-        return index < text.Length && text[index] != '\n';
+        return index >= text.Length || text[index] != '\n';
     }
 }

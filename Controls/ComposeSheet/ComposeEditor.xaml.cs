@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Mime;
 using System.Threading.Tasks;
@@ -109,8 +111,16 @@ public sealed partial class ComposeEditor : UserControl
     /// </summary>
     public string ContentText
     {
-        get => EditorBox.Text;
+        // TextBox 里存的是 CRLF，SketchPage 的 TextContent 也是先归一成 LF 再拿去渲染和提交，
+        // 这里保持一致：UBB 解析按 \n 切段落，带着 \r 交给渲染控件会少掉一些换行。
+        get => NormalizeNewlines(EditorBox.Text);
         set => EditorBox.Text = value ?? string.Empty;
+    }
+
+    /// <summary>统一换行成 \n（和 SketchPage 的 TextContent 处理一致）。</summary>
+    private static string NormalizeNewlines(string text)
+    {
+        return text.Replace("\r\n", "\n").Replace('\r', '\n');
     }
 
     /// <summary>帖子标题。只有编辑帖子/主题时才有意义。</summary>
@@ -271,8 +281,82 @@ public sealed partial class ComposeEditor : UserControl
     /// <summary>表情面板：HyperlinkButton 没有 Flyout 属性，改用附加属性手动弹出。</summary>
     private void Emoji_Click(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement element) FlyoutBase.ShowAttachedFlyout(element);
+        if (sender is not FrameworkElement element) return;
+
+        // 第一次打开（或换了类型）才扫盘，之后走缓存
+        LoadEmojiSet(SelectedEmojiType());
+        FlyoutBase.ShowAttachedFlyout(element);
     }
+
+    #region 表情
+
+    /// <summary>各类型的表情清单缓存：贴吧 33 个、AC娘 149 个，反复扫盘没必要。</summary>
+    private readonly Dictionary<string, List<Emoji>> _emojiCache = [];
+
+    private string SelectedEmojiType()
+    {
+        foreach (var item in EmojiTypeSegmented.Items)
+            if (item is SegmentedItem { IsSelected: true, Tag: string tag })
+                return tag;
+
+        return "CC98";
+    }
+
+    /// <summary>从 Assets/Emoji/&lt;类型&gt; 扫描表情文件并喂给网格。</summary>
+    private void LoadEmojiSet(string type)
+    {
+        if (!_emojiCache.TryGetValue(type, out var set))
+        {
+            try
+            {
+                var folder = Path.Combine(AppContext.BaseDirectory, "Assets", "Emoji", type);
+                set = Directory.GetFiles(folder)
+                    .Select(file => new Emoji
+                    {
+                        EmojiName = Path.GetFileNameWithoutExtension(file).ToLowerInvariant(),
+                        EmojiPath = file
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                // 目录被改名/删除时不要炸掉整个浮层
+                Debug.WriteLine($"表情目录读不出来：{type} / {ex.Message}");
+                set = [];
+            }
+
+            _emojiCache[type] = set;
+        }
+
+        EmojiGrid.ItemsSource = set;
+    }
+
+    private void EmojiType_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_initialized) return;
+
+        LoadEmojiSet(SelectedEmojiType());
+    }
+
+    /// <summary>
+    ///     点表情插标签。UBB 用原本的 <c>[tb01]</c> 标签；Markdown 没有表情语法，插图片
+    ///     <c>![tb01](url)</c>，把表情名当替代文字。
+    /// </summary>
+    private void EmojiGrid_ItemClick(object sender, ItemClickEventArgs e)
+    {
+        if (e.ClickedItem is not Emoji emoji || string.IsNullOrEmpty(emoji.EmojiName)) return;
+
+        var literal = _contentType == (int)MarkupContentType.Markdown
+            ? EmojiUrls.Resolve(emoji.EmojiName) is { } url
+                ? $"![{emoji.EmojiName}]({url})"
+                : $"[{emoji.EmojiName}]" // 解析不出地址就退回 UBB 标签，至少不丢内容
+            : $"[{emoji.EmojiName}]";
+
+        ApplyResult(MarkupEditing.Literal(EditorBox.Text, EditorBox.SelectionStart, EditorBox.SelectionLength,
+            literal));
+    }
+
+    #endregion
 
     /// <summary>
     ///     格式按钮的统一入口：按 <c>Tag</c> 决定插什么语法，UBB 与 Markdown 各一套映射
@@ -664,7 +748,7 @@ public sealed partial class ComposeEditor : UserControl
     /// <summary>把源码丢给对应的渲染控件；内容为空就只显示占位。</summary>
     private void RenderPreview()
     {
-        var text = EditorBox.Text;
+        var text = ContentText;
         var hasText = !string.IsNullOrWhiteSpace(text);
 
         PreviewEmpty.Visibility = hasText ? Visibility.Collapsed : Visibility.Visible;

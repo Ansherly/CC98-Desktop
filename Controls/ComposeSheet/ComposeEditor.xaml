@@ -9,6 +9,7 @@
     xmlns:infoFlower="using:CC98.Controls.InfoFlower"
     xmlns:md="using:CC98.Controls.MarkdownTextBlock"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:obj="using:CC98.Objects"
     xmlns:ubb="using:CC98.Controls.UbbTextBlock"
     mc:Ignorable="d">
 
@@ -243,26 +244,40 @@
                             <FlyoutBase.AttachedFlyout>
                                 <Flyout>
                                     <StackPanel MinWidth="320" Spacing="10">
-                                        <controls:Segmented HorizontalAlignment="Center" SelectedIndex="0">
-                                            <controls:SegmentedItem Content="CC98" Tag="CC98" />
+                                        <controls:Segmented
+                                            x:Name="EmojiTypeSegmented"
+                                            HorizontalAlignment="Center"
+                                            SelectionChanged="EmojiType_SelectionChanged">
+                                            <controls:SegmentedItem Content="CC98" IsSelected="True" Tag="CC98" />
                                             <controls:SegmentedItem Content="AC娘" Tag="ac-white" />
                                             <controls:SegmentedItem Content="贴吧" Tag="tb" />
                                             <controls:SegmentedItem Content="雀魂" Tag="ms" />
                                             <controls:SegmentedItem Content="经典" Tag="em" />
                                         </controls:Segmented>
-                                        <Border
-                                            Height="120"
-                                            Background="{ThemeResource ControlAltFillColorSecondaryBrush}"
+
+                                        <!-- 表情格子：图标来自 Assets/Emoji/<类型>，ItemsSource 在代码里给
+                                             （SketchPage 用 XAML 绑定滚动时会崩，这里保持同样的做法） -->
+                                        <GridView
+                                            x:Name="EmojiGrid"
+                                            Height="184"
+                                            MaxWidth="340"
+                                            HorizontalAlignment="Stretch"
                                             BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
                                             BorderThickness="1"
-                                            CornerRadius="6">
-                                            <TextBlock
-                                                HorizontalAlignment="Center"
-                                                VerticalAlignment="Center"
-                                                FontSize="12"
-                                                Foreground="{ThemeResource TextFillColorTertiaryBrush}"
-                                                Text="表情格子（接入 EmojiContainer）" />
-                                        </Border>
+                                            IsItemClickEnabled="True"
+                                            ItemClick="EmojiGrid_ItemClick">
+                                            <GridView.ItemTemplate>
+                                                <DataTemplate x:DataType="obj:Emoji">
+                                                    <Border CornerRadius="2">
+                                                        <Image
+                                                            Width="30"
+                                                            Height="30"
+                                                            Source="{x:Bind EmojiPath}"
+                                                            ToolTipService.ToolTip="{x:Bind EmojiName}" />
+                                                    </Border>
+                                                </DataTemplate>
+                                            </GridView.ItemTemplate>
+                                        </GridView>
                                     </StackPanel>
                                 </Flyout>
                             </FlyoutBase.AttachedFlyout>
