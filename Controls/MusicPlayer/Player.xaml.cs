@@ -170,6 +170,22 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
         _globalPlayer.MediaEnded += OnMediaEnded;
         _globalPlayer.MediaFailed += OnMediaFailed;
         _globalPlayer.CurrentStateChanged += OnCurrentStateChanged;
+        _globalPlayer.OwnerChanged += _globalPlayer_OwnerChanged;
+    }
+
+    private void _globalPlayer_OwnerChanged(object? sender, object newOwner)
+    {
+        if (ReferenceEquals(newOwner, this)) return;
+
+        // 别的控件接管了全局播放器：我这边必须回到初始态，
+        // 因为全局播放器里已经不是我，而且我的 MediaSource 已被释放
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            _isPlaying = false;
+            _isInitialized = false;   // 下次播放需重新 LoadMedia
+            _progressTimer.Stop();
+            ResetUi();
+        });
     }
 
     private void UnsubscribeGlobalPlayerEvents()
@@ -181,6 +197,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
         _globalPlayer.MediaEnded -= OnMediaEnded;
         _globalPlayer.MediaFailed -= OnMediaFailed;
         _globalPlayer.CurrentStateChanged -= OnCurrentStateChanged;
+        _globalPlayer.OwnerChanged -= _globalPlayer_OwnerChanged;
     }
 
     private void OnLoaded(object sender, RoutedEventArgs e)
@@ -193,11 +210,15 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
         //脱离可视树:停止播放与进度定时器,断开单例事件,避免钉住整页
-        if (_isPlaying)
+        //事件在任意一个控件被卸载时都会触发。但是，我们不能在这里把全局播放器 Pause 掉，因为可能还有别的控件正在播放。
+        //所以，加一个IsCurrentOwner的判断，只有当当前控件是全局播放器的拥有者时，才去Pause。
+        if (_isPlaying && _globalPlayer.IsCurrentOwner(this))
         {
             _globalPlayer.Pause();
             _isPlaying = false;
         }
+
+        _globalPlayer.ReleaseOwnership(this);
         _progressTimer.Stop();
         UnsubscribeGlobalPlayerEvents();
         _isInitialized = false;
@@ -354,14 +375,19 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
         try
         {
             var mediaSource = await LoadMediaCallback.LoadMedia(Src);
-
+            //防止加载过程中控件被卸载或 Dispose 掉，避免继续使用已释放的 MediaSource
+            if (_disposed)
+            {
+                mediaSource?.Dispose();
+                return false;
+            }
             if (mediaSource == null)
             {
                 ShowErrorMessage($"无法加载媒体:{Src}");
                 return false;
             }
-
-            _globalPlayer.SetSource(mediaSource);
+            //将自己注册为全局播放器的当前拥有者,避免多个控件同时使用同一个播放器
+            _globalPlayer.SetSource(mediaSource, this);
             _isInitialized = true;
             ProgressSlider.IsEnabled = true;
             return true;
@@ -508,6 +534,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     private void UpdateProgress(object sender, object e)
     {
+        if (!_globalPlayer.IsCurrentOwner(this)) return;
         var session = _globalPlayer?.PlaybackSession;
         if (session == null || session.NaturalDuration.TotalSeconds <= 0) return;
 
@@ -530,6 +557,8 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
     {
         //定时器同步滑块时触发的回调不应反过来再 seek 一次
         if (_isSyncingProgress) return;
+        //防止可能的串扰：别的控件接管了全局播放器，我这边就不要再去 seek 了
+        if (!_globalPlayer.IsCurrentOwner(this)) return;
 
         var session = _globalPlayer?.PlaybackSession;
         if (session == null || session.NaturalDuration.TotalSeconds <= 0) return;
@@ -538,7 +567,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
         CurrentTimeText.Text = FormatTime(session.Position.TotalSeconds);
     }
 
-    private string FormatTime(double seconds)
+    private static string FormatTime(double seconds)
     {
         var timeSpan = TimeSpan.FromSeconds(seconds);
         return $"{(int)timeSpan.TotalMinutes}:{timeSpan.Seconds:D2}";
@@ -550,6 +579,11 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     private void OnMediaOpened(MediaPlayer sender, object args)
     {
+        if(!_globalPlayer.IsCurrentOwner(this))
+        {
+            return;
+        }
+
         // 媒体打开成功
         DispatcherQueue.TryEnqueue(() =>
         {
@@ -559,6 +593,11 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     private void OnMediaEnded(MediaPlayer sender, object args)
     {
+        if(!_globalPlayer.IsCurrentOwner(this))
+        {
+            return;
+        }
+
         DispatcherQueue.TryEnqueue(() =>
         {
             _isPlaying = false;
@@ -573,6 +612,10 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     private void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
     {
+        if (!_globalPlayer.IsCurrentOwner(this))
+        {
+            return;
+        }
         DispatcherQueue.TryEnqueue(() =>
         {
             ShowErrorMessage($"播放失败: {args.ErrorMessage}");
@@ -586,7 +629,41 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
     private void OnCurrentStateChanged(MediaPlayer sender, object args)
     {
-        // 可以根据需要处理状态变化
+        if (!_globalPlayer.IsCurrentOwner(this))
+        {
+            return;
+        }
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            var state = sender.PlaybackSession?.PlaybackState ?? MediaPlaybackState.None;
+
+            switch (state)
+            {
+                case MediaPlaybackState.Playing:
+                    //外部直接 Play()（目前没有，但规则上允许）时把 UI 拉回播放态
+                    if (!_isPlaying)
+                    {
+                        _isPlaying = true;
+                        UpdatePlayPauseButton();
+                        _progressTimer.Start();
+                    }
+                    break;
+
+                case MediaPlaybackState.Paused:
+                case MediaPlaybackState.None:
+                    //外部 Pause()（如 TopicPage 导航离开时）把 UI 拉回暂停态
+                    if (_isPlaying)
+                    {
+                        _isPlaying = false;
+                        UpdatePlayPauseButton();
+                        _progressTimer.Stop();
+                    }
+                    break;
+            }
+            //Ended 不在这里处理：滑块归零、时间清零由 OnMediaEnded 专职负责，
+            //两边都做只会重复入队
+        });
     }
 
     #endregion
@@ -643,6 +720,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
             //只取消订阅事件，不释放全局播放器
             UnsubscribeGlobalPlayerEvents();
+            _globalPlayer.ReleaseOwnership(this);
         }
     }
 
