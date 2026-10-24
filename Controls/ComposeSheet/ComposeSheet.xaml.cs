@@ -46,11 +46,8 @@ public sealed partial class ComposeSheet : UserControl
     private bool _isClosing;
     private bool _isSending;
 
-    /// <summary>收起后要不要清空内容（只有发送成功才清）。</summary>
+    /// <summary>收起后要不要清空内容（只有发送成功才置位）。</summary>
     private bool _resetOnHide;
-
-    /// <summary>这一次会话是不是编辑模式（编辑的原文不该当草稿留着）。</summary>
-    private bool _sessionWasEditing;
 
     public ComposeSheet()
     {
@@ -136,6 +133,11 @@ public sealed partial class ComposeSheet : UserControl
         if (_isOpen) return;
 
         _isOpen = true;
+
+        // 重新打开时把发送锁解开（上一次发送成功后一直锁到关闭，这里复位）
+        _isSending = false;
+        SendButton.IsEnabled = true;
+
         ConfigureForMode();
 
         // 这次打开时该用哪种语言。浮层第一次显示时模板才实体化，
@@ -183,13 +185,12 @@ public sealed partial class ComposeSheet : UserControl
             _isOpen = false;
             Root.Visibility = Visibility.Collapsed;
 
-            // 发送成功 → 清空；编辑会话取消 → 也清空（原帖内容留在服务器上，留着没有意义）；
-            // 只有回复草稿才保留，方便用户关了再回来接着写。
-            if (_resetOnHide || _sessionWasEditing)
-            {
-                _resetOnHide = false;
-                Editor.Reset();
-            }
+            // 只有「回复主楼」的草稿值得留（关了再回来接着写）。
+            // 引用别人的回复是一次性的：里面预填的是那层楼的引用块，留着反而会串到下一次引用；
+            // 编辑帖子取消后更该清空 —— 原帖还在服务器上，留着没有意义。
+            var keepDraft = !_resetOnHide && Mode == EditorMode.ReplyToTopic;
+            _resetOnHide = false;
+            if (!keepDraft) Editor.Reset();
 
             // 预览栏一律清掉：草稿文本会留着，但排版内容不该挂在浮层里过夜，
             // 否则下次打开会先闪一下上次的渲染结果。
@@ -262,8 +263,6 @@ public sealed partial class ComposeSheet : UserControl
 
         // 新回复从"不匿名"开始（和 SketchPage 每次进页面一样）；编辑则显示原帖状态
         if (!editing) Editor.IsAnonymous = false;
-
-        _sessionWasEditing = editing;
     }
 
     /// <summary>
@@ -295,7 +294,9 @@ public sealed partial class ComposeSheet : UserControl
 
     private async Task SendAsync()
     {
-        if (_isSending) return;
+        // 防重：请求还在飞、浮层已经在下滑（收起动画期间面板仍然可点）、或者根本没打开，
+        // 一律拒绝。最后一条专治"发送成功后连点第二下" —— 那时内容还没被清空。
+        if (_isSending || _isClosing || !_isOpen) return;
 
         if (string.IsNullOrWhiteSpace(Editor.ContentText))
         {
@@ -312,6 +313,8 @@ public sealed partial class ComposeSheet : UserControl
 
         _isSending = true;
         SendButton.IsEnabled = false;
+
+        var sent = false;
         try
         {
             var (success, message) = Mode switch
@@ -327,8 +330,20 @@ public sealed partial class ComposeSheet : UserControl
                 return;
             }
 
+            sent = true;
             _resetOnHide = true;
-            Hide();
+
+            if (_isOpen)
+            {
+                Hide(); // 正常路径：滑出，等收起动画结束再清空
+            }
+            else
+            {
+                // 用户在请求飞行途中已经把浮层关了：没人再走一遍收起流程，这里直接清
+                Editor.Reset();
+                Editor.ClearPreview();
+            }
+
             Sent?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
@@ -339,8 +354,13 @@ public sealed partial class ComposeSheet : UserControl
         }
         finally
         {
-            _isSending = false;
-            SendButton.IsEnabled = true;
+            // 失败要立刻解锁让用户重试；成功则一直锁到浮层收完，
+            // 否则收起动画的 200ms 里再点一下就会重复发帖（内容此时还没清空）。
+            if (!sent)
+            {
+                _isSending = false;
+                SendButton.IsEnabled = true;
+            }
         }
     }
 

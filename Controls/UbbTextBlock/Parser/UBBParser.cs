@@ -258,17 +258,65 @@ public class UbbParser(IEnumerable<Token> tokens)
                PeekOffset(3)?.Type == TokenType.RightBracket;
     }
 
-    private LatexNode ParseLatex()
+    private UbbNode ParseLatex()
     {
         //这里只有$形式的Latex会调用到
         //[math]是TagNode而不是LatexNode,尽管它们的Type属性相同
         //用CollectText获得公式块的Latex,用Latex属性获得行内公式的Latex
-        var token = Consume();
-        var isBlock = token.Type == TokenType.DoubleDollar;
+        var open = Consume();
+        var isBlock = open.Type == TokenType.DoubleDollar;
+        var contentStart = _index;
+
+        //块级$$只要求存在闭合定界符；行内单$则参照Pandoc的规则严格判定，
+        //避免把"5$"、"$ 和 $"这类普通美元符号误认为公式：
+        //开定界符前不能是数字、后必须紧跟非空白字符；
+        //闭定界符前不能是空白字符（公式非空且不以空白结尾）、后不能紧跟数字。
+        if (isBlock)
+            return ParseBlockLatex(open, contentStart);
+
+        if (Peek().Type != TokenType.Text || Peek().Value.Length == 0 ||
+            char.IsWhiteSpace(Peek().Value[0]) ||
+            IsTextAtOffset(-2, t => t.Length > 0 && char.IsDigit(t[^1])))
+            return new TextNode(open.Value);
+
+        var latex = Consume().Value;
+
+        if (Peek().Type != TokenType.Dollar || latex.Length == 0 ||
+            char.IsWhiteSpace(latex[^1]) ||
+            IsTextAtOffset(1, t => t.Length > 0 && char.IsDigit(t[0])))
+        {
+            //无法构成合法公式：回退已消费的内容，让后续文本按原样解析
+            _index = contentStart;
+            return new TextNode(open.Value);
+        }
+
+        Consume();
+        return new LatexNode(latex, isBlock);
+    }
+
+    private UbbNode ParseBlockLatex(Token open, int contentStart)
+    {
         var latex = "";
         if (Peek().Type == TokenType.Text) latex = Consume().Value;
-        if (Peek().Type == token.Type) Consume();
-        return new(latex, isBlock);
+
+        if (Peek().Type != TokenType.DoubleDollar || latex.Length == 0)
+        {
+            _index = contentStart;
+            return new TextNode(open.Value);
+        }
+
+        Consume();
+        return new LatexNode(latex, true);
+    }
+
+    /// <summary>
+    ///     检查相对于当前<see cref="_index" />偏移<paramref name="offset" />处的Text词元，
+    ///     并对其内容执行<paramref name="predicate" />（词元不存在或不是Text时返回false）。
+    /// </summary>
+    private bool IsTextAtOffset(int offset, Func<string, bool> predicate)
+    {
+        var token = PeekOffset(offset);
+        return token is { Type: TokenType.Text } && predicate(token.Value);
     }
 
     private bool IsKnownType(UbbNodeType type)
