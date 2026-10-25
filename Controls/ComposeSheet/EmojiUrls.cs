@@ -1,7 +1,7 @@
 using System;
 using System.Linq;
 
-namespace CC98.Controls.ComposeSheet;
+namespace CC98.Controls;
 
 /// <summary>
 ///     表情名（UBB 里 <c>[name]</c> 的 name）→ CC98 站点上的图片地址。

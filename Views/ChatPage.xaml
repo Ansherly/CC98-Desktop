@@ -9,12 +9,12 @@
     mc:Ignorable="d"
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:obj="using:CC98.Objects"
-    xmlns:picture="using:CC98.Controls.Picture"
+    xmlns:picture="using:CC98.Controls"
     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     xmlns:tool="using:CommunityToolkit.WinUI.Controls"
     xmlns:dev="using:DevWinUI"
-    xmlns:empty="using:CC98.Controls.EmptyState"
+    xmlns:empty="using:CC98.Controls"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
    

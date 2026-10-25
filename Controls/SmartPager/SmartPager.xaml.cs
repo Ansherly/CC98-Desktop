@@ -3,7 +3,7 @@ using System.Globalization;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace CC98.Controls.SmartPager;
+namespace CC98.Controls;
 
 /// <summary>
 ///     分页导航组件:首页 / 上一页 / 「当前页/总页数」 / 下一页 / 末页。

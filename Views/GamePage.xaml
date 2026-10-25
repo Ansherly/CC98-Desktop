@@ -10,8 +10,8 @@
     xmlns:dev="using:DevWinUI"
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:obj="using:CC98.Objects"
-    xmlns:smartImage="using:CC98.Controls.SmartImage"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:smartImage="using:CC98.Controls"
+    xmlns:infoFlower="using:CC98.Controls"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Grid Padding="15" RowSpacing="15" ColumnSpacing="10">

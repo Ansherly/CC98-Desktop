@@ -9,7 +9,7 @@
     mc:Ignorable="d"
     xmlns:dev="using:DevWinUI"
     xmlns:obj="using:CC98.Objects"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
     <Page.Resources>
         <DataTemplate x:Key="BoardCase" x:DataType="obj:BoardInfo">

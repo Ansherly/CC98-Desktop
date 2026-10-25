@@ -1,6 +1,6 @@
 using System;
 
-namespace CC98.Controls.ComposeSheet;
+namespace CC98.Controls;
 
 /// <summary>
 ///     源码插入的纯逻辑：只算「新文本 + 新选区」，不碰任何控件，方便单独验证。

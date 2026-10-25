@@ -14,7 +14,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Animation;
 using Microsoft.UI.Xaml.Media.Imaging;
 
-namespace CC98.Controls.ComposeSheet;
+namespace CC98.Controls;
 
 /// <summary>
 ///     帖子页底部滑出的发帖浮层。

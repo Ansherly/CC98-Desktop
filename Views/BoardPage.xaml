@@ -12,13 +12,13 @@
     xmlns:obj="using:CC98.Objects"
     xmlns:tool="using:CommunityToolkit.WinUI.Controls"
     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     xmlns:sv="using:CC98.Services"
-    xmlns:picture="using:CC98.Controls.Picture"
+    xmlns:picture="using:CC98.Controls"
     xmlns:dev="using:DevWinUI"
     xmlns:helper="using:CC98.Services.Helpers"
-    xmlns:empty="using:CC98.Controls.EmptyState"
-    xmlns:sp="using:CC98.Controls.SmartPager"
+    xmlns:empty="using:CC98.Controls"
+    xmlns:sp="using:CC98.Controls"
     NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
     <Grid>

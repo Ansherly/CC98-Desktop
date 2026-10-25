@@ -8,8 +8,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:obj="using:CC98.Objects"
-    xmlns:empty="using:CC98.Controls.EmptyState"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:empty="using:CC98.Controls"
+    xmlns:infoFlower="using:CC98.Controls"
     NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 

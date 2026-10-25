@@ -12,7 +12,7 @@
     xmlns:sv="using:CC98.Services"
     xmlns:views="using:CC98.Views"
     xmlns:ubb="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     xmlns:obj="using:CC98.Objects"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 

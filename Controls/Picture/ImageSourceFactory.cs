@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Windows.Storage.Streams;
 
-namespace CC98.Controls.Picture;
+namespace CC98.Controls;
 
 /// <summary>
 ///     把"地址 / 字节流"解码为 <see cref="ImageSource" /> 的工厂,统一处理 SVG 与位图两类格式。

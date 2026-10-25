@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using CC98.Controls.Picture;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using CC98.Kernel.Authorize;
 using CC98.Objects;

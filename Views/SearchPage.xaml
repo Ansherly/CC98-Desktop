@@ -8,8 +8,8 @@
     mc:Ignorable="d"
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:obj="using:CC98.Objects"
-    xmlns:picture="using:CC98.Controls.Picture"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:picture="using:CC98.Controls"
+    xmlns:infoFlower="using:CC98.Controls"
     xmlns:lab="using:CommunityToolkit.Labs.WinUI"
     xmlns:helpers="using:CC98.Services.Helpers"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">

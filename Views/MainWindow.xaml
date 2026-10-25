@@ -10,8 +10,8 @@
     xmlns:animatedvisuals="using:Microsoft.UI.Xaml.Controls.AnimatedVisuals"
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:obj="using:CC98.Objects"
-    xmlns:picture="using:CC98.Controls.Picture"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:picture="using:CC98.Controls"
+    xmlns:infoFlower="using:CC98.Controls"
     xmlns:sv="using:CC98.Services"
     xmlns:controls="using:CC98.Controls"
     xmlns:dev="using:DevWinUI"
@@ -19,7 +19,7 @@
     
     
     <Grid x:Name="RootGrid" UseLayoutRounding="True" Loaded="RootGrid_Loaded">
-       
+
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="*" />
@@ -167,5 +167,6 @@
 
         </NavigationView>
         <infoFlower:InfoFlower Grid.Row="0" Grid.RowSpan="3" x:Name="Flower" />
+
     </Grid>
 </Window>

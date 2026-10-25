@@ -1,12 +1,12 @@
 using CC98.Controls.MarkdownTextBlock.Common;
-using CC98.Controls.Picture;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using Microsoft.UI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
-using LatexBlockControl = CC98.Controls.LatexBlock.LatexBlock;
+using LatexBlockControl = CC98.Controls.LatexBlock;
 
 namespace CC98.Controls.MarkdownTextBlock.Rendering;
 
@@ -31,22 +31,25 @@ internal static class ElementFactory
     /// <param name="context">渲染上下文。</param>
     /// <param name="src">图片地址。</param>
     /// <param name="alt">替代文本。</param>
-    /// <param name="width">HTML <c>width</c> 属性指定的宽度(像素);为空时用属性袋里的最大宽度。</param>
-    /// <param name="height">HTML <c>height</c> 属性指定的高度(像素);为空时用属性袋里的最大高度。</param>
-    public static Picture.Picture CreatePicture(RenderContext context, string src, string alt,
+    /// <param name="width">HTML <c>width</c> 属性指定的宽度(像素)。</param>
+    /// <param name="height">HTML <c>height</c> 属性指定的高度(像素)。</param>
+    /// <remarks>
+    ///     统一尺寸规则:带 HTML 宽高属性的图片按属性固定尺寸(浏览器语义);
+    ///     其余所有图片宽度受 <c>ImageMaxWidth</c> 统一上限、高度不限(按宽高比自由伸展)。
+    /// </remarks>
+    public static Picture CreatePicture(RenderContext context, string src, string alt,
         double? width = null, double? height = null)
     {
         var maxWidth = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxWidth) ?? double.PositiveInfinity;
-        var maxHeight = context.GetProperty<double?>(RenderPropertyKeys.ImageMaxHeight) ?? double.PositiveInfinity;
         var hideImage = context.GetProperty<bool?>(RenderPropertyKeys.HideImage) ?? false;
 
-        var picture = new Picture.Picture
+        var picture = new Picture
         {
             LoadImageCallback = SmartImageLoader.Default,
             Hide = hideImage, // 无图模式,与 UBB 的 Hide = Control.HideImage 对齐
             Src = src,
-            MaxWidth = width ?? maxWidth,
-            MaxHeight = height ?? maxHeight,
+            MaxWidth = width is > 0 ? width.Value : maxWidth,
+            MaxHeight = height is > 0 ? height.Value : double.PositiveInfinity,
             Stretch = Stretch.Uniform
         };
 
@@ -68,19 +71,13 @@ internal static class ElementFactory
     }
 
     /// <summary>
-    ///     创建行内图片。未指定尺寸时限高,避免撑破段落行高;指定了 width/height 时按指定尺寸渲染
-    ///     (HTML 里 <c>&lt;a&gt;&lt;img width=144&gt;&lt;/a&gt;</c> 这类用法很常见)。
+    ///     创建行内图片。尺寸规则与块级图片一致(见 <see cref="CreatePicture" />):
+    ///     未指定 HTML 宽高属性时宽度受统一上限、高度不限;行内与块级仅是排版位置不同。
     /// </summary>
     public static Inline CreateInlineImage(RenderContext context, string src, string alt,
         double? width = null, double? height = null)
     {
         var picture = CreatePicture(context, src, alt, width, height);
-        if (width is null && height is null)
-        {
-            var fontSize = context.GetProperty<double?>(RenderPropertyKeys.FontSize) ?? 14;
-            picture.MaxHeight = fontSize * 1.5;
-        }
-
         return new InlineUIContainer { Child = CreateImageButton(context, picture, alt) };
     }
 
@@ -92,7 +89,7 @@ internal static class ElementFactory
     ///     这样悬停时 HyperlinkButton 自带的圆角高亮会从图片四周露出 1 DIP,两处控件的图片观感一致。
     ///     (垂直方向保留 Top:行内图片需要按内容高度对齐,不能撑满行高。)
     /// </remarks>
-    private static HyperlinkButton CreateImageButton(RenderContext context, Picture.Picture picture, string alt)
+    private static HyperlinkButton CreateImageButton(RenderContext context, Picture picture, string alt)
     {
         var button = new HyperlinkButton
         {

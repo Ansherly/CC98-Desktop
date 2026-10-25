@@ -12,8 +12,8 @@
     xmlns:obj="using:CC98.Objects"
     xmlns:services="using:CC98.Services"
     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    xmlns:empty="using:CC98.Controls.EmptyState"
+    xmlns:infoFlower="using:CC98.Controls"
+    xmlns:empty="using:CC98.Controls"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
     <Page.Resources>
         <services:BooltoVisibilityConverter x:Key="BoolToVisibility"></services:BooltoVisibilityConverter>

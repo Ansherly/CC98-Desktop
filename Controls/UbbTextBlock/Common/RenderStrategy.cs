@@ -218,7 +218,7 @@ public class ImageRenderStrategy : IRenderStrategy
 
             if (src.IsValidUrl(false))
             {
-                var image = new Picture.Picture
+                var image = new Picture
                 {
                     //自定义图片加载器必须在Src设置之前赋值
                     //否则OnSrcChanged事件会触发，但此时将使用默认加载器
@@ -451,7 +451,7 @@ public class EmojiRenderStrategy : IRenderStrategy
                 {
                     if (!string.IsNullOrEmpty(imageUrl))
                     {
-                        var image = new Picture.Picture
+                        var image = new Picture
                         {
                             LoadImageCallback = SmartImageLoader.Default,
                             Src = imageUrl,
@@ -504,7 +504,7 @@ public class LatexRenderStrategy : IRenderStrategy
 
     private static InlineUIContainer InlineLatex(string latex)
     {
-        var textBlock = new LatexBlock.LatexBlock
+        var textBlock = new LatexBlock
         {
             FontSize = 14,
             LaTeX = latex
@@ -514,9 +514,9 @@ public class LatexRenderStrategy : IRenderStrategy
         return container;
     }
 
-    private static LatexBlock.LatexBlock BlockLatex(string latex)
+    private static LatexBlock BlockLatex(string latex)
     {
-        var textBlock = new LatexBlock.LatexBlock
+        var textBlock = new LatexBlock
         {
             FontSize = 14,
             LaTeX = latex
@@ -560,7 +560,11 @@ public class MarkdownRenderStrategy : IRenderStrategy
         var textBlock = new MarkdownTextBlock.MarkdownTextBlock
         {
             FontSize = 14,
-            Background = UbbBrushHelper.Transparent
+            Background = UbbBrushHelper.Transparent,
+            // 同步宿主的图片尺寸限制与无图模式,保证 [md] 内图片与 UBB [img] 行为一致
+            ImageMaxWidth = context.Control.ImageMaxWidth,
+            ImageMaxHeight = context.Control.ImageMaxHeight,
+            HideImage = context.Control.HideImage
         };
 
         var codeText = RenderHelper.CollectText(node);
@@ -799,7 +803,7 @@ public class AudioRenderStrategy : IRenderStrategy
 
         if (src.IsValidUrl(false))
         {
-            var player = new MusicPlayer.MusicPlayer
+            var player = new MusicPlayer
             {
                 Title = string.IsNullOrEmpty(title) ? "未知音频" : title,
                 Author = author,
@@ -836,7 +840,7 @@ public class VideoRenderStrategy : IRenderStrategy
 
             if (!string.IsNullOrEmpty(src))
             {
-                var player = new VideoPlayer.VideoPlayer
+                var player = new VideoPlayer
                 {
                     LoadVideoCallback = new SmartMediaLoader(),
                     Src = src,
@@ -1039,10 +1043,7 @@ public class TopicRenderStrategy : IRenderStrategy
     public void Render(UbbNode node, RenderContext context)
     {
         if (node is not TagNode tagNode) return;
-
-        // 主题号：优先主属性 [topic=1029383]，回退到子节点文本 [topic]1029383[/topic]
         var topicId = tagNode.GetAttribute("value").Trim();
-        if (topicId.Length == 0) topicId = RenderHelper.CollectText(tagNode);
 
         if (!IsTopicId(topicId))
         {
@@ -1101,7 +1102,7 @@ public class FileRenderStrategy : IRenderStrategy
 
             if (src.IsValidUrl())
             {
-                var card = new FileCard.FileCard
+                var card = new FileCard
                 {
                     Src = src,
                     HorizontalAlignment = HorizontalAlignment.Left,

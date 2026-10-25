@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 
-namespace CC98.Controls.Picture;
+namespace CC98.Controls;
 
 /// <summary>
 ///     默认图片加载器:把绝对 URI 直接交给系统解码。

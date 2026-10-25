@@ -13,7 +13,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 
 // MusicPlayer.xaml.cs
 
-namespace CC98.Controls.MusicPlayer;
+namespace CC98.Controls;
 
 /// <summary>
 ///     帖子内嵌的音频播放器：海报 + 歌名 + 作者 + 进度条 + 播放/下载/音量。

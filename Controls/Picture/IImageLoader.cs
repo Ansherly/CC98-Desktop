@@ -1,7 +1,7 @@
 ﻿using System.Threading.Tasks;
 using Microsoft.UI.Xaml.Media;
 
-namespace CC98.Controls.Picture;
+namespace CC98.Controls;
 
 /// <summary>
 ///     图片加载器抽象。

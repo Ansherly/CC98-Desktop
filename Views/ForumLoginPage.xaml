@@ -9,7 +9,7 @@
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:dev="using:DevWinUI"
     xmlns:sv="using:CC98.Services"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     mc:Ignorable="d">
 
     <Grid x:Name="RootGrid" Padding="20" Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" CornerRadius="8" Opacity="0.8" Loaded="RootGrid_Loaded">

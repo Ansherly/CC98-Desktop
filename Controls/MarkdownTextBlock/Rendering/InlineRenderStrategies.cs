@@ -105,8 +105,7 @@ public class LinkRenderStrategy : IRenderStrategy
             }
 
             // 独占一段、或被链接包住(`[![alt](src)](url)`)时,一律按块级图片落地:
-            // 后者是因为 Hyperlink 不接受 InlineUIContainer(WinUI 限制),必须退出链接;
-            // 也因此不能走行内图片工厂(它会给未指尺寸的图片按行高限高)。
+            // 后者是因为 Hyperlink 不接受 InlineUIContainer(WinUI 限制),必须退出链接。
             // 用 AddBlockElement 而不是 AddToContainer:块级图片要跟随当前块级对齐
             // (HTML 的 align / text-align / <center> 会写 RenderContext.BlockAlignment)
             if (RenderHelper.IsStandaloneImage(link) || context.IsInsideHyperlink)

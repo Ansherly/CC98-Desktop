@@ -19,7 +19,7 @@ using Windows.Storage.Streams;
 
 using Symbol = FluentIcons.Common.Symbol;
 
-namespace CC98.Controls.ComposeSheet;
+namespace CC98.Controls;
 
 /// <summary>
 ///     发帖浮层里的编辑器界面：状态栏 + 工具条 + 源码/预览两栏。

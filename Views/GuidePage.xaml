@@ -8,6 +8,7 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ic="using:FluentIcons.WinUI"  
     xmlns:md="using:CC98.Controls.MarkdownTextBlock"
+    xmlns:svc="using:CC98.Services"
     mc:Ignorable="d">
 
     <Grid x:Name="RootGrid" Padding="20" Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" CornerRadius="8" Opacity="0.8" RowSpacing="10" Loaded="RootGrid_Loaded">
@@ -20,7 +21,7 @@
         </HyperlinkButton>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
-            <md:MarkdownTextBlock x:Name="TipText" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+            <md:MarkdownTextBlock x:Name="TipText" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
         </ScrollViewer>
     </Grid>
 </Page>

@@ -6,6 +6,7 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:tool="using:CommunityToolkit.WinUI.Controls"
     xmlns:primitives="using:CC98.Controls.Primitives"
+    xmlns:dev="using:DevWinUI"
     xmlns:services="using:CC98.Services">
     <Application.Resources>
         <ResourceDictionary>
@@ -69,6 +70,17 @@
                 <Setter Property="BorderThickness" Value="0" />
                 <Setter Property="CornerRadius" Value="0" />
             </Style>
+            <Style x:Key="TextBoxBorderStyle" TargetType="Border">
+                <Setter Property="BorderBrush" Value="{ThemeResource AcrylicCardBrush}"></Setter>
+                <Setter Property="BorderThickness" Value="1"></Setter>
+                <Setter Property="CornerRadius" Value="4"></Setter>
+            </Style>
+            <Style x:Key="DevTextBoxBlankStyle" TargetType="dev:TextBox">
+                <Setter Property="Background" Value="Transparent" />
+                <Setter Property="BorderThickness" Value="0" />
+                <Setter Property="CornerRadius" Value="0" />
+            </Style>
+       
             <primitives:SmartImageLoader x:Key="PortraitLoader" LowRes="True" />
             <primitives:SmartImageLoader x:Key="CustomPortraitLoader" LowRes="False" />
             <services:HexToBrushConverter x:Key="HexToColorBrush" />

@@ -13,11 +13,8 @@
     xmlns:ubb="using:CC98.Controls.UbbTextBlock"
     xmlns:obj="using:CC98.Objects"
     xmlns:svc="using:CC98.Services"
-    xmlns:picture="using:CC98.Controls.Picture"
     xmlns:md="using:CC98.Controls.MarkdownTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    xmlns:compose="using:CC98.Controls.ComposeSheet"
-    xmlns:empty="using:CC98.Controls.EmptyState"
+    xmlns:cc="using:CC98.Controls"
     NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
@@ -34,7 +31,7 @@
                     <HyperlinkButton Grid.Row="0"  x:Name="Person" Click="Person_Click" Tag="{x:Bind}" ContextRequested="Person_ContextRequested">
                         <StackPanel  Orientation="Horizontal" Spacing="10">
                             <Border Width="30" Height="30" CornerRadius="9999" Background="{ThemeResource PortraitBackgroundBrush}">
-                                <picture:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></picture:Picture>
+                                <cc:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></cc:Picture>
                             </Border>
                             <TextBlock Text="{x:Bind UserName}"  VerticalAlignment="Center" FontFamily="{StaticResource HarmonySansBold}" Foreground="{ThemeResource UserNameForegroundBrush}"></TextBlock>
                         </StackPanel>
@@ -115,7 +112,7 @@
                     <HyperlinkButton Grid.Row="0"  x:Name="Person" Click="Person_Click" Tag="{x:Bind}" ContextRequested="Person_ContextRequested">
                         <StackPanel  Orientation="Horizontal" Spacing="10">
                             <Border Width="30" Height="30" CornerRadius="9999" Background="{ThemeResource PortraitBackgroundBrush}">
-                                <picture:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></picture:Picture>
+                                <cc:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></cc:Picture>
                             </Border>
                             <TextBlock Text="{x:Bind UserName}"  VerticalAlignment="Center" FontFamily="{StaticResource HarmonySansBold}" Foreground="{ThemeResource UserNameForegroundBrush}"></TextBlock>
                         </StackPanel>
@@ -181,6 +178,7 @@
             </Grid>
         </DataTemplate>
         <obj:ReplyTemplateSelector x:Key="ReplyTemplateSelector" UBBTemplate="{StaticResource UbbViewer}" MarkdownTemplate="{StaticResource MdViewer}"></obj:ReplyTemplateSelector>
+        
     </Page.Resources>
     <Grid x:Name="RootGrid" >
         <Grid.RowDefinitions>
@@ -265,7 +263,7 @@
             <ItemsRepeater x:Name="ReplyRepeater" ItemTemplate="{StaticResource ReplyTemplateSelector}" ItemsSource="{x:Bind Replies,Mode=OneWay}" VerticalCacheLength="96"></ItemsRepeater>
             
         </ScrollViewer>
-        <empty:EmptyStateControl Grid.Row="1" x:Name="TopicEmptyState" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无回复" Subtitle="还没有回复，抢个沙发" HorizontalAlignment="Center" VerticalAlignment="Center" />
+        <cc:EmptyStateControl Grid.Row="1" x:Name="TopicEmptyState" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无回复" Subtitle="还没有回复，抢个沙发" HorizontalAlignment="Center" VerticalAlignment="Center" />
         
         <Grid Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,5,0,5">
             <Grid.ColumnDefinitions>
@@ -357,9 +355,17 @@
                 <TextBlock Text="转账需要收取一定的手续费，手续费金额为 10% 或者 10 中的较大值。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <TextBlock Text="转账手续费从转账金额中收取，因此对方实际收到的金额会少于您输入的金额。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <TextBlock Text="转账的最小金额不能小于 10。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBox x:Name="WealthReceiver" Header="收款人" PlaceholderText="用户名，多人用空格隔开" IsEnabled="False" />
+                <TextBlock Text="收款用户"></TextBlock>
+                <Border Style="{ThemeResource TextBoxBorderStyle}">
+                    <TextBox x:Name="WealthReceiver"  PlaceholderText="用户名，多人用空格隔开" Style="{StaticResource TextBoxBlankStyle}" IsEnabled="False" />
+                </Border>
+
+                <cc:FancyTextBox ></cc:FancyTextBox>
                 <NumberBox x:Name="WealthAmount" Header="金额（米）" Minimum="0" SpinButtonPlacementMode="Inline" SmallChange="1000" LargeChange="5000" ValueChanged="WealthAmount_ValueChanged" />
-                <TextBox x:Name="WealthReason" Header="理由" PlaceholderText="必填" />
+                <Border Style="{ThemeResource TextBoxBorderStyle}">
+                    <TextBox x:Name="WealthReason" PlaceholderText="增米理由(必填)" Style="{StaticResource TextBoxBlankStyle}"/>
+                </Border>
+                
                 <TextBlock x:Name="WealthPreview" FontSize="12" Foreground="LightSeaGreen" TextWrapping="Wrap" />
                 <TextBlock x:Name="WealthError" FontSize="12" Foreground="Red" TextWrapping="Wrap" />
                 <Grid>
@@ -407,10 +413,10 @@
             </StackPanel>
         </ContentDialog>
 
-        <infoFlower:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="3" HorizontalAlignment="Center" VerticalAlignment="Bottom"></infoFlower:InfoFlower>
+        <cc:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="3" HorizontalAlignment="Center" VerticalAlignment="Bottom"></cc:InfoFlower>
 
         <!-- 发帖浮层：点"回复"从底部滑出，宽度铺满整页；背景图给亚克力当采样源 -->
-        <compose:ComposeSheet
+        <cc:ComposeSheet
             x:Name="ComposeOverlay"
             Grid.RowSpan="3"
             BackgroundImageSource="{ThemeResource EditorBackgroundImage}" />

@@ -2,7 +2,7 @@
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
-using CC98.Controls.Picture;
+using CC98.Controls;
 using CC98.Services.Helpers;
 using Microsoft.UI.Xaml.Media;
 

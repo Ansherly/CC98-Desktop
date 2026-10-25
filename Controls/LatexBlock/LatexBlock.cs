@@ -9,7 +9,7 @@ using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
 
-namespace CC98.Controls.LatexBlock;
+namespace CC98.Controls;
 
 /// <summary>
 /// 使用 CSharpMath + SkiaSharp 渲染 LaTeX 公式的控件。

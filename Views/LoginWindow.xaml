@@ -9,7 +9,7 @@
     xmlns:ic="using:FluentIcons.WinUI"
     xmlns:dev="using:DevWinUI"
     xmlns:tool="using:CommunityToolkit.WinUI.Controls"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     Title="CC98 登录"
     mc:Ignorable="d">
     <Window.SystemBackdrop>

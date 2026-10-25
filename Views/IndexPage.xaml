@@ -13,7 +13,7 @@
     xmlns:tool="using:CommunityToolkit.WinUI.Controls"
     xmlns:dev="using:DevWinUI"
     xmlns:sv="using:CC98.Services"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
 
     Background="{ThemeResource CardGradient1Brush}">
     <Page.Resources>

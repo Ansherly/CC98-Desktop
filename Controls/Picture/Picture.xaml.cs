@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace CC98.Controls.Picture;
+namespace CC98.Controls;
 
 /// <summary>
 /// 图片成功解码并渲染后的事件参数,携带图片像素尺寸(用于视口适配等)。

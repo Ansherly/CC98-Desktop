@@ -1,4 +1,4 @@
-﻿using CC98.Controls.Picture;
+﻿using CC98.Controls;
 using CC98.Kernel;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;

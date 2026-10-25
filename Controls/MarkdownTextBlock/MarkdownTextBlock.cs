@@ -11,7 +11,7 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using CC98.Controls.MarkdownTextBlock.Common;
 using CC98.Controls.MarkdownTextBlock.Common.Events;
-using CC98.Controls.Picture;
+using CC98.Controls;
 using CC98.Controls.MarkdownTextBlock.Rendering;
 using Windows.UI;
 using Inline = Microsoft.UI.Xaml.Documents.Inline;
@@ -71,7 +71,7 @@ public sealed partial class MarkdownTextBlock : Control
                     builder.AppendLine(
                         $"{indent}CodeBlock      [{codeBlock.LanguageName}] {Truncate(codeBlock.Code)} | {codeBlock.GetScrollDebugInfo()}");
                     break;
-                case Controls.Picture.Picture picture:
+                case Picture picture:
                     builder.AppendLine($"{indent}Picture        {picture.Src}");
                     break;
                 case Border border:
@@ -124,7 +124,7 @@ public sealed partial class MarkdownTextBlock : Control
 
     private static void CollectImageUrls(DependencyObject element, List<string> urls)
     {
-        if (element is Picture.Picture picture)
+        if (element is Picture picture)
         {
             if (!string.IsNullOrWhiteSpace(picture.Src)) urls.Add(picture.Src);
             return; // 图片内部不会再有图片

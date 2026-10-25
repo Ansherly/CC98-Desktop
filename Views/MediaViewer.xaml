@@ -8,8 +8,8 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:ic="using:FluentIcons.WinUI"
-    xmlns:picture="using:CC98.Controls.Picture"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:picture="using:CC98.Controls"
+    xmlns:infoFlower="using:CC98.Controls"
     Title="预览">
 
     <Grid x:Name="RootGrid">

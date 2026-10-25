@@ -1,6 +1,6 @@
 ﻿<!-- VideoPlayer.xaml -->
 <UserControl
-    x:Class="CC98.Controls.VideoPlayer.VideoPlayer"
+    x:Class="CC98.Controls.VideoPlayer"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:media="using:Microsoft.UI.Xaml.Controls"

@@ -12,9 +12,10 @@
     xmlns:dev="using:DevWinUI"
     xmlns:ubb="using:CC98.Controls.UbbTextBlock"
     xmlns:obj="using:CC98.Objects"
+    xmlns:svc="using:CC98.Services"
     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
     xmlns:md="using:CC98.Controls.MarkdownTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
+    xmlns:infoFlower="using:CC98.Controls"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
 
@@ -272,7 +273,7 @@
             <SplitView.Pane>
                 <ScrollViewer>
                     <Grid>
-                        <md:MarkdownTextBlock FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" x:Name="MdViewer" Visibility="Collapsed"></md:MarkdownTextBlock>
+                        <md:MarkdownTextBlock FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}" x:Name="MdViewer" Visibility="Collapsed"></md:MarkdownTextBlock>
                         <ubbTextBlock:UbbTextBlock ImageMaxWidth="320" Background="{ThemeResource MarkdownBackgroundBrush}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" CodeBackground="{ThemeResource QuoteBackgroundBrush}" BoldFontFamily="{ThemeResource HarmonySansBold}" x:Name="UbbViewer"/>
                     </Grid>
                 </ScrollViewer>

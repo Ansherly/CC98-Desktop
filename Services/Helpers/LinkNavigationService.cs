@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 
-using CC98.Controls.InfoFlower;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using CC98.Kernel;
 using CC98.Objects;
