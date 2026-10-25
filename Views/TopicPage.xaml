@@ -356,16 +356,10 @@
                 <TextBlock Text="转账手续费从转账金额中收取，因此对方实际收到的金额会少于您输入的金额。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <TextBlock Text="转账的最小金额不能小于 10。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 <TextBlock Text="收款用户"></TextBlock>
-                <Border Style="{ThemeResource TextBoxBorderStyle}">
-                    <TextBox x:Name="WealthReceiver"  PlaceholderText="用户名，多人用空格隔开" Style="{StaticResource TextBoxBlankStyle}" IsEnabled="False" />
-                </Border>
-
-                <cc:FancyTextBox ></cc:FancyTextBox>
-                <NumberBox x:Name="WealthAmount" Header="金额（米）" Minimum="0" SpinButtonPlacementMode="Inline" SmallChange="1000" LargeChange="5000" ValueChanged="WealthAmount_ValueChanged" />
-                <Border Style="{ThemeResource TextBoxBorderStyle}">
-                    <TextBox x:Name="WealthReason" PlaceholderText="增米理由(必填)" Style="{StaticResource TextBoxBlankStyle}"/>
-                </Border>
-                
+                <cc:FancyTextBox x:Name="WealthReceiver"  PlaceholderText="用户名，多人用空格隔开" IsEnabled="False" />
+                <TextBlock Text="赠米数"></TextBlock>
+                <cc:FancyTextBox x:Name="WealthAmount" PlaceholderText="金额（米）" />
+                <cc:FancyTextBox x:Name="WealthReason" PlaceholderText="增米理由(必填)"/>
                 <TextBlock x:Name="WealthPreview" FontSize="12" Foreground="LightSeaGreen" TextWrapping="Wrap" />
                 <TextBlock x:Name="WealthError" FontSize="12" Foreground="Red" TextWrapping="Wrap" />
                 <Grid>

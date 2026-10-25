@@ -94,6 +94,14 @@ public sealed partial class TopicPage : Page
         LoadSet();
         LoadFavorites();
 
+        //金额变化时刷新到账预览;赠米金额只放行数字,BeforeTextChanging 直接拒绝非法输入
+        WealthAmount.TextChanged += (_, _) => UpdateWealthPreview();
+        WealthAmount.BeforeTextChanging += (_, args) =>
+        {
+            if (args.NewText.Length > 0 && !args.NewText.All(char.IsDigit))
+                args.Cancel = true;
+        };
+
         // 发送成功后刷新：回帖只影响列表，编辑主题还会改标题和正文
         ComposeOverlay.Sent += async (_, _) =>
         {
@@ -568,7 +576,7 @@ public sealed partial class TopicPage : Page
 
         //重置弹窗输入并预填收款人
         WealthReceiver.Text = reply.UserName;
-        WealthAmount.Value = 0;
+        WealthAmount.Text = "";
         WealthReason.Text = "";
         WealthError.Text = "";
         UpdateWealthPreview();
@@ -584,17 +592,15 @@ public sealed partial class TopicPage : Page
         }
     }
 
-    private void WealthAmount_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        UpdateWealthPreview();
-    }
+    /// <summary>赠米金额:文本已由 BeforeTextChanging 保证只含数字,解析失败(空框)按 0 处理。</summary>
+    private int WealthAmountValue => int.TryParse(WealthAmount.Text, out var value) ? value : 0;
 
     /// <summary>
     /// 按"手续费 = max(金额*10%, 10)"实时计算并显示实际到账。
     /// </summary>
     private void UpdateWealthPreview()
     {
-        var wealth = (int)System.Math.Round(WealthAmount.Value);
+        var wealth = WealthAmountValue;
         if (wealth < 10)
         {
             WealthPreview.Text = "";
@@ -627,7 +633,7 @@ public sealed partial class TopicPage : Page
         }
 
         //校验金额
-        var wealth = (int)System.Math.Round(WealthAmount.Value);
+        var wealth = WealthAmountValue;
         if (wealth < 10)
         {
             WealthError.Text = "转账金额不能小于 10";

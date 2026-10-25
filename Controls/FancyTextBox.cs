@@ -12,10 +12,17 @@ namespace CC98.Controls;
 ///     <see cref="Control.BorderBrush" /> 等外观属性可直接在控件上自定义。
 ///     注意：本工程启用 NativeAOT(PublishAot)，经典 Binding 依赖反射解析属性路径，不可用；
 ///     Text 的双向同步由 DP 变更回调 + TextChanged 事件手工完成。
+///     必须是 partial:XAML 编译器要生成配套的部分类,缺了会被裁剪,运行时 E_NOINTERFACE 崩溃。
 /// </remarks>
-public class FancyTextBox : Control
+public partial class FancyTextBox : Control
 {
     private TextBox? _innerTextBox;
+
+    /// <summary>转发内部 TextBox 的 BeforeTextChanging:置 args.Cancel = true 可拒绝本次输入(如数字校验)。</summary>
+    public event Windows.Foundation.TypedEventHandler<TextBox, TextBoxBeforeTextChangingEventArgs>? BeforeTextChanging;
+
+    /// <summary>转发内部 TextBox 的 TextChanged(此时 <see cref="Text" /> 已更新)。</summary>
+    public event Windows.Foundation.TypedEventHandler<TextBox, object>? TextChanged;
 
     public FancyTextBox()
     {
@@ -63,6 +70,11 @@ public class FancyTextBox : Control
 
         // 初始同步 + 用户输入回写 DP(相等性判断同上,防循环)
         _innerTextBox.Text = Text;
-        _innerTextBox.TextChanged += (_, _) => Text = _innerTextBox.Text;
+        _innerTextBox.TextChanged += (_, args) =>
+        {
+            Text = _innerTextBox.Text;
+            TextChanged?.Invoke(_innerTextBox, args);
+        };
+        _innerTextBox.BeforeTextChanging += (_, args) => BeforeTextChanging?.Invoke(_innerTextBox, args);
     }
 }
