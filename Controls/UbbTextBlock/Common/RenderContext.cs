@@ -29,8 +29,28 @@ public class RenderContext
     public int QuoteNestingLevel { get; set; }
     public Dictionary<string, object> Properties { get; set; } = [];
 
+    // 位于行内容器（如链接的 Hyperlink）内部时，需要忽略块级语义、直接行内渲染子节点的标签类型。
+    // 这些标签的策略会终结当前文本块，把尚未填充内容的行内容器提前提交、架空链接。
+    // 媒体类（图片/音视频等）没有行内形态、权限类（回复可见等）降级会绕过隐藏逻辑，均不在其列，
+    // 它们按原有方式渲染（链接在该处终结，为既有行为）。
+    private static readonly HashSet<UbbNodeType> InlineDegradableTypes =
+    [
+        UbbNodeType.Align, UbbNodeType.Left, UbbNodeType.Center, UbbNodeType.Right,
+        UbbNodeType.Quote, UbbNodeType.Code, UbbNodeType.Paragraph,
+        UbbNodeType.Table, UbbNodeType.TableRow, UbbNodeType.TableCell
+    ];
+
     public void RenderNode(UbbNode node)
     {
+        // 行内容器只能承载行内元素：此时忽略块级标签的块级语义（如对齐、引用样式），
+        // 直接行内渲染其子节点，保住链接的完整性
+        if (CurrentInline != null && InlineDegradableTypes.Contains(node.Type))
+        {
+            foreach (var child in node.Children)
+                RenderNode(child);
+            return;
+        }
+
         if (UbbTextBlock.RenderStrategies.TryGetValue(node.Type, out var strategy))
             strategy.Render(node, this);
         else
