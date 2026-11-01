@@ -17,107 +17,97 @@
     <Page.Resources>
 
         <DataTemplate x:Key="ImagePost" x:DataType="obj:TopicInfo">
-            <Grid Tag="{x:Bind Id}" Padding="15" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="5"
-                  RowSpacing="8" PointerEntered="ContentCard_PointerEntered" PointerExited="ContentCard_PointerExited"
-                  Tapped="ContentCard_Tapped">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="32" />
-                    <RowDefinition Height="3" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="Auto" />
-                    <RowDefinition Height="45" />
-                </Grid.RowDefinitions>
-                <Grid.RenderTransform>
-                    <TranslateTransform x:Name="CardTranslate" X="0" Y="0" />
-                </Grid.RenderTransform>
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
-                    <Border Width="30" Height="30" BorderThickness="0" CornerRadius="9999"
-                            Background="{ThemeResource PortraitBackgroundColor}">
-                        <picture:Picture x:Name="portrait" Src="{x:Bind PortraitUrl}"
-                                         LoadImageCallback="{StaticResource PortraitLoader}" />
-                    </Border>
-                    <TextBlock Text="{x:Bind UserName}" VerticalAlignment="Center" FontWeight="Bold"
-                               FontFamily="{StaticResource HarmonySansBold}" Foreground="LightSeaGreen" />
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <ic:SymbolIcon Symbol="Chat" FontSize="14" />
-                        <TextBlock Text="{x:Bind ReplyCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch" Padding="0" CornerRadius="0" HorizontalAlignment="Stretch">
+                <Grid Tag="{x:Bind Id}" Padding="15" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+      BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0.5,0,0.5"
+      RowSpacing="8" Tapped="ContentCard_Tapped">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32" />
+                        <RowDefinition Height="3" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+                        <Border Width="30" Height="30" BorderThickness="0" CornerRadius="9999"
+                Background="{ThemeResource PortraitBackgroundColor}">
+                            <picture:Picture x:Name="portrait" Src="{x:Bind PortraitUrl}"
+                             LoadImageCallback="{StaticResource PortraitLoader}" />
+                        </Border>
+                        <TextBlock Text="{x:Bind UserName}" VerticalAlignment="Center" FontWeight="Bold"
+                   FontFamily="{StaticResource HarmonySansBold}" Foreground="LightSeaGreen" />
+                        <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <ic:SymbolIcon Symbol="Chat" FontSize="14" />
+                            <TextBlock Text="{x:Bind ReplyCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0,0,0">
+                            <ic:SymbolIcon Symbol="Fire" FontSize="14" />
+                            <TextBlock Text="{x:Bind HitCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0,0,0">
-                        <ic:SymbolIcon Symbol="Fire" FontSize="14" />
-                        <TextBlock Text="{x:Bind HitCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </StackPanel>
-                <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{x:Bind Time}"
-                           FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <Border Grid.Row="1" Height="1" BorderThickness="1" VerticalAlignment="Center"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{x:Bind Time}"
+               FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Border Grid.Row="1" Height="1" BorderThickness="1" VerticalAlignment="Center"
+            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
 
-                <TextBlock Grid.Row="2" Text="{x:Bind Title}" TextWrapping="Wrap" Margin="0,10,0,10"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Grid.Row="2" Text="{x:Bind Title}" TextWrapping="Wrap" Margin="0,10,0,10"
+               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-                <ItemsRepeater Grid.Row="3" ItemsSource="{x:Bind MediaContent.Thumbnail}">
-                    <ItemsRepeater.Layout>
-                        <UniformGridLayout MaximumRowsOrColumns="3" ItemsJustification="Start" MinColumnSpacing="15"
-                                           MinRowSpacing="15" />
-                    </ItemsRepeater.Layout>
-                    <ItemsRepeater.ItemTemplate>
-                        <DataTemplate x:DataType="x:String">
-                            <picture:Picture Src="{x:Bind}" Stretch="UniformToFill" MaxWidth="300"
-                                             LoadImageCallback="{StaticResource CustomPortraitLoader}" />
-                        </DataTemplate>
-                    </ItemsRepeater.ItemTemplate>
-                </ItemsRepeater>
-
-               
-
-            </Grid>
+                    <ItemsRepeater Grid.Row="3" ItemsSource="{x:Bind MediaContent.Thumbnail}">
+                        <ItemsRepeater.Layout>
+                            <UniformGridLayout MaximumRowsOrColumns="3" ItemsJustification="Start" MinColumnSpacing="15"
+                               MinRowSpacing="15" />
+                        </ItemsRepeater.Layout>
+                        <ItemsRepeater.ItemTemplate>
+                            <DataTemplate x:DataType="x:String">
+                                <Border CornerRadius="4">
+                                    <picture:Picture Src="{x:Bind}" Stretch="UniformToFill" MaxWidth="300" LoadImageCallback="{StaticResource CustomPortraitLoader}" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsRepeater.ItemTemplate>
+                    </ItemsRepeater>
+                </Grid>
+            </HyperlinkButton>
         </DataTemplate>
 
         <DataTemplate x:Key="TextPost" x:DataType="obj:TopicInfo">
-            <Grid Padding="15" x:Name="ContentCard" Tag="{x:Bind Id}"
-                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1" CornerRadius="5"
-                  RowSpacing="8" PointerEntered="ContentCard_PointerEntered" PointerExited="ContentCard_PointerExited"
-                  Tapped="ContentCard_Tapped" Loaded="ContentCard_Loaded">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="32" />
-                    <RowDefinition Height="3" />
-                    <RowDefinition Height="Auto" />
-                </Grid.RowDefinitions>
-                <Grid.RenderTransform>
-                    <TranslateTransform x:Name="CardTranslate" X="0" Y="0" />
-                </Grid.RenderTransform>
-                <Grid.Shadow>
-                    <ThemeShadow />
-                </Grid.Shadow>
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
-                    <Border Width="30" Height="30" BorderThickness="0" CornerRadius="9999"
-                            Background="{ThemeResource PortraitBackgroundColor}">
-                        <picture:Picture x:Name="portrait" Src="{x:Bind PortraitUrl}"
-                                         LoadImageCallback="{StaticResource PortraitLoader}" />
-                    </Border>
-                    <TextBlock Text="{x:Bind UserName}" VerticalAlignment="Center"
-                               FontFamily="{StaticResource HarmonySansBold}" Foreground="LightSeaGreen" />
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
-                    <StackPanel Orientation="Horizontal" Spacing="5">
-                        <ic:SymbolIcon Symbol="Chat" FontSize="14" />
-                        <TextBlock Text="{x:Bind ReplyCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton VerticalContentAlignment="Stretch" HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" CornerRadius="0" Padding="0">
+                <Grid Padding="15" x:Name="ContentCard" Tag="{x:Bind Id}"
+  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0.5,0,0.5"
+  RowSpacing="8" Tapped="ContentCard_Tapped">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32" />
+                        <RowDefinition Height="3" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
+                        <Border Width="30" Height="30" BorderThickness="0" CornerRadius="9999"
+            Background="{ThemeResource PortraitBackgroundColor}">
+                            <picture:Picture x:Name="portrait" Src="{x:Bind PortraitUrl}"
+                         LoadImageCallback="{StaticResource PortraitLoader}" />
+                        </Border>
+                        <TextBlock Text="{x:Bind UserName}" VerticalAlignment="Center"
+               FontFamily="{StaticResource HarmonySansBold}" Foreground="LightSeaGreen" />
+                        <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
+                        <StackPanel Orientation="Horizontal" Spacing="5">
+                            <ic:SymbolIcon Symbol="Chat" FontSize="14" />
+                            <TextBlock Text="{x:Bind ReplyCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0,0,0">
+                            <ic:SymbolIcon Symbol="Fire" FontSize="14" />
+                            <TextBlock Text="{x:Bind HitCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                        </StackPanel>
                     </StackPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="5" Margin="5,0,0,0">
-                        <ic:SymbolIcon Symbol="Fire" FontSize="14" />
-                        <TextBlock Text="{x:Bind HitCount}" FontSize="12" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    </StackPanel>
-                </StackPanel>
-                <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{x:Bind Time}"
-                           FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <Border Grid.Row="1" Height="1" BorderThickness="1" VerticalAlignment="Center"
-                        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                <TextBlock Grid.Row="2" Text="{x:Bind Title}" Margin="0,10,0,0" TextWrapping="Wrap"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-
-            </Grid>
+                    <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center" Text="{x:Bind Time}"
+           FontSize="10" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <Border Grid.Row="1" Height="1" BorderThickness="1" VerticalAlignment="Center"
+        BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    <TextBlock Grid.Row="2" Text="{x:Bind Title}" Margin="0,10,0,0" TextWrapping="Wrap"
+           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Grid>
+            </HyperlinkButton>
+                
         </DataTemplate>
         <obj:TopicTemplateSelector x:Key="PostTemplateSelector" ImageTemplate="{StaticResource ImagePost}" TextTemplate="{StaticResource TextPost}"/>
     </Page.Resources>
@@ -141,9 +131,9 @@
 
         <ScrollViewer Grid.Row="1" Grid.Column="0" x:Name="NewTopicViewer">
             <ItemsRepeater ItemTemplate="{StaticResource PostTemplateSelector}" ItemsSource="{x:Bind Topics}"
-                           ElementPrepared="ItemsRepeater_ElementPrepared" VerticalCacheLength="1">
+                           ElementPrepared="ItemsRepeater_ElementPrepared">
                 <ItemsRepeater.Layout>
-                    <StackLayout Orientation="Vertical" Spacing="15" />
+                    <StackLayout Orientation="Vertical"/>
                 </ItemsRepeater.Layout>
             </ItemsRepeater>
         </ScrollViewer>

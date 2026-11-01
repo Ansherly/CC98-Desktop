@@ -167,7 +167,7 @@ public sealed partial class SmartPager : UserControl
     ///     字符根本进不去(粘贴同理),而不是先输进去再提示错误。
     ///     注意用的是 BeforeTextChanging 而不是 TextChanging —— 前者在文本应用前触发,可以取消。
     /// </summary>
-    private void DestinationBox_BeforeTextChanging(TextBox sender, TextBoxBeforeTextChangingEventArgs args)
+    private void DestinationBox_BeforeTextChanging(object sender, TextBoxBeforeTextChangingEventArgs args)
     {
         // 空串必须放行,否则用户没法清空重输
         foreach (var c in args.NewText)
@@ -191,7 +191,6 @@ public sealed partial class SmartPager : UserControl
             || page > total)
         {
             args.Cancel = true;
-            DestinationBox.SelectAll();
             DestinationBox.Focus(FocusState.Programmatic);
             return;
         }

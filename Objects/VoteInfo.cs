@@ -3,6 +3,9 @@ using System.Collections.Generic;
 
 namespace CC98.Objects;
 
+/// <summary>
+/// MyRecord字段有更新。
+/// </summary>
 public class VoteInfo
 {
     public List<int>? MyRecord { get; set; } = [];

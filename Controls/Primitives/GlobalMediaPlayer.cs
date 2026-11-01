@@ -22,6 +22,11 @@ public sealed partial class GlobalMediaPlayer : IDisposable
             IsLoopingEnabled = false
         };
 
+        //禁用 MediaPlayer 内建的 SMTC 自动管理(CommandManager):
+        //它会在 MediaOpened 时用媒体源里的(空)信息覆盖 SmtcController 手动上报的封面与歌名,
+        //表现为"第一次播放信息被清掉,暂停再播才显示"。SMTC 全权交给 SmtcController 手动上报。
+        _player.CommandManager.IsEnabled = false;
+
         //直接把底层事件转发出去，订阅者可以像之前那样使用相同的处理函数签名
         _player.MediaOpened += (s, e) => MediaOpened?.Invoke(s, e);
         _player.MediaEnded += (s, e) => MediaEnded?.Invoke(s, e);

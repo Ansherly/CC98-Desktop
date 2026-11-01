@@ -1060,6 +1060,7 @@ public class TopicRenderStrategy : IRenderStrategy
         {
             context.Control.OnMediaClicked($"https://www.cc98.org/topic/{topicId}", MediaType.Link);
         };
+        hyperlink.UnderlineStyle = UnderlineStyle.None;
         context.BeginInlineContainer(hyperlink);
         foreach (var child in node.Children) context.RenderNode(child);
         context.EndInlineContainer();
@@ -1084,6 +1085,7 @@ public class AtRenderStrategy : IRenderStrategy
             hyperlink.Inlines.Add(new Run { Text = $"@{atNode.Username}" });
             // 点击事件
             hyperlink.Click += (sender, e) => { context.Control.OnMediaClicked(atNode.Username, MediaType.AtUser); };
+            hyperlink.UnderlineStyle = UnderlineStyle.None;
             context.BeginInlineContainer(hyperlink);
             //不存在子元素
             context.EndInlineContainer();
@@ -1095,23 +1097,19 @@ public class FileRenderStrategy : IRenderStrategy
 {
     public void Render(UbbNode node, RenderContext context)
     {
-        if (node is TagNode tagNode)
-        {
-            // 地址：优先主属性，回退到子节点全文（允许 [b] 等样式嵌套）
-            var src = RenderHelper.ResolveAddress(tagNode, "value");
+        if (node is not TagNode tagNode) return;
+        // 地址：优先主属性，回退到子节点全文（允许 [b] 等样式嵌套）
+        var src = RenderHelper.ResolveAddress(tagNode, "value");
 
-            if (src.IsValidUrl())
-            {
-                var card = new FileCard
-                {
-                    Src = src,
-                    HorizontalAlignment = HorizontalAlignment.Left,
-                    Margin = new(0, 10, 0, 10)
-                };
-                card.DownloadRequested += (s, e) => { context.Control.OnMediaClicked(src, MediaType.File); };
-                context.AddToContainer(card);
-            }
-        }
+        if (!src.IsValidUrl()) return;
+        var card = new FileCard
+        {
+            Src = src,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new(0, 6, 0, 6)
+        };
+        card.DownloadRequested += (s, e) => { context.Control.OnMediaClicked(src, MediaType.File); };
+        context.AddToContainer(card);
     }
 }
 

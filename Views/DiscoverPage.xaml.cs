@@ -10,11 +10,9 @@ using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Dispatching;
 using CC98.Services.Extensions;
-using CC98.Services.Helpers;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -186,21 +184,6 @@ public sealed partial class DiscoverPage : Page
     }
 
 
-    private void ContentCard_PointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        var h = sender as Grid;
-        var translate = h?.RenderTransform as TranslateTransform;
-        AnimationHelper.AnimateCard(translate!, 0, -5); // 向上方移动
-    }
-
-    private void ContentCard_PointerExited(object sender, PointerRoutedEventArgs e)
-    {
-        var h = sender as Grid;
-        var translate = h?.RenderTransform as TranslateTransform;
-        AnimationHelper.AnimateCard(translate!, 0, 0); // 恢复原位
-    }
-
-
     private void ContentCard_Tapped(object sender, TappedRoutedEventArgs e)
     {
         var h = sender as Grid;
@@ -208,9 +191,5 @@ public sealed partial class DiscoverPage : Page
         if (tag == null) return;
         var param = new TopicNavigationInfo { TopicId = tag.ToInt() };
         Frame.Navigate(typeof(TopicPage), param);
-    }
-
-    private void ContentCard_Loaded(object sender, RoutedEventArgs e)
-    {
     }
 }

@@ -139,25 +139,25 @@
                                     <SelectorBarItem  Text="精华" Tag="best"></SelectorBarItem>
                                 </SelectorBar>
                                 <Border Background="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,6,0,6"></Border>
-                                <HyperlinkButton Padding="10" ToolTipService.ToolTip="发主题">
+                                <HyperlinkButton Padding="10" Tag="draft" Click="BoardAction_Click" ToolTipService.ToolTip="发主题">
                                     <ic:SymbolIcon Symbol="Drafts" FontSize="16"></ic:SymbolIcon>
                                 </HyperlinkButton>
-                                <HyperlinkButton Padding="10" >
+                                <HyperlinkButton Padding="10" Tag="search" Click="BoardAction_Click">
                                     <ic:SymbolIcon Symbol="Search" FontSize="16" ToolTipService.ToolTip="版内搜索"></ic:SymbolIcon>
                                 </HyperlinkButton>
-                                <HyperlinkButton Padding="10">
+                                <HyperlinkButton Padding="10" Tag="pin" Click="BoardAction_Click">
                                     <ic:SymbolIcon Symbol="Pin" FontSize="16" ToolTipService.ToolTip="关注版面"></ic:SymbolIcon>
                                 </HyperlinkButton>
                                 <HyperlinkButton  Padding="10"  x:Name="MoreButton" ToolTipService.ToolTip="更多操作" Click="MoreButton_Click">
                                     <ic:SymbolIcon Symbol="MoreHorizontal" FontSize="16"></ic:SymbolIcon>
                                     <FlyoutBase.AttachedFlyout>
                                         <MenuFlyout>
-                                            <MenuFlyoutItem  Text="浏览器打开">
+                                            <MenuFlyoutItem  Text="浏览器打开" Tag="browse" Click="BoardAction_Click">
                                                 <MenuFlyoutItem.Icon>
                                                     <FontIcon Glyph="&#xEB41;" />
                                                 </MenuFlyoutItem.Icon>
                                             </MenuFlyoutItem>
-                                            <MenuFlyoutItem Text="刷新">
+                                            <MenuFlyoutItem Text="刷新" Tag="refresh" Click="BoardAction_Click">
                                                 <MenuFlyoutItem.Icon>
                                                     <FontIcon Glyph="&#xE72C;"/>
                                                 </MenuFlyoutItem.Icon>

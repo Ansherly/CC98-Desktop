@@ -5,6 +5,7 @@ using CC98.Objects;
 using CC98.Services;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls.Primitives;
 using ColorCode.Compilation.Languages;
 using CommunityToolkit.WinUI.Converters;
 using CSharpMath;
@@ -67,6 +68,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        //接入 Windows 11 系统媒体状态栏(SMTC),由 MusicPlayer 上报歌曲信息
+        SmtcController.Initialize(this);
         // 初始化复用的头像缩放动画(XAML 解析完成后才能绑定 Target)
         Storyboard.SetTarget(_portScaleX, PortScaleTransform);
         Storyboard.SetTargetProperty(_portScaleX, "ScaleX");
@@ -461,49 +464,82 @@ public sealed partial class MainWindow : Window
     private void Navi_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (args.InvokedItemContainer?.Tag is not string tag) return;
-        var item = args.InvokedItem as NavigationViewItem;
+
+        Type pageType;
+        object? parameter = null;
+        // 纯信息流页面(新帖/动态)没有别的刷新入口:重复点击当前导航项仍要能重新加载。
+        // 其余页面各自有刷新按钮或菜单项,重复点击一律视为"已在目的页"。
+        var reloadOnRepeat = false;
+
         switch (tag)
         {
             case "Index":
-                ContentFrame.Navigate(typeof(IndexPage));
+                pageType = typeof(IndexPage);
                 break;
             case "Section":
-                ContentFrame.Navigate(typeof(SectionPage));
+                pageType = typeof(SectionPage);
                 break;
             case "Discover":
-                ContentFrame.Navigate(typeof(DiscoverPage));
+                pageType = typeof(DiscoverPage);
+                reloadOnRepeat = true;
                 break;
             case "Favorite":
-                ContentFrame.Navigate(typeof(FavoritePage));
+                pageType = typeof(FavoritePage);
                 break;
             case "Setting":
-                ContentFrame.Navigate(typeof(SettingPage));
+                pageType = typeof(SettingPage);
                 break;
             case "Message":
-                var param = new ChatNavigationInfo { HasTarget = false };
-                ContentFrame.Navigate(typeof(MessagePage), param);
+                pageType = typeof(MessagePage);
+                parameter = new ChatNavigationInfo { HasTarget = false };
                 break;
             case "Focus":
-                ContentFrame.Navigate(typeof(FocusPage));
+                pageType = typeof(FocusPage);
+                reloadOnRepeat = true;
                 break;
             case "History":
-                ContentFrame.Navigate(typeof(HistoryPage));
+                pageType = typeof(HistoryPage);
                 break;
             default:
-                if (tag.All(char.IsDigit))
+                if (!tag.All(char.IsDigit)) return;
+                // All(char.IsDigit) 挡不住溢出,用 TryParse 代替原来的 Parse + catch
+                if (!int.TryParse(tag, out var boardId))
                 {
-                    try
-                    {
-                        ContentFrame.Navigate(typeof(BoardPage), int.Parse(tag));
-                    }
-                    catch(Exception ex)
-                    {
-                        Debug.WriteLine(ex.Message);
-                        Flower.Play(FlowStatus.Fail, ex.Message);
-                    }
+                    Flower.Play(FlowStatus.Fail, $"无效的版面号:{tag}");
+                    return;
                 }
+                pageType = typeof(BoardPage);
+                parameter = boardId;
                 break;
         }
+
+        if (IsCurrentPage(pageType, parameter))
+        {
+            // 目标就是当前页:不再压栈。
+            // 否则反复点同一个导航项会把真实历史挤出后退栈上限(25),按后退会跳到意外的页面。
+            if (!reloadOnRepeat) return;
+
+            // 需要原地刷新的页面:导航后立刻抹掉刚压入的那一条,后退栈恢复原样。
+            // Navigate 返回 false 时后退栈没变,不能去动它。
+            var depthBefore = ContentFrame.BackStackDepth;
+            if (!ContentFrame.Navigate(pageType, parameter)) return;
+            while (ContentFrame.BackStackDepth > depthBefore)
+                ContentFrame.BackStack.RemoveAt(ContentFrame.BackStackDepth - 1);
+            return;
+        }
+
+        ContentFrame.Navigate(pageType, parameter);
+    }
+
+    /// <summary>
+    ///     判断当前页是否就是导航目标。判据是"当前页实例"而不是"上次导航意图",
+    ///     因此从深层页面(主题页/资料页)返回后点导航项不会被误判成重进。
+    ///     版面页是唯一"同类型不同参数"的入口:同一版面才算重进,换版面要正常导航。
+    /// </summary>
+    private bool IsCurrentPage(Type pageType, object? parameter)
+    {
+        if (ContentFrame.Content is not Page current || current.GetType() != pageType) return false;
+        return parameter is not int boardId || (current is BoardPage board && board.BoardId == boardId);
     }
 
     private void PaneExpand_Click(object sender, RoutedEventArgs e)

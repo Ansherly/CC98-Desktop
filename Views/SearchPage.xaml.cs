@@ -554,6 +554,9 @@ public sealed partial class SearchPage : Page
             Header = $"主题 #{topicId}",
             IsClosable = true
         };
+        // 每个 tab 自带一个嵌套 Frame。注意 MainWindow 的后退栈修剪只作用于 ContentFrame,
+        // 这里的内嵌后退栈不修剪 —— 不修剪是安全的:本页是 NavigationCacheMode=Disabled,
+        // 离开搜索页时整棵树(含所有 tab 与它们的 Frame)一起丢弃;且首次导航不产生后退记录。
         var frame = new Frame();
         frame.Navigate(typeof(TopicPage), new TopicNavigationInfo { TopicId = topicId });
         tab.Content = frame;

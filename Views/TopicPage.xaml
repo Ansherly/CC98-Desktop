@@ -55,7 +55,7 @@
                     <HyperlinkButton Padding="7" x:Name="MoreButton" Click="MoreButton_Click">
                         <ic:SymbolIcon Symbol="MoreHorizontal"></ic:SymbolIcon>
                         <FlyoutBase.AttachedFlyout>
-                            <MenuFlyout>
+                            <MenuFlyout dev:MaterialAttach.UseAcrylicBackground="True">
                                 <MenuFlyoutItem  Text="引用" Click="PostOperation_Click" Tag="QUOTE" DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
                                         <ic:FluentIcon Icon="CommentQuote"></ic:FluentIcon>
@@ -136,7 +136,7 @@
                     <HyperlinkButton Padding="7" x:Name="MoreButton" Click="MoreButton_Click">
                         <ic:SymbolIcon Symbol="MoreHorizontal"></ic:SymbolIcon>
                         <FlyoutBase.AttachedFlyout>
-                            <MenuFlyout>
+                            <MenuFlyout dev:MaterialAttach.UseAcrylicBackground="True">
                                 <MenuFlyoutItem  Text="引用" Click="PostOperation_Click" Tag="QUOTE" DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
                                         <ic:FluentIcon Icon="CommentQuote"></ic:FluentIcon>

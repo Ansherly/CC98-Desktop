@@ -163,7 +163,10 @@
                 </DataTemplate>
             </NavigationView.FooterMenuItems>
 
-            <Frame x:Name="ContentFrame" CacheSize="8" />
+            <!-- 不设 CacheSize:它只约束 NavigationCacheMode="Enabled" 的页面(超容量按 LRU 淘汰),
+                 Required 页面不受其限、Disabled 页面根本不入缓存。本项目没有页面用 Enabled,
+                 写在这里不会生效,只会误导后来者。 -->
+            <Frame x:Name="ContentFrame" />
 
         </NavigationView>
         <infoFlower:InfoFlower Grid.Row="0" Grid.RowSpan="3" x:Name="Flower" />

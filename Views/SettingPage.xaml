@@ -13,6 +13,7 @@
     xmlns:views="using:CC98.Views"
     xmlns:ubb="using:CC98.Controls.UbbTextBlock"
     xmlns:infoFlower="using:CC98.Controls"
+    xmlns:cc="using:CC98.Controls"
     xmlns:obj="using:CC98.Objects"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
@@ -162,9 +163,7 @@
                     <ToggleSwitch x:Name="TailVisibility" IsOn="{x:Bind sv:AppSettings.Current.IsTailVisible,Mode=TwoWay}" />
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard Header="自定义小尾巴">
-                            <Border Grid.Column="1" BorderBrush="{ThemeResource AcrylicCardBrush}" BorderThickness="1" CornerRadius="4">
-                                <TextBox x:Name="LittleTailTextBox" Text="{x:Bind sv:AppSettings.Current.LittleTail,Mode=TwoWay}"  Width="400" Style="{StaticResource TextBoxBlankStyle}"/>
-                            </Border>
+                            <cc:FancyTextBox  x:Name="LittleTailTextBox" Text="{x:Bind sv:AppSettings.Current.LittleTail,Mode=TwoWay}" Width="400"/>
                         </tool:SettingsCard>
                         <tool:SettingsCard Header="预览" MaxHeight="60">
                             <ubb:UbbTextBlock UbbText="{x:Bind LittleTailTextBox.Text,Mode=OneWay}" HideImage="True" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{ThemeResource HarmonySansBold}" MaxHeight="50" MaxWidth="400"></ubb:UbbTextBlock>

@@ -18,6 +18,8 @@ public class Notice
     [JsonPropertyName("type")] public int Type { get; set; }
 
     [JsonPropertyName("content")] public string? Content { get; set; }
+
+    [JsonPropertyName("isRead")] public bool IsRead { get; set; }
 }
 
 public class PostBasicInfo

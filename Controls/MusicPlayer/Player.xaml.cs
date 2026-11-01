@@ -420,6 +420,14 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
 
         _isPlaying = !_isPlaying;
         UpdatePlayPauseButton();
+        UpdateSmtc();
+    }
+
+    /// <summary>把本控件的歌名/作者/海报与播放状态上报系统媒体状态栏(SMTC)。</summary>
+    private void UpdateSmtc()
+    {
+        SmtcController.Update(Title, Author,
+            string.IsNullOrWhiteSpace(Poster) ? DefaultPosterUri : Poster, _isPlaying);
     }
 
     private void UpdatePlayPauseButton()
@@ -607,6 +615,8 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
             ProgressSlider.Value = 0;
             _isSyncingProgress = false;
             CurrentTimeText.Text = "0:00";
+            //播完:系统媒体状态栏置为暂停态(信息保留)
+            UpdateSmtc();
         });
     }
 
@@ -648,6 +658,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
                         UpdatePlayPauseButton();
                         _progressTimer.Start();
                     }
+                    UpdateSmtc();
                     break;
 
                 case MediaPlaybackState.Paused:
@@ -659,6 +670,7 @@ public sealed partial class MusicPlayer : UserControl, IDisposable
                         UpdatePlayPauseButton();
                         _progressTimer.Stop();
                     }
+                    UpdateSmtc();
                     break;
             }
             //Ended 不在这里处理：滑块归零、时间清零由 OnMediaEnded 专职负责，

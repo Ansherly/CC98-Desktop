@@ -8,12 +8,14 @@
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d"
     xmlns:obj="using:CC98.Objects"
+    xmlns:services="using:CC98.Services"
     xmlns:empty="using:CC98.Controls"
     xmlns:infoFlower="using:CC98.Controls"
     NavigationCacheMode="Disabled"
     Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Page.Resources>
+        <services:BooltoVisibilityConverter x:Key="BoolToVisibility" />
         <DataTemplate x:Key="SystemNoticeTemplate" x:DataType="obj:Notice">
             <HyperlinkButton HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" CornerRadius="0"
                          x:Name="NoticeCard" Click="NoticeCard_Click" DataContext="{x:Bind}">
@@ -27,8 +29,17 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <TextBlock Text="{x:Bind Title}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" FontWeight="Bold" />
-                    <TextBlock Text="{x:Bind Time}" FontSize="12" Grid.Column="1" Grid.Row="0"
-                           HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="4" Grid.Column="1" Grid.Row="0"
+                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                  Visibility="{x:Bind IsRead, Converter={StaticResource BoolToVisibility}}">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="已读" />
+                            </ToolTipService.ToolTip>
+                        </FontIcon>
+                        <TextBlock Text="{x:Bind Time}" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
                     <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" MaxLines="2" FontSize="12" Grid.Column="0"
                            Grid.ColumnSpan="2" Grid.Row="1"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
@@ -49,8 +60,17 @@
                     </Grid.RowDefinitions>
                     <TextBlock Text="{x:Bind PostBasicInfo.UserName}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
                            FontWeight="Bold" />
-                    <TextBlock Text="{x:Bind Time}" FontSize="12" Grid.Column="1" Grid.Row="0"
-                           HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="4" Grid.Column="1" Grid.Row="0"
+                                HorizontalAlignment="Right" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE73E;" FontSize="12" Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                  Visibility="{x:Bind IsRead, Converter={StaticResource BoolToVisibility}}">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="已读" />
+                            </ToolTipService.ToolTip>
+                        </FontIcon>
+                        <TextBlock Text="{x:Bind Time}" FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
                     <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" MaxLines="2" FontSize="12" Grid.Column="0"
                            Grid.ColumnSpan="2" Grid.Row="1"
                            Foreground="{ThemeResource TextFillColorSecondaryBrush}" />

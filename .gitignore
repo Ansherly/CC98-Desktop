@@ -367,3 +367,6 @@ FodyWeavers.xsd
 /UbbTextBlock优化规划书.md
 /UBB自动链接功能规划书.md
 /MarkdownTextBlock的HTML渲染完善规划书.md
+
+# WorkBuddy 会话记忆/截图等本地数据
+.workbuddy/

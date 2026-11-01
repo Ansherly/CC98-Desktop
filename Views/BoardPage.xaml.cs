@@ -208,7 +208,8 @@ public sealed partial class BoardPage
 
     private async void BoardAction_Click(object sender, RoutedEventArgs e)
     {
-        var button = sender as AppBarButton;
+        //触发源可能是 HyperlinkButton(顶部操作钮)或 MenuFlyoutItem(更多操作菜单),统一按 Tag 分发
+        var button = sender as FrameworkElement;
         if (button == null) return;
         if (button.Tag is not string tag) return;
         switch (tag)

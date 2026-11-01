@@ -7,6 +7,7 @@
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     xmlns:ic="using:FluentIcons.WinUI"
+    xmlns:cc="using:CC98.Controls"
     mc:Ignorable="d">
 
     <UserControl.Resources>
@@ -81,32 +82,24 @@
             DefaultButton="Primary"
             PrimaryButtonClick="DestinationDialog_PrimaryButtonClick"
             PrimaryButtonText="Go">
-            <StackPanel>
-                <Grid ColumnSpacing="4">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="Auto" />
-                    </Grid.ColumnDefinitions>
+            <Grid ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
 
-                    <TextBox
-                        x:Name="DestinationBox"
-                        Grid.Column="0"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        BeforeTextChanging="DestinationBox_BeforeTextChanging"
-                        InputScope="Number"
-                        Style="{StaticResource TextBoxBoxBlankStyle}"/>
+                <cc:FancyTextBox
+                x:Name="DestinationBox"
+                Grid.Column="0"
+                BeforeTextChanging="DestinationBox_BeforeTextChanging"/>
 
-                    <TextBlock
-                        x:Name="DestinationTotal"
-                        Grid.Column="1"
-                        Margin="0,0,0,6"
-                        VerticalAlignment="Bottom"
-                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                </Grid>
-
-                <Border Height="1" Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
-            </StackPanel>
+                <TextBlock
+                x:Name="DestinationTotal"
+                Grid.Column="1"
+                Margin="0,0,0,6"
+                VerticalAlignment="Bottom"
+                Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
         </ContentDialog>
     </Grid>
 </UserControl>
