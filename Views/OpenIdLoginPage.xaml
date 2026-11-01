@@ -1,23 +1,47 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Page
-    x:Class="CC98.Views.OpenIdLoginPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:CC98.Views"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:ic="using:FluentIcons.WinUI"
-    mc:Ignorable="d">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="CC98.Views.OpenIdLoginPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:CC98.Views"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:ic="using:FluentIcons.WinUI"
+      mc:Ignorable="d">
 
-    <Grid x:Name="RootGrid" Padding="10,0,10,0"  Height="50" Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" CornerRadius="8" Opacity="0.85">
+    <Grid x:Name="RootGrid"
+          Padding="10,0,10,0"
+          Height="50"
+          Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+          CornerRadius="8"
+          Opacity="0.85">
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="*"></ColumnDefinition>
-            <ColumnDefinition Width="2"></ColumnDefinition>
-            <ColumnDefinition Width="*"></ColumnDefinition>
+            <ColumnDefinition Width="*" />
+            <ColumnDefinition Width="2" />
+            <ColumnDefinition Width="*" />
         </Grid.ColumnDefinitions>
-        <HyperlinkButton x:Name="OpenIdLoginButton" Grid.Column="0"  Content="一键登录" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" FontWeight="Bold" FontSize="18" Foreground="LightSeaGreen"  FontFamily="{StaticResource HarmonySansBold}" Click="OpenIdLoginButton_Click"></HyperlinkButton>
-        <Border Grid.Column="1" BorderThickness="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="2"></Border>
-        <HyperlinkButton Grid.Column="2" Content="使用密码" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" FontWeight="Bold" FontSize="18" Foreground="LightSeaGreen" FontFamily="{StaticResource HarmonySansBold}" Click="PasswordLoginButton_Click"></HyperlinkButton>
+        <HyperlinkButton x:Name="OpenIdLoginButton"
+                         Grid.Column="0"
+                         Content="一键登录"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Stretch"
+                         FontWeight="Bold"
+                         FontSize="18"
+                         Foreground="LightSeaGreen"
+                         FontFamily="{StaticResource HarmonySansBold}"
+                         Click="OpenIdLoginButton_Click" />
+        <Border Grid.Column="1"
+                BorderThickness="2"
+                BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                Width="2" />
+        <HyperlinkButton Grid.Column="2"
+                         Content="使用密码"
+                         HorizontalAlignment="Stretch"
+                         VerticalAlignment="Stretch"
+                         FontWeight="Bold"
+                         FontSize="18"
+                         Foreground="LightSeaGreen"
+                         FontFamily="{StaticResource HarmonySansBold}"
+                         Click="PasswordLoginButton_Click" />
 
     </Grid>
 </Page>

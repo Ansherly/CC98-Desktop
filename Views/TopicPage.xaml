@@ -1,89 +1,164 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Page
-    x:Class="CC98.Views.TopicPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:CC98"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:ic="using:FluentIcons.WinUI"
-    xmlns:tool="using:CommunityToolkit.WinUI.Controls"
-    xmlns:dev="using:DevWinUI"
-    xmlns:ubb="using:CC98.Controls.UbbTextBlock"
-    xmlns:obj="using:CC98.Objects"
-    xmlns:svc="using:CC98.Services"
-    xmlns:md="using:CC98.Controls.MarkdownTextBlock"
-    xmlns:cc="using:CC98.Controls"
-    NavigationCacheMode="Disabled"
-    Background="{ThemeResource DesktopAcrylicTransparentBrush}">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="CC98.Views.TopicPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:CC98"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      xmlns:ic="using:FluentIcons.WinUI"
+      xmlns:tool="using:CommunityToolkit.WinUI.Controls"
+      xmlns:dev="using:DevWinUI"
+      xmlns:ubb="using:CC98.Controls.UbbTextBlock"
+      xmlns:obj="using:CC98.Objects"
+      xmlns:svc="using:CC98.Services"
+      xmlns:md="using:CC98.Controls.MarkdownTextBlock"
+      xmlns:cc="using:CC98.Controls"
+      NavigationCacheMode="Disabled"
+      Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
 
     <Page.Resources>
-        <DataTemplate x:Key="UbbViewer" x:DataType="obj:Reply">
-            <Grid Padding="8" RowSpacing="5" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0.8,0,0.8" CornerRadius="0" >
+        <DataTemplate x:Key="UbbViewer"
+                      x:DataType="obj:Reply">
+            <Grid Padding="8"
+                  RowSpacing="5"
+                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                  BorderThickness="0,0.8,0,0.8"
+                  CornerRadius="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
-                    <HyperlinkButton Grid.Row="0"  x:Name="Person" Click="Person_Click" Tag="{x:Bind}" ContextRequested="Person_ContextRequested">
-                        <StackPanel  Orientation="Horizontal" Spacing="10">
-                            <Border Width="30" Height="30" CornerRadius="9999" Background="{ThemeResource PortraitBackgroundBrush}">
-                                <cc:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></cc:Picture>
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Spacing="10">
+                    <HyperlinkButton Grid.Row="0"
+                                     x:Name="Person"
+                                     Click="Person_Click"
+                                     Tag="{x:Bind}"
+                                     ContextRequested="Person_ContextRequested">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="10">
+                            <Border Width="30"
+                                    Height="30"
+                                    CornerRadius="9999"
+                                    Background="{ThemeResource PortraitBackgroundBrush}">
+                                <cc:Picture x:Name="portrait"
+                                            Src="{x:Bind PortraitUrl}"
+                                            LoadImageCallback="{StaticResource PortraitLoader}" />
                             </Border>
-                            <TextBlock Text="{x:Bind UserName}"  VerticalAlignment="Center" FontFamily="{StaticResource HarmonySansBold}" Foreground="{ThemeResource UserNameForegroundBrush}"></TextBlock>
+                            <TextBlock Text="{x:Bind UserName}"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{StaticResource HarmonySansBold}"
+                                       Foreground="{ThemeResource UserNameForegroundBrush}" />
                         </StackPanel>
                     </HyperlinkButton>
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
-                    <Button Tag="1" DataContext="{x:Bind}" BorderThickness="0" Padding="0" Background="Transparent" Click="Like_Click">
-                        <StackPanel x:Name="Like" Orientation="Horizontal" Spacing="5" >
-                            <ic:SymbolIcon Symbol="ThumbLike" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IconVariant="{x:Bind LikeState,Converter={StaticResource LikeToVariantConverter},Mode=OneWay}"></ic:SymbolIcon>
-                            <TextBlock Text="{x:Bind LikeCount,Mode=OneWay}" Grid.Row="2"  FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                    <Border BorderThickness="1"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            Width="1"
+                            Margin="0,4,0,4" />
+                    <Button Tag="1"
+                            DataContext="{x:Bind}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Background="Transparent"
+                            Click="Like_Click">
+                        <StackPanel x:Name="Like"
+                                    Orientation="Horizontal"
+                                    Spacing="5">
+                            <ic:SymbolIcon Symbol="ThumbLike"
+                                           FontSize="14"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           IconVariant="{x:Bind LikeState, Converter={StaticResource LikeToVariantConverter}, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind LikeCount, Mode=OneWay}"
+                                       Grid.Row="2"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Button>
-                    <Button Tag="2" DataContext="{x:Bind}" BorderThickness="0" Padding="0" Background="Transparent"  Click="Like_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="5" >
-                            <ic:SymbolIcon Symbol="ThumbDislike" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IconVariant="{x:Bind LikeState,Converter={StaticResource DisLikeToVariantConverter},Mode=OneWay}"></ic:SymbolIcon>
-                            <TextBlock Text="{x:Bind DislikeCount,Mode=OneWay}"  VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                    <Button Tag="2"
+                            DataContext="{x:Bind}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Background="Transparent"
+                            Click="Like_Click">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="5">
+                            <ic:SymbolIcon Symbol="ThumbDislike"
+                                           FontSize="14"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           IconVariant="{x:Bind LikeState, Converter={StaticResource DisLikeToVariantConverter}, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind DislikeCount, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Button>
 
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
+                    <Border BorderThickness="1"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            Width="1"
+                            Margin="0,4,0,4" />
 
-                    <HyperlinkButton Padding="7" x:Name="MoreButton" Click="MoreButton_Click">
-                        <ic:SymbolIcon Symbol="MoreHorizontal"></ic:SymbolIcon>
+                    <HyperlinkButton Padding="7"
+                                     x:Name="MoreButton"
+                                     Click="MoreButton_Click">
+                        <ic:SymbolIcon Symbol="MoreHorizontal" />
                         <FlyoutBase.AttachedFlyout>
                             <MenuFlyout dev:MaterialAttach.UseAcrylicBackground="True">
-                                <MenuFlyoutItem  Text="引用" Click="PostOperation_Click" Tag="QUOTE" DataContext="{x:Bind}">
+                                <MenuFlyoutItem Text="引用"
+                                                Click="PostOperation_Click"
+                                                Tag="QUOTE"
+                                                DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="CommentQuote"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="CommentQuote" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="编辑" Click="PostOperation_Click" Tag="EDIT" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource BoolToVisibility}}">
+                                <MenuFlyoutItem Text="编辑"
+                                                Click="PostOperation_Click"
+                                                Tag="EDIT"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource BoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="Edit"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="Edit" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="赠米" Click="PostOperation_Click" Tag="GIFT" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource ReBoolToVisibility}}">
+                                <MenuFlyoutItem Text="赠米"
+                                                Click="PostOperation_Click"
+                                                Tag="GIFT"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource ReBoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="GiftOpen"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="GiftOpen" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="风评" Click="PostOperation_Click" Tag="RATE" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource ReBoolToVisibility}}">
+                                <MenuFlyoutItem Text="风评"
+                                                Click="PostOperation_Click"
+                                                Tag="RATE"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource ReBoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xF6B8;" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="复制为UBB" Click="PostOperation_Click" Tag="UBB" DataContext="{x:Bind}">
+                                <MenuFlyoutItem Text="复制为UBB"
+                                                Click="PostOperation_Click"
+                                                Tag="UBB"
+                                                DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="Code"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="Code" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="复制为Md" Tag="MD" Click="PostOperation_Click" DataContext="{x:Bind}">
+                                <MenuFlyoutItem Text="复制为Md"
+                                                Tag="MD"
+                                                Click="PostOperation_Click"
+                                                DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="Markdown"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="Markdown" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
                             </MenuFlyout>
@@ -91,75 +166,166 @@
                     </HyperlinkButton>
                 </StackPanel>
 
-                <StackPanel Orientation="Vertical" Grid.Row="0" Margin="5,5,10,0" HorizontalAlignment="Right">
-                    <TextBlock Text="{x:Bind Time}"  FontSize="10"   Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
-                    <TextBlock Text="{x:Bind Floor}" FontSize="10" TextAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                <StackPanel Orientation="Vertical"
+                            Grid.Row="0"
+                            Margin="5,5,10,0"
+                            HorizontalAlignment="Right">
+                    <TextBlock Text="{x:Bind Time}"
+                               FontSize="10"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind Floor}"
+                               FontSize="10"
+                               TextAlignment="Right"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
 
-                <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <ubb:UbbTextBlock UbbText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}"  CodeBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}" MediaClicked="UbbTextBlock_MediaClicked" HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"></ubb:UbbTextBlock>
+                <Border Grid.Row="1"
+                        Padding="10"
+                        CornerRadius="4"
+                        Background="{ThemeResource MarkdownBackgroundBrush}">
+                    <ubb:UbbTextBlock UbbText="{x:Bind Content, Mode=OneWay}"
+                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                      BoldFontFamily="{StaticResource HarmonySansBold}"
+                                      CodeBackground="{ThemeResource QuoteBackgroundBrush}"
+                                      QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}"
+                                      MediaClicked="UbbTextBlock_MediaClicked"
+                                      HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}"
+                                      ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}" />
                 </Border>
             </Grid>
         </DataTemplate>
-        <DataTemplate x:Name="MdViewer" x:DataType="obj:Reply">
-            <Grid Padding="8" RowSpacing="5" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="0,0.8,0,0.8" CornerRadius="0" >
+        <DataTemplate x:Name="MdViewer"
+                      x:DataType="obj:Reply">
+            <Grid Padding="8"
+                  RowSpacing="5"
+                  Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                  BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                  BorderThickness="0,0.8,0,0.8"
+                  CornerRadius="0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
 
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
-                    <HyperlinkButton Grid.Row="0"  x:Name="Person" Click="Person_Click" Tag="{x:Bind}" ContextRequested="Person_ContextRequested">
-                        <StackPanel  Orientation="Horizontal" Spacing="10">
-                            <Border Width="30" Height="30" CornerRadius="9999" Background="{ThemeResource PortraitBackgroundBrush}">
-                                <cc:Picture  x:Name="portrait" Src="{x:Bind PortraitUrl}" LoadImageCallback="{StaticResource PortraitLoader}"></cc:Picture>
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Spacing="10">
+                    <HyperlinkButton Grid.Row="0"
+                                     x:Name="Person"
+                                     Click="Person_Click"
+                                     Tag="{x:Bind}"
+                                     ContextRequested="Person_ContextRequested">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="10">
+                            <Border Width="30"
+                                    Height="30"
+                                    CornerRadius="9999"
+                                    Background="{ThemeResource PortraitBackgroundBrush}">
+                                <cc:Picture x:Name="portrait"
+                                            Src="{x:Bind PortraitUrl}"
+                                            LoadImageCallback="{StaticResource PortraitLoader}" />
                             </Border>
-                            <TextBlock Text="{x:Bind UserName}"  VerticalAlignment="Center" FontFamily="{StaticResource HarmonySansBold}" Foreground="{ThemeResource UserNameForegroundBrush}"></TextBlock>
+                            <TextBlock Text="{x:Bind UserName}"
+                                       VerticalAlignment="Center"
+                                       FontFamily="{StaticResource HarmonySansBold}"
+                                       Foreground="{ThemeResource UserNameForegroundBrush}" />
                         </StackPanel>
                     </HyperlinkButton>
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
-                    <Button Tag="1" DataContext="{x:Bind}" BorderThickness="0" Padding="0" Background="Transparent" Click="Like_Click">
-                        <StackPanel x:Name="Like" Orientation="Horizontal" Spacing="5" >
-                            <ic:SymbolIcon Symbol="ThumbLike" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IconVariant="{x:Bind LikeState,Converter={StaticResource LikeToVariantConverter},Mode=OneWay}"></ic:SymbolIcon>
-                            <TextBlock Text="{x:Bind LikeCount,Mode=OneWay}" Grid.Row="2"  FontSize="11" VerticalAlignment="Center" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                    <Border BorderThickness="1"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            Width="1"
+                            Margin="0,4,0,4" />
+                    <Button Tag="1"
+                            DataContext="{x:Bind}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Background="Transparent"
+                            Click="Like_Click">
+                        <StackPanel x:Name="Like"
+                                    Orientation="Horizontal"
+                                    Spacing="5">
+                            <ic:SymbolIcon Symbol="ThumbLike"
+                                           FontSize="14"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           IconVariant="{x:Bind LikeState, Converter={StaticResource LikeToVariantConverter}, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind LikeCount, Mode=OneWay}"
+                                       Grid.Row="2"
+                                       FontSize="11"
+                                       VerticalAlignment="Center"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Button>
-                    <Button Tag="2" DataContext="{x:Bind}" BorderThickness="0" Padding="0" Background="Transparent"  Click="Like_Click">
-                        <StackPanel Orientation="Horizontal" Spacing="5" >
-                            <ic:SymbolIcon Symbol="ThumbDislike" FontSize="14" Foreground="{ThemeResource TextFillColorSecondaryBrush}" IconVariant="{x:Bind LikeState,Converter={StaticResource DisLikeToVariantConverter},Mode=OneWay}"></ic:SymbolIcon>
-                            <TextBlock Text="{x:Bind DislikeCount,Mode=OneWay}"  VerticalAlignment="Center" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                    <Button Tag="2"
+                            DataContext="{x:Bind}"
+                            BorderThickness="0"
+                            Padding="0"
+                            Background="Transparent"
+                            Click="Like_Click">
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="5">
+                            <ic:SymbolIcon Symbol="ThumbDislike"
+                                           FontSize="14"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           IconVariant="{x:Bind LikeState, Converter={StaticResource DisLikeToVariantConverter}, Mode=OneWay}" />
+                            <TextBlock Text="{x:Bind DislikeCount, Mode=OneWay}"
+                                       VerticalAlignment="Center"
+                                       FontSize="11"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                         </StackPanel>
                     </Button>
 
-                    <Border BorderThickness="1" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" Width="1" Margin="0,4,0,4"></Border>
+                    <Border BorderThickness="1"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            Width="1"
+                            Margin="0,4,0,4" />
 
-                    <HyperlinkButton Padding="7" x:Name="MoreButton" Click="MoreButton_Click">
-                        <ic:SymbolIcon Symbol="MoreHorizontal"></ic:SymbolIcon>
+                    <HyperlinkButton Padding="7"
+                                     x:Name="MoreButton"
+                                     Click="MoreButton_Click">
+                        <ic:SymbolIcon Symbol="MoreHorizontal" />
                         <FlyoutBase.AttachedFlyout>
                             <MenuFlyout dev:MaterialAttach.UseAcrylicBackground="True">
-                                <MenuFlyoutItem  Text="引用" Click="PostOperation_Click" Tag="QUOTE" DataContext="{x:Bind}">
+                                <MenuFlyoutItem Text="引用"
+                                                Click="PostOperation_Click"
+                                                Tag="QUOTE"
+                                                DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="CommentQuote"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="CommentQuote" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="编辑" Click="PostOperation_Click" Tag="EDIT" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource BoolToVisibility}}">
+                                <MenuFlyoutItem Text="编辑"
+                                                Click="PostOperation_Click"
+                                                Tag="EDIT"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource BoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="Edit"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="Edit" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="赠米" Click="PostOperation_Click" Tag="GIFT" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource ReBoolToVisibility}}">
+                                <MenuFlyoutItem Text="赠米"
+                                                Click="PostOperation_Click"
+                                                Tag="GIFT"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource ReBoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="GiftOpen"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="GiftOpen" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem  Text="风评" Click="PostOperation_Click" Tag="RATE" DataContext="{x:Bind}" Visibility="{x:Bind IsMe,Converter={StaticResource ReBoolToVisibility}}">
+                                <MenuFlyoutItem Text="风评"
+                                                Click="PostOperation_Click"
+                                                Tag="RATE"
+                                                DataContext="{x:Bind}"
+                                                Visibility="{x:Bind IsMe, Converter={StaticResource ReBoolToVisibility}}">
                                     <MenuFlyoutItem.Icon>
                                         <FontIcon Glyph="&#xF6B8;" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
-                                <MenuFlyoutItem Text="复制为Md" Tag="MD" Click="PostOperation_Click" DataContext="{x:Bind}">
+                                <MenuFlyoutItem Text="复制为Md"
+                                                Tag="MD"
+                                                Click="PostOperation_Click"
+                                                DataContext="{x:Bind}">
                                     <MenuFlyoutItem.Icon>
-                                        <ic:FluentIcon Icon="Markdown"></ic:FluentIcon>
+                                        <ic:FluentIcon Icon="Markdown" />
                                     </MenuFlyoutItem.Icon>
                                 </MenuFlyoutItem>
                             </MenuFlyout>
@@ -167,252 +333,543 @@
                     </HyperlinkButton>
                 </StackPanel>
 
-                <StackPanel Orientation="Vertical" Grid.Row="0" Margin="5,5,10,0" HorizontalAlignment="Right">
-                    <TextBlock Text="{x:Bind Time}"  FontSize="10"   Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
-                    <TextBlock Text="{x:Bind Floor}" FontSize="10" TextAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
+                <StackPanel Orientation="Vertical"
+                            Grid.Row="0"
+                            Margin="5,5,10,0"
+                            HorizontalAlignment="Right">
+                    <TextBlock Text="{x:Bind Time}"
+                               FontSize="10"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind Floor}"
+                               FontSize="10"
+                               TextAlignment="Right"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </StackPanel>
 
-                <Border  Grid.Row="1" Padding="10" CornerRadius="4" Background="{ThemeResource MarkdownBackgroundBrush}">
-                    <md:MarkdownTextBlock x:Name="MdViewer" MarkdownText="{x:Bind Content,Mode=OneWay}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontFamily="{StaticResource HarmonySans}" BoldFontFamily="{StaticResource HarmonySansBold}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" QuoteBorderBrush="{ThemeResource QuoteBorderBrush}" ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth,Mode=OneWay}" HideImage="{x:Bind svc:AppSettings.Current.HideImage,Mode=OneWay}" LinkClicked="MdViewer_LinkClicked" ImageClicked="MdViewer_ImageClicked"/>
+                <Border Grid.Row="1"
+                        Padding="10"
+                        CornerRadius="4"
+                        Background="{ThemeResource MarkdownBackgroundBrush}">
+                    <md:MarkdownTextBlock x:Name="MdViewer"
+                                          MarkdownText="{x:Bind Content, Mode=OneWay}"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                          FontFamily="{StaticResource HarmonySans}"
+                                          BoldFontFamily="{StaticResource HarmonySansBold}"
+                                          QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                          QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"
+                                          ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"
+                                          HideImage="{x:Bind svc:AppSettings.Current.HideImage, Mode=OneWay}"
+                                          LinkClicked="MdViewer_LinkClicked"
+                                          ImageClicked="MdViewer_ImageClicked" />
                 </Border>
             </Grid>
         </DataTemplate>
-        <obj:ReplyTemplateSelector x:Key="ReplyTemplateSelector" UBBTemplate="{StaticResource UbbViewer}" MarkdownTemplate="{StaticResource MdViewer}"></obj:ReplyTemplateSelector>
-        
+        <obj:ReplyTemplateSelector x:Key="ReplyTemplateSelector"
+                                   UBBTemplate="{StaticResource UbbViewer}"
+                                   MarkdownTemplate="{StaticResource MdViewer}" />
+
     </Page.Resources>
-    <Grid x:Name="RootGrid" >
+    <Grid x:Name="RootGrid">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" MinHeight="80" ></RowDefinition>
-            <RowDefinition Height="*"></RowDefinition>
-            <RowDefinition Height="Auto"></RowDefinition>
+            <RowDefinition Height="Auto"
+                           MinHeight="80" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
-        
-        
-        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,0,0,1" Grid.Row="0" MinHeight="90" Height="Auto" CornerRadius="5" x:Name="MetaDataArea" >
+
+
+        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="0,0,0,1"
+                Grid.Row="0"
+                MinHeight="90"
+                Height="Auto"
+                CornerRadius="5"
+                x:Name="MetaDataArea">
             <Border.Background>
-                <ImageBrush ImageSource="{x:Bind svc:AppSettings.Current.ThemePicture,Mode=OneWay}" Stretch="UniformToFill" Opacity="{ThemeResource AdaptiveOpacity}"></ImageBrush>
+                <ImageBrush ImageSource="{x:Bind svc:AppSettings.Current.ThemePicture, Mode=OneWay}"
+                            Stretch="UniformToFill"
+                            Opacity="{ThemeResource AdaptiveOpacity}" />
             </Border.Background>
             <Border.ContextFlyout>
                 <MenuFlyout>
-                    <MenuFlyoutItem Text="刷新"  x:Name="TileFlyout" Tag="0" Click="TileFlyout_Click">
+                    <MenuFlyoutItem Text="刷新"
+                                    x:Name="TileFlyout"
+                                    Tag="0"
+                                    Click="TileFlyout_Click">
                         <MenuFlyoutItem.Icon>
-                            <ic:SymbolIcon Symbol="ArrowSync"></ic:SymbolIcon>
+                            <ic:SymbolIcon Symbol="ArrowSync" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem Text="复制链接"  Tag="1" Click="TileFlyout_Click">
+                    <MenuFlyoutItem Text="复制链接"
+                                    Tag="1"
+                                    Click="TileFlyout_Click">
                         <MenuFlyoutItem.Icon>
-                            <ic:SymbolIcon Symbol="Share"></ic:SymbolIcon>
+                            <ic:SymbolIcon Symbol="Share" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
 
-                    <MenuFlyoutItem x:Name="EditTopicMenuItem" Text="编辑主题" Click="EditTopic_Click" Visibility="{x:Bind TopicInfo.IsMe,Converter={StaticResource BoolToVisibility},Mode=OneWay}">
+                    <MenuFlyoutItem x:Name="EditTopicMenuItem"
+                                    Text="编辑主题"
+                                    Click="EditTopic_Click"
+                                    Visibility="{x:Bind TopicInfo.IsMe, Converter={StaticResource BoolToVisibility}, Mode=OneWay}">
                         <MenuFlyoutItem.Icon>
-                            <ic:SymbolIcon Symbol="Edit"></ic:SymbolIcon>
+                            <ic:SymbolIcon Symbol="Edit" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutSubItem Text="收藏" Tag="2" Visibility="{x:Bind TopicInfo.IsFavorite,Converter={StaticResource ReBoolToVisibility},Mode=OneWay}" x:Name="CollectionMenu">
+                    <MenuFlyoutSubItem Text="收藏"
+                                       Tag="2"
+                                       Visibility="{x:Bind TopicInfo.IsFavorite, Converter={StaticResource ReBoolToVisibility}, Mode=OneWay}"
+                                       x:Name="CollectionMenu">
                         <MenuFlyoutSubItem.Icon>
-                            <ic:SymbolIcon Symbol="StarAdd"></ic:SymbolIcon>
+                            <ic:SymbolIcon Symbol="StarAdd" />
                         </MenuFlyoutSubItem.Icon>
                     </MenuFlyoutSubItem>
-                    <MenuFlyoutItem Text="取消收藏" Tag="3" Visibility="{x:Bind TopicInfo.IsFavorite,Converter={StaticResource BoolToVisibility},Mode=OneWay}" Click="TileFlyout_Click">
+                    <MenuFlyoutItem Text="取消收藏"
+                                    Tag="3"
+                                    Visibility="{x:Bind TopicInfo.IsFavorite, Converter={StaticResource BoolToVisibility}, Mode=OneWay}"
+                                    Click="TileFlyout_Click">
                         <MenuFlyoutItem.Icon>
-                            <ic:SymbolIcon Symbol="StarOff"></ic:SymbolIcon>
+                            <ic:SymbolIcon Symbol="StarOff" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
-                    <MenuFlyoutItem x:Name="HideImageFlyoutItem" Text="启用无图模式" Tag="4" Click="TileFlyout_Click" >
+                    <MenuFlyoutItem x:Name="HideImageFlyoutItem"
+                                    Text="启用无图模式"
+                                    Tag="4"
+                                    Click="TileFlyout_Click">
                         <MenuFlyoutItem.Icon>
-                            <ic:SymbolIcon x:Name="ImageOffIcon" Symbol="ImageOff"></ic:SymbolIcon>
+                            <ic:SymbolIcon x:Name="ImageOffIcon"
+                                           Symbol="ImageOff" />
                         </MenuFlyoutItem.Icon>
                     </MenuFlyoutItem>
                 </MenuFlyout>
             </Border.ContextFlyout>
-            
-            <Grid Padding="10" Height="Auto">
+
+            <Grid Padding="10"
+                  Height="Auto">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"></ColumnDefinition>
-                    <ColumnDefinition Width="Auto"></ColumnDefinition>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock x:Name="TopicTitle" Text="{x:Bind  TopicInfo.Title,Mode=OneWay}" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" FontWeight="Bold" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" FontSize="18" Margin="10,0,0,0" TextWrapping="Wrap" ></TextBlock>
-                
-                <StackPanel Orientation="Horizontal" Grid.Row="1" Grid.Column="0" Margin="10,10,0,0" Spacing="8">
-                    <ic:SymbolIcon Symbol="Clock" FontSize="12" VerticalAlignment="Center"></ic:SymbolIcon>
-                    <TextBlock Text="{x:Bind TopicInfo.Time,Mode=OneWay}" FontSize="14" VerticalAlignment="Center"></TextBlock>
-                    <ic:SymbolIcon Symbol="Eye" FontSize="12" Margin="20,0,0,0"></ic:SymbolIcon>
-                    <TextBlock Text="{x:Bind TopicInfo.HitCount,Mode=OneWay}" FontSize="14" VerticalAlignment="Center"></TextBlock>
-                    <ic:SymbolIcon Symbol="Star" FontSize="12" Margin="20,0,0,0" IconVariant="{x:Bind TopicInfo.IsFavorite,Converter={StaticResource BoolToVariantConverter},Mode=OneWay}"></ic:SymbolIcon>
-                    <TextBlock Text="{x:Bind TopicInfo.FavoriteCount,Mode=OneWay}" FontSize="14" VerticalAlignment="Center"></TextBlock>
-                    
+                <TextBlock x:Name="TopicTitle"
+                           Text="{x:Bind TopicInfo.Title, Mode=OneWay}"
+                           Grid.Row="0"
+                           Grid.Column="0"
+                           VerticalAlignment="Center"
+                           FontWeight="Bold"
+                           Foreground="{ThemeResource AccentAAFillColorDefaultBrush}"
+                           FontSize="18"
+                           Margin="10,0,0,0"
+                           TextWrapping="Wrap" />
+
+                <StackPanel Orientation="Horizontal"
+                            Grid.Row="1"
+                            Grid.Column="0"
+                            Margin="10,10,0,0"
+                            Spacing="8">
+                    <ic:SymbolIcon Symbol="Clock"
+                                   FontSize="12"
+                                   VerticalAlignment="Center" />
+                    <TextBlock Text="{x:Bind TopicInfo.Time, Mode=OneWay}"
+                               FontSize="14"
+                               VerticalAlignment="Center" />
+                    <ic:SymbolIcon Symbol="Eye"
+                                   FontSize="12"
+                                   Margin="20,0,0,0" />
+                    <TextBlock Text="{x:Bind TopicInfo.HitCount, Mode=OneWay}"
+                               FontSize="14"
+                               VerticalAlignment="Center" />
+                    <ic:SymbolIcon Symbol="Star"
+                                   FontSize="12"
+                                   Margin="20,0,0,0"
+                                   IconVariant="{x:Bind TopicInfo.IsFavorite, Converter={StaticResource BoolToVariantConverter}, Mode=OneWay}" />
+                    <TextBlock Text="{x:Bind TopicInfo.FavoriteCount, Mode=OneWay}"
+                               FontSize="14"
+                               VerticalAlignment="Center" />
+
                 </StackPanel>
-                <dev:BubbleButton Grid.Row="0" Grid.Column="1" Grid.RowSpan="2" VerticalAlignment="Center" Height="45" HorizontalAlignment="Right"  Margin="10,15,10,10" x:Name="writereply" Click="writereply_Click"  BubbleForeground="{ThemeResource AccentAAFillColorDefaultBrush}">
-                    <StackPanel Orientation="Horizontal" Spacing="15">
-                        <ic:SymbolIcon Symbol="Add" FontSize="16" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" ></ic:SymbolIcon>
-                        <TextBlock Text="回复" ></TextBlock>
+                <dev:BubbleButton Grid.Row="0"
+                                  Grid.Column="1"
+                                  Grid.RowSpan="2"
+                                  VerticalAlignment="Center"
+                                  Height="45"
+                                  HorizontalAlignment="Right"
+                                  Margin="10,15,10,10"
+                                  x:Name="writereply"
+                                  Click="writereply_Click"
+                                  BubbleForeground="{ThemeResource AccentAAFillColorDefaultBrush}">
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="15">
+                        <ic:SymbolIcon Symbol="Add"
+                                       FontSize="16"
+                                       Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" />
+                        <TextBlock Text="回复" />
                     </StackPanel>
                 </dev:BubbleButton>
 
             </Grid>
         </Border>
-        
-        <ScrollViewer Grid.Row="1"   HorizontalScrollMode="Enabled" x:Name="RootViewer" >
 
-            <ItemsRepeater x:Name="ReplyRepeater" ItemTemplate="{StaticResource ReplyTemplateSelector}" ItemsSource="{x:Bind Replies,Mode=OneWay}" VerticalCacheLength="96"></ItemsRepeater>
-            
+        <ScrollViewer Grid.Row="1"
+                      HorizontalScrollMode="Enabled"
+                      x:Name="RootViewer">
+
+            <ItemsRepeater x:Name="ReplyRepeater"
+                           ItemTemplate="{StaticResource ReplyTemplateSelector}"
+                           ItemsSource="{x:Bind Replies, Mode=OneWay}"
+                           VerticalCacheLength="96" />
+
         </ScrollViewer>
-        <cc:EmptyStateControl Grid.Row="1" x:Name="TopicEmptyState" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无回复" Subtitle="还没有回复，抢个沙发" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        
-        <Grid Grid.Row="2" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="0,1,0,0" Padding="0,5,0,5">
+        <cc:EmptyStateControl Grid.Row="1"
+                              x:Name="TopicEmptyState"
+                              Visibility="Collapsed"
+                              IconGlyph="&#xEC4F;"
+                              Title="暂无回复"
+                              Subtitle="还没有回复，抢个沙发"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center" />
+
+        <Grid Grid.Row="2"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,1,0,0"
+              Padding="0,5,0,5">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"></ColumnDefinition>
-                <ColumnDefinition Width="3*" MinWidth="300"></ColumnDefinition>
-                <ColumnDefinition Width="*"></ColumnDefinition>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="3*"
+                                  MinWidth="300" />
+                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
-            <dev:PagerControl Grid.Column="1" DisplayMode="ButtonPanel" NumberOfPages="1"  HorizontalAlignment="Center" x:Name="Pager" SelectedPageIndex="0"  VerticalAlignment="Center"  SelectedIndexChanged="Pager_SelectedIndexChanged" ></dev:PagerControl>
-            <StackPanel Orientation="Horizontal" Margin="0,0,20,0" Spacing="10" Grid.Column="2" HorizontalAlignment="Right" >
-                <Button CornerRadius="9999" Width="40" Height="40" Padding="0" Background="Transparent" BorderThickness="0" ToolTipService.ToolTip="查看投票" x:Name="StartVote" Click="StartVote_Click" Visibility="{x:Bind TopicInfo.IsVote,Converter={StaticResource BoolToVisibilityConverter},Mode=OneWay}"  >
-                    <ic:SymbolIcon Symbol="Vote"></ic:SymbolIcon>
+            <dev:PagerControl Grid.Column="1"
+                              DisplayMode="ButtonPanel"
+                              NumberOfPages="1"
+                              HorizontalAlignment="Center"
+                              x:Name="Pager"
+                              SelectedPageIndex="0"
+                              VerticalAlignment="Center"
+                              SelectedIndexChanged="Pager_SelectedIndexChanged" />
+            <StackPanel Orientation="Horizontal"
+                        Margin="0,0,20,0"
+                        Spacing="10"
+                        Grid.Column="2"
+                        HorizontalAlignment="Right">
+                <Button CornerRadius="9999"
+                        Width="40"
+                        Height="40"
+                        Padding="0"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        ToolTipService.ToolTip="查看投票"
+                        x:Name="StartVote"
+                        Click="StartVote_Click"
+                        Visibility="{x:Bind TopicInfo.IsVote, Converter={StaticResource BoolToVisibilityConverter}, Mode=OneWay}">
+                    <ic:SymbolIcon Symbol="Vote" />
                 </Button>
-                <dev:GotoTop  Background="Transparent" ToolTipService.ToolTip="回到顶部" Width="40" Height="40" BorderThickness="0" Animated="True" AutoHiding="True" Target="{x:Bind RootViewer}"></dev:GotoTop>
+                <dev:GotoTop Background="Transparent"
+                             ToolTipService.ToolTip="回到顶部"
+                             Width="40"
+                             Height="40"
+                             BorderThickness="0"
+                             Animated="True"
+                             AutoHiding="True"
+                             Target="{x:Bind RootViewer}" />
             </StackPanel>
-            
+
         </Grid>
-        <TeachingTip Target="{x:Bind MetaDataArea}" x:Name="VotePanel" TailVisibility="Collapsed" Closed="VotePanel_Closed" IsLightDismissEnabled="True">
+        <TeachingTip Target="{x:Bind MetaDataArea}"
+                     x:Name="VotePanel"
+                     TailVisibility="Collapsed"
+                     Closed="VotePanel_Closed"
+                     IsLightDismissEnabled="True">
             <Grid Margin="0,5,0,0">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="50"></RowDefinition>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="50" />
                 </Grid.RowDefinitions>
-                <TextBlock Grid.Row="0" Text="投票" x:Name="VoteTitle" FontWeight="Bold" Foreground="LightSeaGreen" FontSize="18"></TextBlock>
-                <ListView Grid.Row="1" x:Name="VoteList" SelectionMode="Multiple">
+                <TextBlock Grid.Row="0"
+                           Text="投票"
+                           x:Name="VoteTitle"
+                           FontWeight="Bold"
+                           Foreground="LightSeaGreen"
+                           FontSize="18" />
+                <ListView Grid.Row="1"
+                          x:Name="VoteList"
+                          SelectionMode="Multiple">
                     <ListView.Header>
-                        <Grid Padding="10,0,5,0" ColumnSpacing="10">
+                        <Grid Padding="10,0,5,0"
+                              ColumnSpacing="10">
                             <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"></ColumnDefinition>
-                                <ColumnDefinition Width="60"></ColumnDefinition>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="60" />
                             </Grid.ColumnDefinitions>
-                            <TextBlock Text="描述" ></TextBlock>
-                            <TextBlock Grid.Column="1" Text="得票数"></TextBlock>
+                            <TextBlock Text="描述" />
+                            <TextBlock Grid.Column="1"
+                                       Text="得票数" />
                         </Grid>
                     </ListView.Header>
                     <ListView.ItemTemplate>
                         <DataTemplate x:DataType="obj:VoteItem">
                             <Grid ColumnSpacing="10">
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*"></ColumnDefinition>
-                                    <ColumnDefinition Width="30"></ColumnDefinition>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="30" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Text="{x:Bind Description}" Margin="0,3,0,3" TextWrapping="Wrap" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" VerticalAlignment="Center"></TextBlock>
-                                <TextBlock Grid.Column="1" Text="{x:Bind Count}" FontSize="12" VerticalAlignment="Center"></TextBlock>
+                                <TextBlock Text="{x:Bind Description}"
+                                           Margin="0,3,0,3"
+                                           TextWrapping="Wrap"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{x:Bind Count}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center" />
                             </Grid>
                         </DataTemplate>
                     </ListView.ItemTemplate>
                 </ListView>
-                <TextBlock Grid.Row="2" Text="过期时间:" x:Name="votetime" Margin="10,5,5,0"></TextBlock>
-                <TextBlock Grid.Row="3" x:Name="voteinfo" Margin="10,5,5,0"></TextBlock>
-                <Button Grid.Row="4" x:Name="SendVote" Content="确认" HorizontalAlignment="Right" IsEnabled="false" Click="SendVote_Click" Style="{StaticResource AccentButtonStyle}"></Button>
+                <TextBlock Grid.Row="2"
+                           Text="过期时间:"
+                           x:Name="votetime"
+                           Margin="10,5,5,0" />
+                <TextBlock Grid.Row="3"
+                           x:Name="voteinfo"
+                           Margin="10,5,5,0" />
+                <Button Grid.Row="4"
+                        x:Name="SendVote"
+                        Content="确认"
+                        HorizontalAlignment="Right"
+                        IsEnabled="false"
+                        Click="SendVote_Click"
+                        Style="{StaticResource AccentButtonStyle}" />
             </Grid>
         </TeachingTip>
-        <TeachingTip  Target="{x:Bind}" x:Name="ProfileViewer" IsLightDismissEnabled="True" TailVisibility="Collapsed" Closed="ProfileViewer_Closed">
-            <Grid RowSpacing="8" ColumnSpacing="15">
+        <TeachingTip Target="{x:Bind}"
+                     x:Name="ProfileViewer"
+                     IsLightDismissEnabled="True"
+                     TailVisibility="Collapsed"
+                     Closed="ProfileViewer_Closed">
+            <Grid RowSpacing="8"
+                  ColumnSpacing="15">
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
-                    <RowDefinition Height="Auto"></RowDefinition>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
                 <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"></ColumnDefinition>
-                    <ColumnDefinition Width="*"></ColumnDefinition>
-                    <ColumnDefinition Width="*"></ColumnDefinition>
-                    <ColumnDefinition Width="*"></ColumnDefinition>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="*" />
                 </Grid.ColumnDefinitions>
-                <PersonPicture Tag="{x:Bind Profile.PortraitUrl,Mode=OneWay}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" Width="50" Height="50" x:Name="SmallProfile" Loaded="SmallProfile_Loaded" Unloaded="SmallProfile_Unloaded"></PersonPicture>
-                <TextBlock Grid.Row="0" Grid.Column="1" Text="{x:Bind Profile.PostCount,Mode=OneWay}" FontWeight="SemiBold" HorizontalAlignment="Center"></TextBlock>
-                <TextBlock Grid.Row="0" Grid.Column="2" Text="{x:Bind Profile.FanCount,Mode=OneWay}" FontWeight="SemiBold" HorizontalAlignment="Center"></TextBlock>
-                <TextBlock Grid.Row="0" Grid.Column="3" Text="{x:Bind Profile.Popularity,Mode=OneWay}" FontWeight="SemiBold" HorizontalAlignment="Center" ></TextBlock>
-                <TextBlock Grid.Row="1" Grid.Column="1" Text="发帖"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" HorizontalAlignment="Center"></TextBlock>
-                <TextBlock Grid.Row="1" Grid.Column="2" Text="粉丝"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" HorizontalAlignment="Center"></TextBlock>
-                <TextBlock Grid.Row="1" Grid.Column="3" Text="风评" Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" HorizontalAlignment="Center"></TextBlock>
-                <StackPanel Orientation="Horizontal" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Spacing="15">
-                    <TextBlock Text="{x:Bind Profile.Name,Mode=OneWay}"  FontWeight="Bold" Foreground="#4d9891" IsTextSelectionEnabled="True"></TextBlock>
-                    <Border Background="{ThemeResource MarkdownBackgroundBrush}" Padding="3,0,3,0" CornerRadius="3">
-                        <TextBlock Text="{x:Bind Profile.Id,Mode=OneWay}"  Foreground="{ThemeResource TextFillColorSecondaryBrush}" FontSize="12" IsTextSelectionEnabled="True"></TextBlock>
+                <PersonPicture Tag="{x:Bind Profile.PortraitUrl, Mode=OneWay}"
+                               Grid.Column="0"
+                               Grid.Row="0"
+                               Grid.RowSpan="2"
+                               Width="50"
+                               Height="50"
+                               x:Name="SmallProfile"
+                               Loaded="SmallProfile_Loaded"
+                               Unloaded="SmallProfile_Unloaded" />
+                <TextBlock Grid.Row="0"
+                           Grid.Column="1"
+                           Text="{x:Bind Profile.PostCount, Mode=OneWay}"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
+                <TextBlock Grid.Row="0"
+                           Grid.Column="2"
+                           Text="{x:Bind Profile.FanCount, Mode=OneWay}"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
+                <TextBlock Grid.Row="0"
+                           Grid.Column="3"
+                           Text="{x:Bind Profile.Popularity, Mode=OneWay}"
+                           FontWeight="SemiBold"
+                           HorizontalAlignment="Center" />
+                <TextBlock Grid.Row="1"
+                           Grid.Column="1"
+                           Text="发帖"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="12"
+                           HorizontalAlignment="Center" />
+                <TextBlock Grid.Row="1"
+                           Grid.Column="2"
+                           Text="粉丝"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="12"
+                           HorizontalAlignment="Center" />
+                <TextBlock Grid.Row="1"
+                           Grid.Column="3"
+                           Text="风评"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           FontSize="12"
+                           HorizontalAlignment="Center" />
+                <StackPanel Orientation="Horizontal"
+                            Grid.Row="2"
+                            Grid.Column="0"
+                            Grid.ColumnSpan="4"
+                            Spacing="15">
+                    <TextBlock Text="{x:Bind Profile.Name, Mode=OneWay}"
+                               FontWeight="Bold"
+                               Foreground="#4d9891"
+                               IsTextSelectionEnabled="True" />
+                    <Border Background="{ThemeResource MarkdownBackgroundBrush}"
+                            Padding="3,0,3,0"
+                            CornerRadius="3">
+                        <TextBlock Text="{x:Bind Profile.Id, Mode=OneWay}"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   FontSize="12"
+                                   IsTextSelectionEnabled="True" />
                     </Border>
                 </StackPanel>
-                <ubb:UbbTextBlock UbbText="{x:Bind Profile.SignatureCode,Mode=OneWay}"  Grid.Column="0" Grid.ColumnSpan="4" Grid.Row="3" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{StaticResource HarmonySansBold}" Background="Transparent" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" ImageMaxWidth="400"/>
+                <ubb:UbbTextBlock UbbText="{x:Bind Profile.SignatureCode, Mode=OneWay}"
+                                  Grid.Column="0"
+                                  Grid.ColumnSpan="4"
+                                  Grid.Row="3"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                  BoldFontFamily="{StaticResource HarmonySansBold}"
+                                  Background="Transparent"
+                                  QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                  ImageMaxWidth="400" />
             </Grid>
         </TeachingTip>
 
-        <ContentDialog x:Name="WealthTransferDialog" Title="赠米" Closed="WealthTransferDialog_Closed">
-            <StackPanel Width="380" Spacing="8">
-                <TextBlock Text="转账需要收取一定的手续费，手续费金额为 10% 或者 10 中的较大值。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="转账手续费从转账金额中收取，因此对方实际收到的金额会少于您输入的金额。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="转账的最小金额不能小于 10。" TextWrapping="Wrap" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                <TextBlock Text="收款用户"></TextBlock>
-                <cc:FancyTextBox x:Name="WealthReceiver"  PlaceholderText="用户名，多人用空格隔开" IsEnabled="False" />
-                <TextBlock Text="赠米数"></TextBlock>
-                <cc:FancyTextBox x:Name="WealthAmount" PlaceholderText="金额（米）" />
-                <cc:FancyTextBox x:Name="WealthReason" PlaceholderText="增米理由(必填)"/>
-                <TextBlock x:Name="WealthPreview" FontSize="12" Foreground="LightSeaGreen" TextWrapping="Wrap" />
-                <TextBlock x:Name="WealthError" FontSize="12" Foreground="Red" TextWrapping="Wrap" />
+        <ContentDialog x:Name="WealthTransferDialog"
+                       Title="赠米"
+                       Closed="WealthTransferDialog_Closed">
+            <StackPanel Width="380"
+                        Spacing="8">
+                <TextBlock Text="转账需要收取一定的手续费，手续费金额为 10% 或者 10 中的较大值。"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="转账手续费从转账金额中收取，因此对方实际收到的金额会少于您输入的金额。"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="转账的最小金额不能小于 10。"
+                           TextWrapping="Wrap"
+                           FontSize="12"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                <TextBlock Text="收款用户" />
+                <cc:FancyTextBox x:Name="WealthReceiver"
+                                 PlaceholderText="用户名，多人用空格隔开"
+                                 IsEnabled="False" />
+                <TextBlock Text="赠米数" />
+                <cc:FancyTextBox x:Name="WealthAmount"
+                                 PlaceholderText="金额（米）" />
+                <cc:FancyTextBox x:Name="WealthReason"
+                                 PlaceholderText="增米理由(必填)" />
+                <TextBlock x:Name="WealthPreview"
+                           FontSize="12"
+                           Foreground="LightSeaGreen"
+                           TextWrapping="Wrap" />
+                <TextBlock x:Name="WealthError"
+                           FontSize="12"
+                           Foreground="Red"
+                           TextWrapping="Wrap" />
                 <Grid>
-                    <Button Content="取消" Click="WealthTransferCancel_Click" HorizontalAlignment="Left" />
-                    <Button Content="赠米" x:Name="WealthTransferOk" Click="WealthTransferOk_Click" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" />
+                    <Button Content="取消"
+                            Click="WealthTransferCancel_Click"
+                            HorizontalAlignment="Left" />
+                    <Button Content="赠米"
+                            x:Name="WealthTransferOk"
+                            Click="WealthTransferOk_Click"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
             </StackPanel>
         </ContentDialog>
 
-        <ContentDialog x:Name="RatingDialog" Title="风评" Closed="RatingDialog_Closed">
-            <StackPanel Width="360" Spacing="10">
-                <SelectorBar x:Name="RatingTypeBar" HorizontalAlignment="Center"
+        <ContentDialog x:Name="RatingDialog"
+                       Title="风评"
+                       Closed="RatingDialog_Closed">
+            <StackPanel Width="360"
+                        Spacing="10">
+                <SelectorBar x:Name="RatingTypeBar"
+                             HorizontalAlignment="Center"
                              SelectionChanged="RatingTypeBar_SelectionChanged">
-                    <SelectorBarItem Text="正面" Tag="1" />
-                    <SelectorBarItem Text="负面" Tag="2" />
+                    <SelectorBarItem Text="正面"
+                                     Tag="1" />
+                    <SelectorBarItem Text="负面"
+                                     Tag="2" />
                 </SelectorBar>
                 <Grid>
-                    <TextBlock HorizontalAlignment="Center" Text="滚动选择理由，点击可快速选中。" FontSize="12" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock HorizontalAlignment="Center"
+                               Text="滚动选择理由，点击可快速选中。"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Grid>
-              
-                <ScrollViewer x:Name="RatingScroll" Height="170" VerticalScrollBarVisibility="Auto"
+
+                <ScrollViewer x:Name="RatingScroll"
+                              Height="170"
+                              VerticalScrollBarVisibility="Auto"
                               ViewChanging="RatingScroll_ViewChanging">
-                    <ItemsRepeater x:Name="RatingRepeater" ElementPrepared="RatingRepeater_ElementPrepared">
+                    <ItemsRepeater x:Name="RatingRepeater"
+                                   ElementPrepared="RatingRepeater_ElementPrepared">
                         <ItemsRepeater.ItemTemplate>
                             <DataTemplate x:DataType="obj:RatingReason">
-                                <Button Content="{x:Bind Reason}" Background="{x:Bind ColorHex}" Tag="{x:Bind Id}"
-                                        Click="RatingItem_Click" Foreground="White" HorizontalAlignment="Stretch"
-                                        Height="40" Margin="0,3" CornerRadius="6" />
+                                <Button Content="{x:Bind Reason}"
+                                        Background="{x:Bind ColorHex}"
+                                        Tag="{x:Bind Id}"
+                                        Click="RatingItem_Click"
+                                        Foreground="White"
+                                        HorizontalAlignment="Stretch"
+                                        Height="40"
+                                        Margin="0,3"
+                                        CornerRadius="6" />
                             </DataTemplate>
                         </ItemsRepeater.ItemTemplate>
                     </ItemsRepeater>
                 </ScrollViewer>
                 <Grid>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Spacing="8">
-                        <Border x:Name="RatingColor" Width="30" Height="30" CornerRadius="6" Background="#888888" />
-                        <TextBlock x:Name="RatingSelectedReason" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="280" />
+                    <StackPanel Orientation="Horizontal"
+                                HorizontalAlignment="Center"
+                                Spacing="8">
+                        <Border x:Name="RatingColor"
+                                Width="30"
+                                Height="30"
+                                CornerRadius="6"
+                                Background="#888888" />
+                        <TextBlock x:Name="RatingSelectedReason"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   MaxWidth="280" />
                     </StackPanel>
                 </Grid>
-                
-                <TextBlock x:Name="RatingError" Foreground="Red" TextWrapping="Wrap" FontSize="12" />
+
+                <TextBlock x:Name="RatingError"
+                           Foreground="Red"
+                           TextWrapping="Wrap"
+                           FontSize="12" />
                 <Grid>
-                    <Button Content="取消" Click="RatingCancel_Click" HorizontalAlignment="Left" />
-                    <Button Content="确定" x:Name="RatingOk" Click="RatingOk_Click" HorizontalAlignment="Right" Style="{StaticResource AccentButtonStyle}" />
+                    <Button Content="取消"
+                            Click="RatingCancel_Click"
+                            HorizontalAlignment="Left" />
+                    <Button Content="确定"
+                            x:Name="RatingOk"
+                            Click="RatingOk_Click"
+                            HorizontalAlignment="Right"
+                            Style="{StaticResource AccentButtonStyle}" />
                 </Grid>
             </StackPanel>
         </ContentDialog>
 
-        <cc:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="3" HorizontalAlignment="Center" VerticalAlignment="Bottom"></cc:InfoFlower>
+        <cc:InfoFlower x:Name="Flower"
+                       Grid.Row="0"
+                       Grid.RowSpan="3"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Bottom" />
 
-        <!-- 发帖浮层：点"回复"从底部滑出，宽度铺满整页；背景图给亚克力当采样源 -->
-        <cc:ComposeSheet
-            x:Name="ComposeOverlay"
-            Grid.RowSpan="3"
-            BackgroundImageSource="{ThemeResource EditorBackgroundImage}" />
+        <!--  发帖浮层：点"回复"从底部滑出，宽度铺满整页；背景图给亚克力当采样源  -->
+        <cc:ComposeSheet x:Name="ComposeOverlay"
+                         Grid.RowSpan="3"
+                         BackgroundImageSource="{ThemeResource EditorBackgroundImage}" />
     </Grid>
 </Page>

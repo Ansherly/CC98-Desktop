@@ -1,21 +1,20 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 
-<Page
-    x:Class="CC98.Views.SettingPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:tool="using:CommunityToolkit.WinUI.Controls"
-    xmlns:ic="using:FluentIcons.WinUI"
-    xmlns:sv="using:CC98.Services"
-    xmlns:views="using:CC98.Views"
-    xmlns:ubb="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls"
-    xmlns:cc="using:CC98.Controls"
-    xmlns:obj="using:CC98.Objects"
-    Background="{ThemeResource DesktopAcrylicTransparentBrush}">
+<Page x:Class="CC98.Views.SettingPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      xmlns:tool="using:CommunityToolkit.WinUI.Controls"
+      xmlns:ic="using:FluentIcons.WinUI"
+      xmlns:sv="using:CC98.Services"
+      xmlns:views="using:CC98.Views"
+      xmlns:ubb="using:CC98.Controls.UbbTextBlock"
+      xmlns:infoFlower="using:CC98.Controls"
+      xmlns:cc="using:CC98.Controls"
+      xmlns:obj="using:CC98.Objects"
+      Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
 
     <Grid x:Name="RootGrid">
@@ -23,27 +22,46 @@
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        
-        <TextBlock FontSize="24" Text="设定" FontWeight="Bold" FontFamily="{StaticResource HarmonySansBold}"
-                   Foreground="LightSeaGreen" Grid.Row="0" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="15,10,10,10" x:Name="de" />
-        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" BorderThickness="1" Height="1"
-                Grid.Row="0" VerticalAlignment="Bottom" />
-        <ScrollViewer Grid.Row="1" Padding="20" Margin="0,0,0,15">
-            <StackPanel Orientation="Vertical" Spacing="10">
+
+        <TextBlock FontSize="24"
+                   Text="设定"
+                   FontWeight="Bold"
+                   FontFamily="{StaticResource HarmonySansBold}"
+                   Foreground="LightSeaGreen"
+                   Grid.Row="0"
+                   HorizontalAlignment="Left"
+                   VerticalAlignment="Center"
+                   Margin="15,10,10,10"
+                   x:Name="de" />
+        <Border BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                Height="1"
+                Grid.Row="0"
+                VerticalAlignment="Bottom" />
+        <ScrollViewer Grid.Row="1"
+                      Padding="20"
+                      Margin="0,0,0,15">
+            <StackPanel Orientation="Vertical"
+                        Spacing="10">
                 <StackPanel.ChildrenTransitions>
                     <TransitionCollection>
                         <EntranceThemeTransition IsStaggeringEnabled="True" />
                     </TransitionCollection>
                 </StackPanel.ChildrenTransitions>
-                <TextBlock Text="登录行为" FontSize="16" Margin="5,2,0,5" />
-                <tool:SettingsExpander Header="登录凭据" Description="管理登录状态">
+                <TextBlock Text="登录行为"
+                           FontSize="16"
+                           Margin="5,2,0,5" />
+                <tool:SettingsExpander Header="登录凭据"
+                                       Description="管理登录状态">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="Key" />
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard Header="切换用户或登出">
-                            <HyperlinkButton x:Name="SwitchUser" Click="SwitchUser_Click">
-                                <StackPanel Orientation="Horizontal" Spacing="10">
+                            <HyperlinkButton x:Name="SwitchUser"
+                                             Click="SwitchUser_Click">
+                                <StackPanel Orientation="Horizontal"
+                                            Spacing="10">
                                     <ic:SymbolIcon Symbol="SignOut" />
                                     <TextBlock Text="退出登录" />
                                 </StackPanel>
@@ -54,28 +72,44 @@
 
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                <tool:SettingsCard Header="启动页面" Description="重启生效">
+                <tool:SettingsCard Header="启动页面"
+                                   Description="重启生效">
                     <tool:SettingsCard.HeaderIcon>
                         <ic:SymbolIcon Symbol="Apps" />
                     </tool:SettingsCard.HeaderIcon>
-                    <ComboBox Background="Transparent" Width="Auto" x:Name="TitlePage" SelectedIndex="{x:Bind sv:AppSettings.Current.TitlePage,Mode=TwoWay}">
+                    <ComboBox Background="Transparent"
+                              Width="Auto"
+                              x:Name="TitlePage"
+                              SelectedIndex="{x:Bind sv:AppSettings.Current.TitlePage, Mode=TwoWay}">
                         <ComboBoxItem Content="首页" />
                         <ComboBoxItem Content="个人主页" />
                         <ComboBoxItem Content="新帖" />
                     </ComboBox>
                 </tool:SettingsCard>
-                <TextBlock Text="外观" FontSize="16" Margin="5,2,0,5" />
+                <TextBlock Text="外观"
+                           FontSize="16"
+                           Margin="5,2,0,5" />
                 <tool:SettingsExpander Header="明暗主题">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="Color" />
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard ContentAlignment="Left">
-                            <StackPanel HorizontalAlignment="Left" Margin="10,10,10,10">
+                            <StackPanel HorizontalAlignment="Left"
+                                        Margin="10,10,10,10">
                                 <RadioButtons>
-                                    <RadioButton Content="浅色" x:Name="Light" Checked="Light_Checked" Tag="1" />
-                                    <RadioButton Content="深色" x:Name="Dark" Checked="Light_Checked" Tag="2" />
-                                    <RadioButton Content="跟随系统" x:Name="Follow" Checked="Light_Checked" Tag="0" />
+                                    <RadioButton Content="浅色"
+                                                 x:Name="Light"
+                                                 Checked="Light_Checked"
+                                                 Tag="1" />
+                                    <RadioButton Content="深色"
+                                                 x:Name="Dark"
+                                                 Checked="Light_Checked"
+                                                 Tag="2" />
+                                    <RadioButton Content="跟随系统"
+                                                 x:Name="Follow"
+                                                 Checked="Light_Checked"
+                                                 Tag="0" />
                                 </RadioButtons>
 
                             </StackPanel>
@@ -88,43 +122,63 @@
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard ContentAlignment="Left">
-                            <StackPanel HorizontalAlignment="Left" Margin="10,10,10,10">
-                                <RadioButton Content="Mica(云母)" Tag="0" x:Name="Mica" Checked="Effect_Checked" />
-                                <RadioButton Content="Mica Alt(薄云母)" Tag="1" x:Name="MicaAlt" Checked="Effect_Checked" />
-                                <RadioButton Content="Acrylic(亚克力)" Tag="2" x:Name="AcrylicBase"
+                            <StackPanel HorizontalAlignment="Left"
+                                        Margin="10,10,10,10">
+                                <RadioButton Content="Mica(云母)"
+                                             Tag="0"
+                                             x:Name="Mica"
                                              Checked="Effect_Checked" />
-                                <RadioButton Content="Acrylic Thin(薄亚克力)" Tag="3" x:Name="AcrylicThin"
+                                <RadioButton Content="Mica Alt(薄云母)"
+                                             Tag="1"
+                                             x:Name="MicaAlt"
+                                             Checked="Effect_Checked" />
+                                <RadioButton Content="Acrylic(亚克力)"
+                                             Tag="2"
+                                             x:Name="AcrylicBase"
+                                             Checked="Effect_Checked" />
+                                <RadioButton Content="Acrylic Thin(薄亚克力)"
+                                             Tag="3"
+                                             x:Name="AcrylicThin"
                                              Checked="Effect_Checked" />
 
                             </StackPanel>
                         </tool:SettingsCard>
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                <tool:SettingsExpander Header="自定义背景" Description="修改背景图片">
+                <tool:SettingsExpander Header="自定义背景"
+                                       Description="修改背景图片">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="PaintBrush" />
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.Items>
 
                         <tool:SettingsCard Header="背景图片">
-                            <SplitButton x:Name="PicSelector" Padding="0">
-                                <Border Height="35" Width="60">
+                            <SplitButton x:Name="PicSelector"
+                                         Padding="0">
+                                <Border Height="35"
+                                        Width="60">
                                     <Border.Background>
-                                        <ImageBrush ImageSource="{x:Bind sv:AppSettings.Current.ThemePicture,Mode=OneWay}" Stretch="UniformToFill"
+                                        <ImageBrush ImageSource="{x:Bind sv:AppSettings.Current.ThemePicture, Mode=OneWay}"
+                                                    Stretch="UniformToFill"
                                                     x:Name="PicPreview" />
                                     </Border.Background>
                                 </Border>
                                 <SplitButton.Flyout>
-                                    <Flyout Placement="Bottom" x:Name="PicFlyout">
-                                        <GridView x:Name="ThemesGrid" SelectionChanged="ThemesGrid_SelectionChanged">
+                                    <Flyout Placement="Bottom"
+                                            x:Name="PicFlyout">
+                                        <GridView x:Name="ThemesGrid"
+                                                  SelectionChanged="ThemesGrid_SelectionChanged">
                                             <GridView.ItemsPanel>
                                                 <ItemsPanelTemplate>
-                                                    <ItemsWrapGrid Orientation="Horizontal" MaximumRowsOrColumns="1" />
+                                                    <ItemsWrapGrid Orientation="Horizontal"
+                                                                   MaximumRowsOrColumns="1" />
                                                 </ItemsPanelTemplate>
                                             </GridView.ItemsPanel>
                                             <GridView.ItemTemplate>
                                                 <DataTemplate x:DataType="obj:ThemePicture">
-                                                    <Image Source="{x:Bind FilePath}" Width="200" Height="35"
+                                                    <Image Source="{x:Bind FilePath}"
+                                                           Width="200"
+                                                           Height="35"
                                                            Stretch="UniformToFill"
                                                            ToolTipService.ToolTip="{x:Bind FileName}" />
                                                 </DataTemplate>
@@ -137,53 +191,79 @@
 
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                <TextBlock Text="浏览" FontSize="16" Margin="5,2,0,5" />
-                <tool:SettingsCard Header="无图模式" Description="隐藏帖子中的图片">
+                <TextBlock Text="浏览"
+                           FontSize="16"
+                           Margin="5,2,0,5" />
+                <tool:SettingsCard Header="无图模式"
+                                   Description="隐藏帖子中的图片">
                     <tool:SettingsCard.HeaderIcon>
                         <ic:SymbolIcon Symbol="Image" />
                     </tool:SettingsCard.HeaderIcon>
-                    <ToggleSwitch x:Name="IsImageVisible" IsOn="{x:Bind sv:AppSettings.Current.HideImage,Mode=TwoWay}" />
+                    <ToggleSwitch x:Name="IsImageVisible"
+                                  IsOn="{x:Bind sv:AppSettings.Current.HideImage, Mode=TwoWay}" />
                 </tool:SettingsCard>
-                <tool:SettingsCard Header="图片最大宽度" Description="设置图片显示的最大宽度">
+                <tool:SettingsCard Header="图片最大宽度"
+                                   Description="设置图片显示的最大宽度">
                     <tool:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE9A6;"/>
+                        <FontIcon Glyph="&#xE9A6;" />
                     </tool:SettingsCard.HeaderIcon>
-                    <Slider x:Name="ImageMaxWidthSlider" Minimum="400" Maximum="1000" Value="{x:Bind sv:AppSettings.Current.ImageMaxWidth,Mode=TwoWay}" />
+                    <Slider x:Name="ImageMaxWidthSlider"
+                            Minimum="400"
+                            Maximum="1000"
+                            Value="{x:Bind sv:AppSettings.Current.ImageMaxWidth, Mode=TwoWay}" />
                 </tool:SettingsCard>
                 <tool:SettingsCard Header="显示版面通告">
                     <tool:SettingsCard.HeaderIcon>
                         <ic:SymbolIcon Symbol="News" />
                     </tool:SettingsCard.HeaderIcon>
-                    <ToggleSwitch x:Name="ShowBigPaper" IsOn="{x:Bind sv:AppSettings.Current.ShowBigPaper,Mode=TwoWay}" />
+                    <ToggleSwitch x:Name="ShowBigPaper"
+                                  IsOn="{x:Bind sv:AppSettings.Current.ShowBigPaper, Mode=TwoWay}" />
                 </tool:SettingsCard>
-                <tool:SettingsExpander Header="发帖展示小尾巴" Description="展示客户端平台标识">
+                <tool:SettingsExpander Header="发帖展示小尾巴"
+                                       Description="展示客户端平台标识">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="DesktopCheckmark" />
                     </tool:SettingsExpander.HeaderIcon>
-                    <ToggleSwitch x:Name="TailVisibility" IsOn="{x:Bind sv:AppSettings.Current.IsTailVisible,Mode=TwoWay}" />
+                    <ToggleSwitch x:Name="TailVisibility"
+                                  IsOn="{x:Bind sv:AppSettings.Current.IsTailVisible, Mode=TwoWay}" />
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard Header="自定义小尾巴">
-                            <cc:FancyTextBox  x:Name="LittleTailTextBox" Text="{x:Bind sv:AppSettings.Current.LittleTail,Mode=TwoWay}" Width="400"/>
+                            <cc:FancyTextBox x:Name="LittleTailTextBox"
+                                             Text="{x:Bind sv:AppSettings.Current.LittleTail, Mode=TwoWay}"
+                                             Width="400" />
                         </tool:SettingsCard>
-                        <tool:SettingsCard Header="预览" MaxHeight="60">
-                            <ubb:UbbTextBlock UbbText="{x:Bind LittleTailTextBox.Text,Mode=OneWay}" HideImage="True" Foreground="{ThemeResource TextFillColorSecondaryBrush}" BoldFontFamily="{ThemeResource HarmonySansBold}" MaxHeight="50" MaxWidth="400"></ubb:UbbTextBlock>
+                        <tool:SettingsCard Header="预览"
+                                           MaxHeight="60">
+                            <ubb:UbbTextBlock UbbText="{x:Bind LittleTailTextBox.Text, Mode=OneWay}"
+                                              HideImage="True"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                              BoldFontFamily="{ThemeResource HarmonySansBold}"
+                                              MaxHeight="50"
+                                              MaxWidth="400" />
                         </tool:SettingsCard>
                     </tool:SettingsExpander.Items>
-                    
+
                 </tool:SettingsExpander>
-                <TextBlock Text="关于" FontSize="16" Margin="5,2,0,5" />
-                <tool:SettingsExpander Header="CC98 Desktop" Description="2026.发布构建">
+                <TextBlock Text="关于"
+                           FontSize="16"
+                           Margin="5,2,0,5" />
+                <tool:SettingsExpander Header="CC98 Desktop"
+                                       Description="2026.发布构建">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="Info" />
                     </tool:SettingsExpander.HeaderIcon>
-                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="Version 1.2.6" />
+                    <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="Version 1.2.6" />
                     <tool:SettingsExpander.ItemsHeader>
-                        <TextBlock Text="开放源代码库" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        <TextBlock Text="开放源代码库"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Margin="20,10,10,10" />
                     </tool:SettingsExpander.ItemsHeader>
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard ContentAlignment="Left">
-                            <tool:WrapPanel Margin="10,10,10,20" HorizontalSpacing="10" VerticalSpacing="8">
+                            <tool:WrapPanel Margin="10,10,10,20"
+                                            HorizontalSpacing="10"
+                                            VerticalSpacing="8">
                                 <HyperlinkButton Content="SkiaSharp" />
                                 <HyperlinkButton Content="CsharpMath" />
                                 <HyperlinkButton Content="Community ToolKit" />
@@ -199,46 +279,68 @@
 
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                <tool:SettingsExpander Header="新功能与改进" Description="跟踪最新的功能特性，或者提供反馈和建议">
+                <tool:SettingsExpander Header="新功能与改进"
+                                       Description="跟踪最新的功能特性，或者提供反馈和建议">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="ArrowTrendingSparkle" />
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.Items>
                         <tool:SettingsCard Header="查看开发记录">
-                            <HyperlinkButton Content="查看" Click="ToFeedBack_Click" x:Name="ToFeedBack" />
+                            <HyperlinkButton Content="查看"
+                                             Click="ToFeedBack_Click"
+                                             x:Name="ToFeedBack" />
                         </tool:SettingsCard>
                         <tool:SettingsCard Header="Github">
-                            <HyperlinkButton Content="前往" NavigateUri="https://github.com/Ansherly/CC98-Desktop" />
+                            <HyperlinkButton Content="前往"
+                                             NavigateUri="https://github.com/Ansherly/CC98-Desktop" />
                         </tool:SettingsCard>
                         <tool:SettingsCard Header="Contributors">
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <HyperlinkButton Content="Auser" Tag="5298" Click="ToContributor_Click"></HyperlinkButton>
-                                <HyperlinkButton Content="Avatar343" Tag="639254" Click="ToContributor_Click"></HyperlinkButton>
-                                <HyperlinkButton Content="Ansherly" Tag="732640" Click="ToContributor_Click"></HyperlinkButton>
+                            <StackPanel Orientation="Horizontal"
+                                        Spacing="5">
+                                <HyperlinkButton Content="Auser"
+                                                 Tag="5298"
+                                                 Click="ToContributor_Click" />
+                                <HyperlinkButton Content="Avatar343"
+                                                 Tag="639254"
+                                                 Click="ToContributor_Click" />
+                                <HyperlinkButton Content="Ansherly"
+                                                 Tag="732640"
+                                                 Click="ToContributor_Click" />
                             </StackPanel>
                         </tool:SettingsCard>
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                <TextBlock Text="实验性功能" FontSize="16" Margin="5,2,0,5" />
+                <TextBlock Text="实验性功能"
+                           FontSize="16"
+                           Margin="5,2,0,5" />
 
-                <tool:SettingsExpander Header="管理本地设置" Description="仅作调试用途" x:Name="LocalSetManager"
+                <tool:SettingsExpander Header="管理本地设置"
+                                       Description="仅作调试用途"
+                                       x:Name="LocalSetManager"
                                        Expanded="LocalSetManager_Expanded">
                     <tool:SettingsExpander.HeaderIcon>
                         <ic:SymbolIcon Symbol="BeakerEdit" />
                     </tool:SettingsExpander.HeaderIcon>
                     <tool:SettingsExpander.ItemsHeader>
-                        <TextBlock Text="配置项" Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                        <TextBlock Text="配置项"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
                                    Margin="20,10,10,10" />
                     </tool:SettingsExpander.ItemsHeader>
                     <tool:SettingsExpander.Items>
-                        <tool:SettingsCard Padding="20" HorizontalContentAlignment="Left">
-                            <TextBlock TextWrapping="Wrap" IsTextSelectionEnabled="True" x:Name="LocalSet" />
+                        <tool:SettingsCard Padding="20"
+                                           HorizontalContentAlignment="Left">
+                            <TextBlock TextWrapping="Wrap"
+                                       IsTextSelectionEnabled="True"
+                                       x:Name="LocalSet" />
                         </tool:SettingsCard>
                     </tool:SettingsExpander.Items>
                 </tool:SettingsExpander>
-                
+
             </StackPanel>
         </ScrollViewer>
-        <infoFlower:InfoFlower HorizontalAlignment="Center" x:Name="Flower" Grid.Row="0" Grid.RowSpan="2" />
+        <infoFlower:InfoFlower HorizontalAlignment="Center"
+                               x:Name="Flower"
+                               Grid.Row="0"
+                               Grid.RowSpan="2" />
     </Grid>
 </Page>

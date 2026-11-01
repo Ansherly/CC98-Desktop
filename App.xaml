@@ -1,13 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 
-<Application
-    x:Class="CC98.App"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:tool="using:CommunityToolkit.WinUI.Controls"
-    xmlns:primitives="using:CC98.Controls.Primitives"
-    xmlns:dev="using:DevWinUI"
-    xmlns:services="using:CC98.Services">
+<Application x:Class="CC98.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tool="using:CommunityToolkit.WinUI.Controls"
+             xmlns:primitives="using:CC98.Controls.Primitives"
+             xmlns:dev="using:DevWinUI"
+             xmlns:services="using:CC98.Services">
     <Application.Resources>
         <ResourceDictionary>
 
@@ -18,71 +17,136 @@
 
             <ResourceDictionary.ThemeDictionaries>
                 <ResourceDictionary x:Key="Light">
-                    <Color x:Key="UserNameForegroundColor">#ddfb7299</Color>
-                    <Color x:Key="QuoteBackgroundColor">#E8F4F9</Color>
-                    <Color x:Key="MarkdownBackgroundColor">#77eeeeee</Color>
-                    <Color x:Key="QuoteBorderColor">#ffc4ae</Color>
-                    <Color x:Key="AcrylicTintColor">#66ccff</Color>
-                    <Color x:Key="PortraitBackgroundColor">#62b3ae</Color>
-                    <x:Double x:Key="AdaptiveOpacity">0</x:Double>
-                    <x:String x:Key="EditorBackgroundImage">Assets/Splash/23year.png</x:String>
+                    <Color x:Key="UserNameForegroundColor">
+                        #ddfb7299
+                    </Color>
+                    <Color x:Key="QuoteBackgroundColor">
+                        #E8F4F9
+                    </Color>
+                    <Color x:Key="MarkdownBackgroundColor">
+                        #77eeeeee
+                    </Color>
+                    <Color x:Key="QuoteBorderColor">
+                        #ffc4ae
+                    </Color>
+                    <Color x:Key="AcrylicTintColor">
+                        #66ccff
+                    </Color>
+                    <Color x:Key="PortraitBackgroundColor">
+                        #62b3ae
+                    </Color>
+                    <x:Double x:Key="AdaptiveOpacity">
+                        0
+                    </x:Double>
+                    <x:String x:Key="EditorBackgroundImage">
+                        Assets/Splash/23year.png
+                    </x:String>
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Dark">
-                    <Color x:Key="UserNameForegroundColor">#C4ABD4</Color>
-                    <Color x:Key="QuoteBackgroundColor">#444444</Color>
-                    <Color x:Key="MarkdownBackgroundColor">#663f3d3d</Color>
-                    <Color x:Key="QuoteBorderColor">#ffc4ae</Color>
-                    <Color x:Key="AcrylicTintColor">#000000</Color>
-                    <Color x:Key="PortraitBackgroundColor">#004d9891</Color>
-                    <x:Double x:Key="AdaptiveOpacity">0.4</x:Double>
-                    <x:String x:Key="EditorBackgroundImage"></x:String>
+                    <Color x:Key="UserNameForegroundColor">
+                        #C4ABD4
+                    </Color>
+                    <Color x:Key="QuoteBackgroundColor">
+                        #444444
+                    </Color>
+                    <Color x:Key="MarkdownBackgroundColor">
+                        #663f3d3d
+                    </Color>
+                    <Color x:Key="QuoteBorderColor">
+                        #ffc4ae
+                    </Color>
+                    <Color x:Key="AcrylicTintColor">
+                        #000000
+                    </Color>
+                    <Color x:Key="PortraitBackgroundColor">
+                        #004d9891
+                    </Color>
+                    <x:Double x:Key="AdaptiveOpacity">
+                        0.4
+                    </x:Double>
+                    <x:String x:Key="EditorBackgroundImage">
+                    </x:String>
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
-            <SolidColorBrush x:Key="UserNameForegroundBrush" Color="{ThemeResource UserNameForegroundColor}" />
-            <SolidColorBrush x:Key="MarkdownBackgroundBrush" Color="{ThemeResource MarkdownBackgroundColor}" />
-            <SolidColorBrush x:Key="QuoteBorderBrush" Color="{ThemeResource QuoteBorderColor}" />
-            <SolidColorBrush x:Key="QuoteBackgroundBrush" Color="{ThemeResource QuoteBackgroundColor}" />
-            <SolidColorBrush x:Key="PortraitBackgroundBrush" Color="{ThemeResource PortraitBackgroundColor}" />
-            <SolidColorBrush x:Key="SoftPink" Color="#ddfb7299" />
-            <SolidColorBrush x:Key="SoftPurple" Color="#C4ABD4" />
-            <SolidColorBrush x:Key="PrimaryPurple" Color="#7D6CAC" />
-            <AcrylicBrush x:Key="AcrylicCardBrush" TintOpacity="0.4" TintColor="{ThemeResource AcrylicTintColor}" AlwaysUseFallback="False" />
-            <FontFamily x:Key="HarmonySans">/Assets/Fonts/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC</FontFamily>
-            <FontFamily x:Key="HarmonySansBold">/Assets/Fonts/HarmonyOS_Sans_SC_Bold.ttf#HarmonyOS Sans SC Bold</FontFamily>
+            <SolidColorBrush x:Key="UserNameForegroundBrush"
+                             Color="{ThemeResource UserNameForegroundColor}" />
+            <SolidColorBrush x:Key="MarkdownBackgroundBrush"
+                             Color="{ThemeResource MarkdownBackgroundColor}" />
+            <SolidColorBrush x:Key="QuoteBorderBrush"
+                             Color="{ThemeResource QuoteBorderColor}" />
+            <SolidColorBrush x:Key="QuoteBackgroundBrush"
+                             Color="{ThemeResource QuoteBackgroundColor}" />
+            <SolidColorBrush x:Key="PortraitBackgroundBrush"
+                             Color="{ThemeResource PortraitBackgroundColor}" />
+            <SolidColorBrush x:Key="SoftPink"
+                             Color="#ddfb7299" />
+            <SolidColorBrush x:Key="SoftPurple"
+                             Color="#C4ABD4" />
+            <SolidColorBrush x:Key="PrimaryPurple"
+                             Color="#7D6CAC" />
+            <AcrylicBrush x:Key="AcrylicCardBrush"
+                          TintOpacity="0.4"
+                          TintColor="{ThemeResource AcrylicTintColor}"
+                          AlwaysUseFallback="False" />
+            <FontFamily x:Key="HarmonySans">
+                /Assets/Fonts/HarmonyOS_Sans_SC_Regular.ttf#HarmonyOS Sans SC
+            </FontFamily>
+            <FontFamily x:Key="HarmonySansBold">
+                /Assets/Fonts/HarmonyOS_Sans_SC_Bold.ttf#HarmonyOS Sans SC Bold
+            </FontFamily>
 
             <Style TargetType="TextBlock">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+                <Setter Property="FontFamily"
+                        Value="{StaticResource HarmonySans}" />
             </Style>
             <Style TargetType="TextBox">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}"></Setter>
+                <Setter Property="FontFamily"
+                        Value="{StaticResource HarmonySans}" />
             </Style>
             <Style TargetType="RichTextBlock">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+                <Setter Property="FontFamily"
+                        Value="{StaticResource HarmonySans}" />
             </Style>
             <Style TargetType="tool:SettingsCard">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+                <Setter Property="FontFamily"
+                        Value="{StaticResource HarmonySans}" />
             </Style>
             <Style TargetType="tool:SettingsExpander">
-                <Setter Property="FontFamily" Value="{StaticResource HarmonySans}" />
+                <Setter Property="FontFamily"
+                        Value="{StaticResource HarmonySans}" />
             </Style>
-            <Style x:Key="TextBoxBlankStyle" TargetType="TextBox">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="CornerRadius" Value="0" />
+            <Style x:Key="TextBoxBlankStyle"
+                   TargetType="TextBox">
+                <Setter Property="Background"
+                        Value="Transparent" />
+                <Setter Property="BorderThickness"
+                        Value="0" />
+                <Setter Property="CornerRadius"
+                        Value="0" />
             </Style>
-            <Style x:Key="TextBoxBorderStyle" TargetType="Border">
-                <Setter Property="BorderBrush" Value="{ThemeResource AcrylicCardBrush}"></Setter>
-                <Setter Property="BorderThickness" Value="1"></Setter>
-                <Setter Property="CornerRadius" Value="4"></Setter>
+            <Style x:Key="TextBoxBorderStyle"
+                   TargetType="Border">
+                <Setter Property="BorderBrush"
+                        Value="{ThemeResource AcrylicCardBrush}" />
+                <Setter Property="BorderThickness"
+                        Value="1" />
+                <Setter Property="CornerRadius"
+                        Value="4" />
             </Style>
-            <Style x:Key="DevTextBoxBlankStyle" TargetType="dev:TextBox">
-                <Setter Property="Background" Value="Transparent" />
-                <Setter Property="BorderThickness" Value="0" />
-                <Setter Property="CornerRadius" Value="0" />
+            <Style x:Key="DevTextBoxBlankStyle"
+                   TargetType="dev:TextBox">
+                <Setter Property="Background"
+                        Value="Transparent" />
+                <Setter Property="BorderThickness"
+                        Value="0" />
+                <Setter Property="CornerRadius"
+                        Value="0" />
             </Style>
-       
-            <primitives:SmartImageLoader x:Key="PortraitLoader" LowRes="True" />
-            <primitives:SmartImageLoader x:Key="CustomPortraitLoader" LowRes="False" />
+
+            <primitives:SmartImageLoader x:Key="PortraitLoader"
+                                         LowRes="True" />
+            <primitives:SmartImageLoader x:Key="CustomPortraitLoader"
+                                         LowRes="False" />
             <services:HexToBrushConverter x:Key="HexToColorBrush" />
             <services:LikeToVariantConverter x:Key="LikeToVariantConverter" />
             <services:DisLikeToVariantConverter x:Key="DisLikeToVariantConverter" />
@@ -93,7 +157,7 @@
             <services:BoolToColorConverter x:Key="BoolToColorConverter" />
             <services:SearchSuggestionIconConverter x:Key="SuggestionIconConverter" />
             <services:StringToVisibilityConverter x:Key="StringToVisibility" />
-            
+
         </ResourceDictionary>
     </Application.Resources>
 </Application>

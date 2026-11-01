@@ -1,0 +1,13 @@
+{
+  "IndentSize": 4,
+  "IndentWithTabs": false,
+  "AttributesTolerance": 0,
+  "KeepFirstAttributeOnSameLine": true,
+  "MaxAttributeCharactersPerLine": 0,
+  "NewlineExemptionElements": "",
+  "NoNewLineElements": "x:String,x:Double,x:Single,x:Int32,x:Boolean,Color,SolidColorBrush",
+  "RemoveEndingTagOfEmptyElement": false,
+  "EnableAttributeReordering": false,
+  "RemoveDesignTimeReferences": false,
+  "SpaceBeforeClosingSlash": true
+}
