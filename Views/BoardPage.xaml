@@ -11,7 +11,7 @@
       xmlns:obj="using:CC98.Objects"
       xmlns:tool="using:CommunityToolkit.WinUI.Controls"
       xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-      xmlns:infoFlower="using:CC98.Controls"
+      xmlns:controls="using:CC98.Controls"
       xmlns:sv="using:CC98.Services"
       xmlns:picture="using:CC98.Controls"
       xmlns:dev="using:DevWinUI"
@@ -375,8 +375,6 @@
                 </ScrollViewer>
             </SplitView.Content>
         </SplitView>
-        <infoFlower:InfoFlower x:Name="Flower"
-                               HorizontalAlignment="Center"
-                               VerticalAlignment="Bottom" />
+        <controls:TipPopup x:Name="Tip" />
     </Grid>
 </Page>

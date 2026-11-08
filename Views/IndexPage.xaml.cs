@@ -18,6 +18,7 @@ using CC98.Services.Extensions;
 using CC98.Services.Helpers;
 using Microsoft.UI.Xaml.Navigation;
 using System.Linq;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -140,7 +141,7 @@ public sealed partial class IndexPage
                 if (success)
                     await LoadFromCacheAsync();
                 else
-                    Flower.Play(FlowStatus.Fail, "刷新首页失败");
+                    Tip.Show(InfoType.Error, "刷新首页失败");
                 break;
             case "search":
                 Frame.Navigate(typeof(SearchPage));
@@ -152,7 +153,7 @@ public sealed partial class IndexPage
                 //网页端OpenID未注册权限，不支持抽卡
                 if (AppSettings.Current.ActiveMode == (int)ActiveMode.Password)
                 {
-                    Flower.Play(FlowStatus.Info, "当前登录方式不支持抽卡");
+                    Tip.Show(InfoType.Information, "当前登录方式不支持抽卡");
                     return;
                 }
 

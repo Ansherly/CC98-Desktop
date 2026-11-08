@@ -1,14 +1,14 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <Page x:Class="CC98.Views.FavoritePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="using:CC98.Controls"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       xmlns:ic="using:FluentIcons.WinUI"
       xmlns:obj="using:CC98.Objects"
       xmlns:dev="using:DevWinUI"
-      xmlns:infoFlower="using:CC98.Controls"
       Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Grid Padding="15,0,15,0">
@@ -137,8 +137,8 @@
             </ItemsRepeater>
         </ScrollViewer>
 
-        <infoFlower:InfoFlower Grid.Row="0"
+        <controls:TipPopup Grid.Row="0"
                                Grid.RowSpan="2"
-                               x:Name="Flower" />
+                               x:Name="Tip" />
     </Grid>
 </Page>

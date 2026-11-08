@@ -14,6 +14,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -103,14 +104,14 @@ public sealed partial class FollowPage : Page
         if (!friendIdsResult.IsSuccess || friendIdsResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载好友Id列表失败");
+            Tip.Show(InfoType.Error, "加载好友Id列表失败");
             //await App.Logger.WriteAsync("Follow", "加载好友Id列表失败", friendIdsResult.Message);
             return false;
         }
 
         var ids = friendIdsResult.Data;
         Increment.HasMore = ids.Count == Increment.PageSize;
-        if (!Increment.HasMore) Flower.Play(FlowStatus.Info, "已全部加载");
+        if (!Increment.HasMore) Tip.Show(InfoType.Information, "已全部加载");
         var param = string.Join("&", ids.Select(id => $"id={id}"));
         var userInfoUrl = ApiEndpoints.User.UserInfoList(param);
 
@@ -119,7 +120,7 @@ public sealed partial class FollowPage : Page
         if (!friendsResult.IsSuccess || friendsResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载好友信息失败");
+            Tip.Show(InfoType.Error, "加载好友信息失败");
             //await App.Logger.WriteAsync("NoticeMsg", "加载好友信息失败", friendsResult.Message);
             return false;
         }
@@ -154,11 +155,11 @@ public sealed partial class FollowPage : Page
         if(result.IsSuccess)
         {
             Friends.Remove(friend);
-            Flower.Play(FlowStatus.Success, $"已取关用户:{friend.Name}");
+            Tip.Show(InfoType.Success, $"已取关用户:{friend.Name}");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, "取消关注失败");
+            Tip.Show(InfoType.Error, "取消关注失败");
         }
     }
 

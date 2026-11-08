@@ -1,15 +1,15 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 
 <Page x:Class="CC98.Views.MessagePage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="using:CC98.Controls"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
       xmlns:obj="using:CC98.Objects"
       xmlns:services="using:CC98.Services"
       xmlns:empty="using:CC98.Controls"
-      xmlns:infoFlower="using:CC98.Controls"
       NavigationCacheMode="Disabled"
       Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
@@ -171,7 +171,7 @@
                                      IconGlyph="&#xEC4F;"
                                      Title="暂无消息"
                                      Subtitle="暂无通知消息" />
-            <infoFlower:InfoFlower x:Name="Flower"
+            <controls:TipPopup x:Name="Tip"
                                    HorizontalAlignment="Center"
                                    VerticalAlignment="Bottom" />
         </Grid>

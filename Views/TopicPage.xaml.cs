@@ -31,6 +31,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using static CC98.Kernel.ApiEndpoints;
 using static CSharpMath.Rendering.Text.TextAtom;
+using CC98.Controls;
 
 namespace CC98.Views;
 
@@ -143,7 +144,7 @@ public sealed partial class TopicPage : Page
         if (args == null)
         {
             // 缺少导航参数(例如被错误地直接导航到本页):给出提示,而不是留一个空白页
-            Flower.Play(FlowStatus.Fail, "缺少主题参数,无法打开该主题");
+            Tip.Show(InfoType.Error, "缺少主题参数,无法打开该主题");
             return;
         }
 
@@ -207,7 +208,7 @@ public sealed partial class TopicPage : Page
             var favoritesList = SerializationHelper.TryDeserialize<List<Favorites>>(favoritesJson);
             if (favoritesList == null)
             {
-                Flower.Play(FlowStatus.Fail, "解析收藏夹缓存出错");
+                Tip.Show(InfoType.Error, "解析收藏夹缓存出错");
                 return;
             }
             foreach (var favorites in favoritesList)
@@ -219,7 +220,7 @@ public sealed partial class TopicPage : Page
         }
         catch(Exception ex)
         {
-            Flower.Play(FlowStatus.Fail,ex.Message);
+            Tip.Show(InfoType.Error,ex.Message);
         }
         
     }
@@ -379,7 +380,7 @@ public sealed partial class TopicPage : Page
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
         {
             //报错
-            Flower.Play(FlowStatus.Fail, $"加载用户头像失败：{userInfoResult.Message}");
+            Tip.Show(InfoType.Error, $"加载用户头像失败：{userInfoResult.Message}");
         }
 
         var userInfoList = userInfoResult.Data;
@@ -462,7 +463,7 @@ public sealed partial class TopicPage : Page
                 await Tp(floor);
             },
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)
@@ -511,7 +512,7 @@ public sealed partial class TopicPage : Page
                 await Tp(floor);
             },
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         await LinkNavigationService.HandleLinkAsync(url, context);
@@ -559,18 +560,18 @@ public sealed partial class TopicPage : Page
         //不能向自己赠米:用 AppSettings 中的当前用户 id 校验
         if (reply.UserId.HasValue && reply.UserId.Value == AppSettings.Current.UserId)
         {
-            Flower.Play(FlowStatus.Warning, "不能给自己赠米");
+            Tip.Show(InfoType.Warning, "不能给自己赠米");
             return;
         }
         //已删除/匿名的楼层无法确定真实收款人,禁止赠米
         if (reply.IsDeleted)
         {
-            Flower.Play(FlowStatus.Warning, "该楼层已被删除，无法赠米");
+            Tip.Show(InfoType.Warning, "该楼层已被删除，无法赠米");
             return;
         }
         if (reply.IsAnonymous || string.IsNullOrEmpty(reply.UserName))
         {
-            Flower.Play(FlowStatus.Warning, "不能给匿名用户赠米");
+            Tip.Show(InfoType.Warning, "不能给匿名用户赠米");
             return;
         }
 
@@ -671,11 +672,11 @@ public sealed partial class TopicPage : Page
             try
             {
                 var userList = SerializationHelper.TryDeserialize<List<string>>(res.Content) ?? [];
-                Flower.Play(FlowStatus.Success, $"赠米成功：{string.Join("、", userList)}");
+                Tip.Show(InfoType.Success, $"赠米成功：{string.Join("、", userList)}");
             }
             catch (Exception ex)
             {
-                Flower.Play(FlowStatus.Success, $"解析收款人列表失败：{ex.Message}");
+                Tip.Show(InfoType.Success, $"解析收款人列表失败：{ex.Message}");
             }
             finally
             {
@@ -720,17 +721,17 @@ public sealed partial class TopicPage : Page
         //匿名、已删除、自己的楼层不可风评
         if (reply.IsDeleted)
         {
-            Flower.Play(FlowStatus.Warning, "该楼层已被删除，无法风评");
+            Tip.Show(InfoType.Warning, "该楼层已被删除，无法风评");
             return;
         }
         if (reply.IsAnonymous)
         {
-            Flower.Play(FlowStatus.Warning, "不能给匿名用户风评");
+            Tip.Show(InfoType.Warning, "不能给匿名用户风评");
             return;
         }
         if (reply.UserId.HasValue && reply.UserId.Value == AppSettings.Current.UserId)
         {
-            Flower.Play(FlowStatus.Warning, "不能给自己风评");
+            Tip.Show(InfoType.Warning, "不能给自己风评");
             return;
         }
 
@@ -911,7 +912,7 @@ public sealed partial class TopicPage : Page
                 return;
             }
 
-            Flower.Play(FlowStatus.Success, $"风评成功：{_selectedReason}");
+            Tip.Show(InfoType.Success, $"风评成功：{_selectedReason}");
             RatingDialog.Hide();
         }
         catch (Exception ex)
@@ -946,14 +947,14 @@ public sealed partial class TopicPage : Page
             case "0":
                 await LoadTopicInfo();
                 await LoadReply();
-                Flower.Play(FlowStatus.Success, "刷新成功");
+                Tip.Show(InfoType.Success, "刷新成功");
                 break;
             case "1":
                 var shareUrl = $"{TopicInfo.Title} https://www.cc98.org/topic/{TopicId}";
                 var dataPackage = new DataPackage();
                 dataPackage.SetText(shareUrl);
                 Clipboard.SetContent(dataPackage);
-                Flower.Play(FlowStatus.Success, "已复制帖子链接");
+                Tip.Show(InfoType.Success, "已复制帖子链接");
                 break;
             case "2":
                 //无需响应
@@ -963,12 +964,12 @@ public sealed partial class TopicPage : Page
                 var res = await ApiService.Delete(endpoint);
                 if (res == null || !res.IsSuccess)
                 {
-                    Flower.Play(FlowStatus.Fail, $"取消收藏失败:{res?.Message}");
+                    Tip.Show(InfoType.Error, $"取消收藏失败:{res?.Message}");
                 }
                 else
                 {
                     TopicInfo.IsFavorite = false;
-                    Flower.Play(FlowStatus.Success, "已取消收藏");
+                    Tip.Show(InfoType.Success, "已取消收藏");
                 }
                 break;
             case "4":
@@ -989,11 +990,11 @@ public sealed partial class TopicPage : Page
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, result.Message);
+            Tip.Show(InfoType.Error, result.Message);
             return;
         }
         await LoadTopicInfo();
-        Flower.Play(FlowStatus.Success, "已收藏");
+        Tip.Show(InfoType.Success, "已收藏");
     }
 
 
@@ -1034,7 +1035,7 @@ public sealed partial class TopicPage : Page
                 pack = new DataPackage();
                 pack.SetText(reply.Content);
                 Clipboard.SetContent(pack);
-                Flower.Play(FlowStatus.Success, "已复制为UBB代码");
+                Tip.Show(InfoType.Success, "已复制为UBB代码");
                 break;
             case "MD":
                 pack = new DataPackage();
@@ -1047,12 +1048,12 @@ public sealed partial class TopicPage : Page
                     pack.SetText(reply.Content);
                 }
                 Clipboard.SetContent(pack);
-                Flower.Play(FlowStatus.Success, "已复制为Markdown文本");
+                Tip.Show(InfoType.Success, "已复制为Markdown文本");
                 break;
             case "QUOTE":
                 if (reply.IsDeleted)
                 {
-                    Flower.Play(FlowStatus.Info, "无法回复被删除的帖子");
+                    Tip.Show(InfoType.Information, "无法回复被删除的帖子");
                     return;
                 }
                 if (reply.Content != null)
@@ -1109,7 +1110,7 @@ public sealed partial class TopicPage : Page
             var result = await ApiService.Fetch<List<Reply>>(url);
             if (!result.IsSuccess || result.Data == null)
             {
-                Flower.Play(FlowStatus.Fail, $"找不到首楼：{result.Message}");
+                Tip.Show(InfoType.Error, $"找不到首楼：{result.Message}");
                 return;
             }
 
@@ -1118,7 +1119,7 @@ public sealed partial class TopicPage : Page
 
         if (first == null)
         {
-            Flower.Play(FlowStatus.Fail, "找不到首楼，无法编辑");
+            Tip.Show(InfoType.Error, "找不到首楼，无法编辑");
             return;
         }
 
@@ -1150,7 +1151,7 @@ public sealed partial class TopicPage : Page
             if (!result.IsSuccess)
             {
                 //
-                Flower.Play(FlowStatus.Fail, "操作失败");
+                Tip.Show(InfoType.Error, "操作失败");
                 return;
             }
             var newStateUrl = ApiEndpoints.Post.ReactionState(postId);
@@ -1158,7 +1159,7 @@ public sealed partial class TopicPage : Page
             if (!newStateResult.IsSuccess || newStateResult.Data == null)
             {
                 //
-                Flower.Play(FlowStatus.Fail, "获取赞踩数据失败");
+                Tip.Show(InfoType.Error, "获取赞踩数据失败");
                 return;
             }
             var newState = newStateResult.Data;
@@ -1216,7 +1217,7 @@ public sealed partial class TopicPage : Page
             {
                 //
                 Debug.WriteLine(voteResult.Message);
-                Flower.Play(FlowStatus.Fail, "加载投票信息失败");
+                Tip.Show(InfoType.Error, "加载投票信息失败");
                 return;
             }
             var data = voteResult.Data;
@@ -1291,17 +1292,17 @@ public sealed partial class TopicPage : Page
             var r = await SendVoteResult(TopicId, list);
             if (r == "1")
             {
-                Flower.Play(FlowStatus.Success, "投票完成");
+                Tip.Show(InfoType.Success, "投票完成");
                 await InitializeVote();
             }
             else
             {
-                Flower.Play(FlowStatus.Fail, "投票失败");
+                Tip.Show(InfoType.Error, "投票失败");
             }
         }
         else
         {
-            Flower.Play(FlowStatus.Info, "选择至少一项");
+            Tip.Show(InfoType.Information, "选择至少一项");
         }
     }
     //TODO:需要改成返回一个bool值，表示是否成功。现在的字符串返回值不够语义化。

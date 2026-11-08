@@ -300,14 +300,14 @@ public sealed partial class ComposeSheet : UserControl
 
         if (string.IsNullOrWhiteSpace(Editor.ContentText))
         {
-            Editor.Notify(FlowStatus.Warning, "内容不能为空");
+            Editor.Notify(InfoType.Warning, "内容不能为空");
             return;
         }
 
         // 只有编辑主题需要校验标题；编辑回复带的是主题原标题，界面上看不到也无从修改
         if (Mode == EditorMode.EditMyTopic && string.IsNullOrWhiteSpace(Editor.ContentTitle))
         {
-            Editor.Notify(FlowStatus.Warning, "标题不能为空");
+            Editor.Notify(InfoType.Warning, "标题不能为空");
             return;
         }
 
@@ -326,7 +326,7 @@ public sealed partial class ComposeSheet : UserControl
 
             if (!success)
             {
-                Editor.Notify(FlowStatus.Fail, message);
+                Editor.Notify(InfoType.Error, message);
                 return;
             }
 
@@ -350,7 +350,7 @@ public sealed partial class ComposeSheet : UserControl
         {
             // async void 必须兜底，未捕获异常会终止进程
             Debug.WriteLine($"发送失败：{ex}");
-            Editor.Notify(FlowStatus.Fail, "发送失败，请重试");
+            Editor.Notify(InfoType.Error, "发送失败，请重试");
         }
         finally
         {

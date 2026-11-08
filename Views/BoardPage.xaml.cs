@@ -11,6 +11,7 @@ using CC98.Objects;
 using CC98.Services;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using CC98.Controls.UbbTextBlock.Common.Events;
 using DevWinUI;
@@ -110,7 +111,7 @@ public sealed partial class BoardPage
 
         if (!boardDataResult.IsSuccess || boardDataResult.Data == null)
         {
-            Flower.Play(FlowStatus.Fail, boardDataResult.Message);
+            Tip.Show(InfoType.Error, boardDataResult.Message);
             return;
         }
 
@@ -141,7 +142,7 @@ public sealed partial class BoardPage
             if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
             if (result.IsNotValid)
             {
-                Flower.Play(FlowStatus.Fail, result.Message);
+                Tip.Show(InfoType.Error, result.Message);
                 return false;
             }
 
@@ -153,7 +154,7 @@ public sealed partial class BoardPage
         if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
         if (topicResult.IsNotValid)
         {
-            Flower.Play(FlowStatus.Fail, topicResult.Message);
+                Tip.Show(InfoType.Error, topicResult.Message);
             return false;
         }
 
@@ -221,13 +222,13 @@ public sealed partial class BoardPage
                 Increment.Clear();
                 Topics.Clear();
                 await RefreshAsync();
-                Flower.Play(FlowStatus.Success, "刷新成功");
+                Tip.Show(InfoType.Success, "刷新成功");
                 break;
             case "pin":
                 await Pin();
                 break;
             case "draft":
-                Flower.Play(FlowStatus.Info, "暂不支持发主题");
+                Tip.Show(InfoType.Information, "暂不支持发主题");
                 break;
             case "vote":
                 var param2 = new SketchNavigationInfo
@@ -253,7 +254,7 @@ public sealed partial class BoardPage
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, result.Message);
+            Tip.Show(InfoType.Error, result.Message);
             //await App.Logger.WriteAsync("Board", "关注版面失败", result.Message);
             return;
         }
@@ -266,7 +267,7 @@ public sealed partial class BoardPage
             Tag = BoardId.ToString()
         };
         Messenger.Instance.AddNavigationItem(i);
-        Flower.Play(FlowStatus.Success, "已关注");
+        Tip.Show(InfoType.Success, "已关注");
     }
 
     private async void TypeSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
@@ -332,7 +333,7 @@ public sealed partial class BoardPage
             CurrentTopicId = null,
             JumpToFloor = null,
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)
@@ -375,7 +376,7 @@ public sealed partial class BoardPage
             if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期结果
             if (!result.IsSuccess || result.Data == null)
             {
-                Flower.Play(FlowStatus.Fail, result?.Message ?? "搜索失败");
+                Tip.Show(InfoType.Error, result?.Message ?? "搜索失败");
                 return false;
             }
             var data = result.Data;

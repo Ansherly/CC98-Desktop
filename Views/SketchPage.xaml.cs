@@ -21,6 +21,7 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Windows.Storage.Pickers;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -495,7 +496,7 @@ public sealed partial class SketchPage : Page
                 if (!result.Success)
                 {
                     if (!string.IsNullOrEmpty(result.Error))
-                        Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                        Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
                     return;
                 }
 
@@ -545,7 +546,7 @@ public sealed partial class SketchPage : Page
         {
             // async void 必须兜底:未捕获异常会终止进程
             Debug.WriteLine($"粘贴上传失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "粘贴上传失败，请重试");
+            Tip.Show(InfoType.Error, "粘贴上传失败，请重试");
         }
     }
 
@@ -598,7 +599,7 @@ public sealed partial class SketchPage : Page
             {
                 // 仅在确实有错误时提示(用户取消不算错误)
                 if (!string.IsNullOrEmpty(result.Error))
-                    Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                    Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
                 continue;
             }
 
@@ -606,7 +607,7 @@ public sealed partial class SketchPage : Page
             uploaded++;
         }
 
-        if (uploaded > 0) Flower.Play(FlowStatus.Success, $"已上传 {uploaded} 个文件");
+        if (uploaded > 0) Tip.Show(InfoType.Success, $"已上传 {uploaded} 个文件");
     }
 
     private async Task UploadPastedBitmapAsync(RandomAccessStreamReference bitmap)
@@ -616,12 +617,12 @@ public sealed partial class SketchPage : Page
         if (!result.Success)
         {
             if (!string.IsNullOrEmpty(result.Error))
-                Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
             return;
         }
 
         InsertMediaTag("img", result.Url);
-        Flower.Play(FlowStatus.Success, "图片已上传");
+        Tip.Show(InfoType.Success, "图片已上传");
     }
 
     /// <summary>
@@ -643,7 +644,7 @@ public sealed partial class SketchPage : Page
             if (r != ContentDialogResult.Primary) return;
             if (string.IsNullOrWhiteSpace(TextContent))
             {
-                Flower.Play(FlowStatus.Warning, "内容不能为空");
+                Tip.Show(InfoType.Warning, "内容不能为空");
                 return;
             }
             switch (NavigationInfo.EditorMode)
@@ -665,7 +666,7 @@ public sealed partial class SketchPage : Page
         {
             // 对话框宿主卸载/网络异常等:避免 async void 未捕获异常导致进程崩溃
             Debug.WriteLine($"发送失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "发送失败，请重试");
+            Tip.Show(InfoType.Error, "发送失败，请重试");
         }
     }
 
@@ -813,7 +814,7 @@ public sealed partial class SketchPage : Page
             UBB.Visibility = Visibility.Collapsed;
             MdViewer.Visibility = Visibility.Visible;
             UbbViewer.Visibility = Visibility.Collapsed;
-            Flower.Play("\uE946", "切换到Markdown");
+            Tip.Show(InfoType.Information, "切换到Markdown");
         }
         else
         {
@@ -822,7 +823,7 @@ public sealed partial class SketchPage : Page
             UBB.Visibility = Visibility.Visible;
             MdViewer.Visibility = Visibility.Collapsed;
             UbbViewer.Visibility = Visibility.Visible;
-            Flower.Play("\uE946", "切换到UBB");
+            Tip.Show(InfoType.Information, "切换到UBB");
         }
 
         ApplyContentToViewer();

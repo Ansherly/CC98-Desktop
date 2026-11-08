@@ -11,7 +11,7 @@ namespace CC98.Controls;
 ///     一次性上浮提示：显示时从下方滑入并淡入，<see cref="AutoHideDuration" /> 后滑出淡出并自动收起。
 /// </summary>
 /// <remarks>
-///     移植自 winui-kernel 的 <c>Richasy.WinUIKernel.Share.Base.TipPopup</c>（它内部套的 StatusTip 也一并并入本控件）。
+///     移植自 winui-kernel 的 <c>Richasy.WinUIKernel.Share.Base.TipPopup</c>。
 ///     用法：作为页面最外层 Grid 的最后一个子元素（默认样式为 Bottom + Center、Margin 0,0,0,12），
 ///     给 x:Name 后调用 <see cref="ShowAsync(InfoType)" />，或者直接绑 <see cref="IsOpen" />。
 ///     显示/隐藏动画用 CommunityToolkit.WinUI.Animations 的 AnimationBuilder 显式播放，
@@ -123,16 +123,19 @@ public partial class TipPopup : Control
     }
 
     /// <summary>
-    ///     设置文本、显示提示，并在 <see cref="AutoHideDuration" /> 后自动收起。
+    ///     显示提示并在 <see cref="AutoHideDuration" /> 后自动收起。
     /// </summary>
-    /// <param name="text">提示文本。</param>
     /// <param name="type">提示级别。</param>
+    /// <param name="message">提示文本。</param>
     /// <returns>自动收起完成时结束的任务。</returns>
-    public Task ShowAsync(string text, InfoType type = InfoType.Information)
+    public Task ShowAsync(InfoType type, string message)
     {
-        Text = text ?? string.Empty;
+        Text = message ?? string.Empty;
         return ShowAsync(type);
     }
+
+    /// <summary>显示提示（不等待自动收起，可在同步方法里直接调用）。</summary>
+    public void Show(InfoType type, string message) => _ = ShowAsync(type, message);
 
     /// <summary>立即收起（播放收起动画）。</summary>
     public void Hide() => IsOpen = false;

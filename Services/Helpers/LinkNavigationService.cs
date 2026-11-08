@@ -34,9 +34,8 @@ public record LinkContext
     /// <summary>帖子中的所有图片 URL（用于画廊模式），无图片时为 null。</summary>
     public List<string>? ImageList { get; init; }
 
-    /// <summary>用于显示通知的 Flower 控件。</summary>
-    public required InfoFlower Flower { get; init; }
-
+    /// <summary>用于显示通知的回调（type, message），由页面提供，通常直接传 TipPopup.Show。</summary>
+    public Action<InfoType, string>? Notify { get; init; }
 
     /// <summary>跳转到指定楼层的方法（用于锚点跳转）。</summary>
     public Func<int, Task>? JumpToFloor { get; init; }
@@ -47,6 +46,10 @@ public record LinkContext
 /// </summary>
 public static class LinkNavigationService
 {
+    /// <summary>统一的提示出口：交给页面提供的 <see cref="LinkContext.Notify" />（TipPopup）。</summary>
+    private static void ShowTip(LinkContext context, InfoType type, string message)
+        => context.Notify?.Invoke(type, message);
+
     /// <summary>
     /// 启动图片预览器。有画廊列表时按列表浏览,否则单图预览。
     /// </summary>
@@ -75,9 +78,9 @@ public static class LinkNavigationService
     {
         var fileRes = await Downloader.DownloadFileAsync(url);
         if (fileRes == null)
-            context.Flower.Play(FlowStatus.Fail, "下载失败");
+            ShowTip(context, InfoType.Error, "下载失败");
         else
-            context.Flower.Play(FlowStatus.Success, $"已下载到{fileRes}");
+            ShowTip(context, InfoType.Success, $"已下载到{fileRes}");
     }
 
     /// <summary>
@@ -149,7 +152,7 @@ public static class LinkNavigationService
             var package = new DataPackage();
             package.SetText(url);
             Clipboard.SetContent(package);
-            context.Flower.Play(FlowStatus.Success, "已复制外部链接");
+                ShowTip(context, InfoType.Success, "已复制外部链接");
         }
     }
 
@@ -205,7 +208,7 @@ public static class LinkNavigationService
         var result = await apiService.Fetch<UserInfo>(url);
         if (!result.IsSuccess || result.Data == null)
         {
-            context.Flower.Play(FlowStatus.Fail, "未找到用户");
+            ShowTip(context, InfoType.Error, "未找到用户");
             return;
         }
 

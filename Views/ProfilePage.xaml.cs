@@ -22,6 +22,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -80,12 +81,12 @@ public sealed partial class ProfilePage : Page
             if (element.ValueKind == JsonValueKind.Number)
             {
                 var wealth = element.GetRawText();
-                Flower.Play(FlowStatus.Success, $"签到成功，获得财富值: {wealth}");
+                Tip.Show(InfoType.Success, $"签到成功，获得财富值: {wealth}");
             }
             //理论上不会出现非数字的情况
             else
             {
-                Flower.Play(FlowStatus.Success, "签到成功");
+                Tip.Show(InfoType.Success, "签到成功");
             }
             return;
         }
@@ -134,7 +135,7 @@ public sealed partial class ProfilePage : Page
         }
         catch (Exception ex)
         {
-            Flower.Play(FlowStatus.Fail, $"加载主页失败: {ex.Message}"); 
+            Tip.Show(InfoType.Error, $"加载主页失败: {ex.Message}"); 
         }
     }
     private async Task<bool> LoadRecentTopic()
@@ -143,7 +144,7 @@ public sealed partial class ProfilePage : Page
         var recentTopicResult = await ApiService.Fetch<List<SimpleTopicInfo>>(recentTopicUrl);
         if (!recentTopicResult.IsSuccess || recentTopicResult.Data == null)
         {
-            Flower.Play(FlowStatus.Fail, recentTopicResult.Message);
+            Tip.Show(InfoType.Error, recentTopicResult.Message);
             return false;
         }
         var data = recentTopicResult.Data;
@@ -194,7 +195,7 @@ public sealed partial class ProfilePage : Page
         if (result.IsSuccess)
         {
             UserProfile.IsFollowing = !UserProfile.IsFollowing;
-            Flower.Play(FlowStatus.Success, isFollowing ? "已取消关注" : "已关注");
+            Tip.Show(InfoType.Success, isFollowing ? "已取消关注" : "已关注");
         }
         Follow.IsEnabled = true;
     }
@@ -212,7 +213,7 @@ public sealed partial class ProfilePage : Page
             CurrentTopicId = null,
             JumpToFloor = null,
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)

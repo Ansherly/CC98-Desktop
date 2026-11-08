@@ -11,6 +11,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -100,13 +101,13 @@ public sealed partial class MessagePage
         if (!result.IsSuccess || result.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载通知失败");
+            Tip.Show(InfoType.Error, "加载通知失败");
             return false;
         }
 
         var data = result.Data;
         Increment.HasMore = data.Count == Increment.PageSize;
-        if (!Increment.HasMore) Flower.Play(FlowStatus.Info, "没有更多通知了");
+        if (!Increment.HasMore) Tip.Show(InfoType.Information, "没有更多通知了");
         if (noticeType == NoticeType.Reply || noticeType == NoticeType.At)
         {
             var topicIds = data.Where(n => n.TopicId.HasValue).Select(n => n.TopicId!.Value).Distinct().ToList();
@@ -136,7 +137,7 @@ public sealed partial class MessagePage
         if (!result.IsSuccess || result.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "获取帖子基本信息失败");
+            Tip.Show(InfoType.Error, "获取帖子基本信息失败");
             return [];
         }
 
@@ -157,7 +158,7 @@ public sealed partial class MessagePage
         if (n.PostBasicInfo.IsDeleted)
         {
             // 已删除的帖子不再跳转
-            Flower.Play(FlowStatus.Info, "该帖子已被删除");
+            Tip.Show(InfoType.Information, "该帖子已被删除");
             return;
         }
         var param = new TopicNavigationInfo

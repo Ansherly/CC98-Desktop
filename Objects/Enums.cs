@@ -1,4 +1,4 @@
-﻿namespace CC98.Objects;
+namespace CC98.Objects;
 
 /// <summary>
 ///     动态页面的内容类型
@@ -46,17 +46,6 @@ public enum NoticeType
     System = 1,
     Reply = 2,
     At = 3
-}
-
-/// <summary>
-///     UI事件的分类
-/// </summary>
-public enum FlowStatus
-{
-    Warning = 0,
-    Success = 1,
-    Fail = 2,
-    Info = 3
 }
 
 public enum SearchType

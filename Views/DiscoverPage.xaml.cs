@@ -13,6 +13,7 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Navigation;
 using Microsoft.UI.Dispatching;
 using CC98.Services.Extensions;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -109,7 +110,7 @@ public sealed partial class DiscoverPage : Page
         {
             //忽略加载过快报错
             if (newTopicResult.StatusCode == (int)HttpStatusCode.Forbidden) return false;
-            Flower.Play(FlowStatus.Fail, newTopicResult.Message);
+            Tip.Show(InfoType.Error, newTopicResult.Message);
             //await App.Logger.WriteAsync("Discover", "加载新帖失败", newTopicResult.Message);
             return false;
         }
@@ -122,7 +123,7 @@ public sealed partial class DiscoverPage : Page
         var userInfoResult = await ApiService.Fetch<List<BasicUserInfo>>(userInfoUrl);
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
             //报错
-            Flower.Play(FlowStatus.Fail, "获取用户头像出错");
+            Tip.Show(InfoType.Error, "获取用户头像出错");
         var userInfoList = userInfoResult.Data;
         foreach (var topic in data)
         {

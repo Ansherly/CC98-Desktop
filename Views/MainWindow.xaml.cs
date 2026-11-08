@@ -41,6 +41,7 @@ using Windows.Storage;
 using static CC98.Kernel.ApiEndpoints;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Symbol = FluentIcons.Common.Symbol;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -185,7 +186,7 @@ public sealed partial class MainWindow : Window
             var customBoards = SerializationHelper.TryDeserialize<List<int>>(AppSettings.Current.CustomBoards);
             if (!profileResult.IsSuccess || profileResult.Data == null)
             {
-                Flower.Play(FlowStatus.Fail, $"更新用户信息失败: {profileResult.Message}");
+                Tip.Show(InfoType.Error, $"更新用户信息失败: {profileResult.Message}");
                 if(customBoards!=null) await LoadFocusBoards(customBoards);
                 return;
             }
@@ -203,7 +204,7 @@ public sealed partial class MainWindow : Window
         catch(Exception ex)
         {
             Debug.WriteLine($"加载头像失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, $"更新头像出错: {ex.Message}");
+            Tip.Show(InfoType.Error, $"更新头像出错: {ex.Message}");
         }  
     }
     private async Task RefreshPortraitIfNeeded(string url)
@@ -246,7 +247,7 @@ public sealed partial class MainWindow : Window
         if (sections == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "版面信息加载失败");
+            Tip.Show(InfoType.Error, "版面信息加载失败");
             return;
         }
         //构建查找字典
@@ -308,7 +309,7 @@ public sealed partial class MainWindow : Window
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, $"取消关注失败: {result.Message}");
+            Tip.Show(InfoType.Error, $"取消关注失败: {result.Message}");
             return;
         }
         var customBoards = AppSettings.Current.CustomBoards;
@@ -465,7 +466,7 @@ public sealed partial class MainWindow : Window
                 return true;
             }
 
-            Flower.Play(FlowStatus.Info, "暂无收藏夹");
+            Tip.Show(InfoType.Information, "暂无收藏夹");
             return false;
         }
         catch (Exception ex)
@@ -535,7 +536,7 @@ public sealed partial class MainWindow : Window
                 // All(char.IsDigit) 挡不住溢出,用 TryParse 代替原来的 Parse + catch
                 if (!int.TryParse(tag, out var boardId))
                 {
-                    Flower.Play(FlowStatus.Fail, $"无效的版面号:{tag}");
+                    Tip.Show(InfoType.Error, $"无效的版面号:{tag}");
                     return;
                 }
                 pageType = typeof(BoardPage);
@@ -648,7 +649,7 @@ public sealed partial class MainWindow : Window
         var password = VPNPassword.Password;
         if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
         {
-            Flower.Play(FlowStatus.Fail, "用户名或密码不能为空");
+            Tip.Show(InfoType.Error, "用户名或密码不能为空");
             return;
         }
         var result= await LoginAsync(userName, password);
@@ -658,11 +659,11 @@ public sealed partial class MainWindow : Window
             PasswordManager.SavePassword(password, "VpnPassWord");
             AppSettings.Current.IsVpnEnabled=true;
             VPNConfigDialog.Hide();
-            Flower.Play(FlowStatus.Success, "已保存凭据并启用VPN");
+            Tip.Show(InfoType.Success, "已保存凭据并启用VPN");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, "VPN登录失败，请检查用户名和密码");
+            Tip.Show(InfoType.Error, "VPN登录失败，请检查用户名和密码");
         }
     }
     private void VPNConfigCancel_Click(object sender, RoutedEventArgs e)
@@ -751,7 +752,7 @@ public sealed partial class MainWindow : Window
         {
             // 网络异常:避免异常逃逸出 async void 调用链导致进程崩溃
             Debug.WriteLine($"VPN确认失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "VPN确认失败，请重试");
+            Tip.Show(InfoType.Error, "VPN确认失败，请重试");
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
@@ -761,7 +762,7 @@ public sealed partial class MainWindow : Window
         {
             //可以肯定此时账户密码均正确
             //需要重试
-            Flower.Play(FlowStatus.Fail, "VPN确认顶号失败，请重试");
+            Tip.Show(InfoType.Error, "VPN确认顶号失败，请重试");
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
@@ -769,7 +770,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return true;
         }
     }
@@ -799,7 +800,7 @@ public sealed partial class MainWindow : Window
             }
             catch(Exception ex)
             {
-                Flower.Play(FlowStatus.Warning, ex.Message);
+                Tip.Show(InfoType.Warning, ex.Message);
             }
             //等待用户登录VPN
         }
@@ -815,7 +816,7 @@ public sealed partial class MainWindow : Window
                 AppSettings.Current.IsVpnEnabled = true;
                 VPNConfigButton.Visibility = Visibility.Collapsed;
                 DisconnectButton.Visibility = Visibility.Visible;
-                Flower.Play(FlowStatus.Success, "VPN连接成功");
+                Tip.Show(InfoType.Success, "VPN连接成功");
             }
             else if (networkStatus == NetworkStatus.VpnCookieExpired)
             {
@@ -827,7 +828,7 @@ public sealed partial class MainWindow : Window
                 AppSettings.Current.IsVpnEnabled = false;
                 VPNConfigButton.Visibility = Visibility.Visible;
                 DisconnectButton.Visibility = Visibility.Collapsed;
-                Flower.Play(FlowStatus.Fail, $"VPN连接失败{networkStatus}");
+                Tip.Show(InfoType.Error, $"VPN连接失败{networkStatus}");
             }
         }
         
@@ -840,7 +841,7 @@ public sealed partial class MainWindow : Window
         var password = PasswordManager.RetrievePassword("VpnPassWord");
         if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
         {
-            Flower.Play(FlowStatus.Fail, "VPN凭据不完整，请重新配置");
+            Tip.Show(InfoType.Error, "VPN凭据不完整，请重新配置");
             return;
         }
         var vpnService = App.Current.GetService<IVpnService>();
@@ -856,7 +857,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
-            Flower.Play(FlowStatus.Fail, "VPN连接失败，请检查网络后重试");
+            Tip.Show(InfoType.Error, "VPN连接失败，请检查网络后重试");
             return;
         }
         if (res == null)
@@ -865,7 +866,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled=false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
-            Flower.Play(FlowStatus.Fail, "VPN连接失败，请检查网络后重试");
+            Tip.Show(InfoType.Error, "VPN连接失败，请检查网络后重试");
             return;
         }
         
@@ -875,7 +876,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = true;
             VPNConfigButton.Visibility = Visibility.Collapsed;
             DisconnectButton.Visibility = Visibility.Visible;
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return;
         }
         if (res.Status == VpnLoginStatus.NeedConfirm)
@@ -884,7 +885,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = true;
             VPNConfigButton.Visibility = success ? Visibility.Collapsed : Visibility.Visible;
             DisconnectButton.Visibility = success ? Visibility.Visible : Visibility.Collapsed;
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return;
         }
         if (res.Status == VpnLoginStatus.AccoutInvalid || res.Status == VpnLoginStatus.Fail)
@@ -895,7 +896,7 @@ public sealed partial class MainWindow : Window
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
             AppSettings.Current.IsVpnEnabled=false;
-            Flower.Play(FlowStatus.Fail, "VPN套餐过期或密码已错误，请重新登录");
+            Tip.Show(InfoType.Error, "VPN套餐过期或密码已错误，请重新登录");
         }
     }
 
@@ -928,7 +929,7 @@ public sealed partial class MainWindow : Window
     private void DisconnectButton_Click(object sender, RoutedEventArgs e)
     {
         AppSettings.Current.IsVpnEnabled = false;
-        Flower.Play(FlowStatus.Success, "VPN连接已断开");
+        Tip.Show(InfoType.Success, "VPN连接已断开");
         DisconnectButton.Visibility = Visibility.Collapsed;
         VPNConfigButton.Visibility = Visibility.Visible;
     }

@@ -1,8 +1,9 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 
 <Page x:Class="CC98.Views.IndexPage"
       xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
       xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="using:CC98.Controls"
       xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
       xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
       mc:Ignorable="d"
@@ -12,7 +13,6 @@
       xmlns:tool="using:CommunityToolkit.WinUI.Controls"
       xmlns:dev="using:DevWinUI"
       xmlns:sv="using:CC98.Services"
-      xmlns:infoFlower="using:CC98.Controls"
       Background="{ThemeResource CardGradient1Brush}">
     <Page.Resources>
         <DataTemplate x:Key="Presenter"
@@ -258,7 +258,7 @@
                 </ListView>
             </TeachingTip.Content>
         </TeachingTip>
-        <infoFlower:InfoFlower x:Name="Flower"
+        <controls:TipPopup x:Name="Tip"
                                Grid.Row="0"
                                Grid.RowSpan="3"
                                HorizontalAlignment="Center"

@@ -212,9 +212,9 @@ public sealed partial class ComposeEditor : UserControl
     }
 
     /// <summary>弹一条临时提示，外层用它上报发送结果。</summary>
-    public void Notify(FlowStatus status, string text)
+    public void Notify(InfoType status, string text)
     {
-        Flower.Play(status, text);
+        Tip.Show(status, text);
     }
 
     #region 状态栏
@@ -576,12 +576,12 @@ public sealed partial class ComposeEditor : UserControl
         // 用户取消选择时 Success=false 且 Error 为空，不提示
         if (!result.Success)
         {
-            if (!string.IsNullOrEmpty(result.Error)) Flower.Play(FlowStatus.Fail, $"上传失败：{result.Error}");
+            if (!string.IsNullOrEmpty(result.Error)) Tip.Show(InfoType.Error, $"上传失败：{result.Error}");
             return;
         }
 
         InsertMedia(label, result.Url);
-        Flower.Play(FlowStatus.Success, "已插入");
+        Tip.Show(InfoType.Success, "已插入");
     }
 
     /// <summary>
@@ -610,7 +610,7 @@ public sealed partial class ComposeEditor : UserControl
         catch (Exception ex)
         {
             // async void 必须兜底，否则异常会终止进程
-            Flower.Play(FlowStatus.Fail, $"粘贴上传失败：{ex.Message}");
+            Tip.Show(InfoType.Error, $"粘贴上传失败：{ex.Message}");
         }
     }
 
@@ -640,7 +640,7 @@ public sealed partial class ComposeEditor : UserControl
             var result = await FileUploadService.UploadAsync(file);
             if (!result.Success)
             {
-                if (!string.IsNullOrEmpty(result.Error)) Flower.Play(FlowStatus.Fail, $"上传失败：{result.Error}");
+                if (!string.IsNullOrEmpty(result.Error)) Tip.Show(InfoType.Error, $"上传失败：{result.Error}");
                 continue;
             }
 
@@ -648,7 +648,7 @@ public sealed partial class ComposeEditor : UserControl
             uploaded++;
         }
 
-        if (uploaded > 0) Flower.Play(FlowStatus.Success, $"已上传 {uploaded} 个文件");
+        if (uploaded > 0) Tip.Show(InfoType.Success, $"已上传 {uploaded} 个文件");
     }
 
     private async Task UploadPastedBitmapAsync(RandomAccessStreamReference bitmap)
@@ -656,12 +656,12 @@ public sealed partial class ComposeEditor : UserControl
         var result = await FileUploadService.UploadClipboardBitmapAsync(bitmap);
         if (!result.Success)
         {
-            if (!string.IsNullOrEmpty(result.Error)) Flower.Play(FlowStatus.Fail, $"上传失败：{result.Error}");
+            if (!string.IsNullOrEmpty(result.Error)) Tip.Show(InfoType.Error, $"上传失败：{result.Error}");
             return;
         }
 
         InsertMedia("img", result.Url);
-        Flower.Play(FlowStatus.Success, string.IsNullOrEmpty(result.Note) ? "图片已上传" : result.Note);
+        Tip.Show(InfoType.Success, string.IsNullOrEmpty(result.Note) ? "图片已上传" : result.Note);
     }
 
     /// <summary>打开取色浮层。</summary>
