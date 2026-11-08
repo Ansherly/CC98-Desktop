@@ -370,3 +370,7 @@ FodyWeavers.xsd
 
 # WorkBuddy 会话记忆/截图等本地数据
 .workbuddy/
+
+# mpv 原生库(由 tools/fetch-libmpv.ps1 下载,不进版本库)
+native/*.dll
+

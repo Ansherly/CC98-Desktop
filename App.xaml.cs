@@ -1,5 +1,6 @@
 ﻿using CC98.Kernel;
 using CC98.Kernel.Authorize;
+using CC98.Kernel.Bilibili;
 using CC98.Kernel.Network;
 using CC98.Objects;
 using CC98.Services;
@@ -59,6 +60,10 @@ public partial class App : Application
     public App()
     {
         InitializeComponent();
+
+        // mpv 原生库必须在第一次播放前把路径注册好(找不到就降级为不可播放)
+        CC98.Kernel.Mpv.MpvEnvironment.Initialize();
+
         try
         {
             RegisterServices();
@@ -206,10 +211,28 @@ public partial class App : Application
             client.Timeout = TimeSpan.FromSeconds(5);
         });
 
+        //访问 B 站开放接口(UBB [bili] 内嵌播放)。刻意独立于论坛链路:
+        //既不能带上 CC98 的令牌,VPN 开启时也不能把 B 站域名改写进 webvpn。
+        //超时交给每个请求自己的取消令牌(媒体动辄几十 MB,不能被客户端超时掐断)。
+        services.AddHttpClient("BiliClient", client =>
+        {
+            client.Timeout = Timeout.InfiniteTimeSpan;
+            client.DefaultRequestHeaders.UserAgent.ParseAdd("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36 Edg/116.0.1938.69");
+            client.DefaultRequestHeaders.Referrer = new Uri("https://www.bilibili.com/");
+        })
+        .ConfigurePrimaryHttpMessageHandler(() => new HttpClientHandler
+        {
+            //Cookie 由 BilibiliApi 逐请求显式写入(buvid3/buvid4),不让 handler 自建容器
+            UseCookies = false,
+            AutomaticDecompression = DecompressionMethods.All,
+        });
+
         //论坛登录服务
         services.AddSingleton<LoginService>();
         //主业务服务
         services.AddSingleton<ApiService>();
+        //B 站匿名接口(UBB [bili] 内嵌播放)
+        services.AddSingleton<BilibiliApi>();
         //镜像站服务
         services.AddSingleton<MirrorService>();
 

@@ -1,0 +1,123 @@
+<!--  VideoCard.xaml:UBB [video] 的卡片,观感与 [bili] 对齐  -->
+<UserControl x:Class="CC98.Controls.VideoCard"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:ic="using:FluentIcons.WinUI"
+             FocusVisualPrimaryBrush="Transparent"
+             FocusVisualSecondaryBrush="Transparent">
+
+    <Border MaxWidth="480"
+            HorizontalAlignment="Left"
+            Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+            BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+            BorderThickness="1"
+            CornerRadius="6">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!--  媒体区:高度在代码里按内容比例算,不写死  -->
+            <Grid x:Name="MediaHost"
+                  MinHeight="120"
+                  HorizontalAlignment="Left"
+                  VerticalAlignment="Top"
+                  Background="#14808080">
+
+                <!--  无封面时的渐变底色,避免卡片是一片空白  -->
+                <Border x:Name="CoverFallback">
+                    <Border.Background>
+                        <LinearGradientBrush Opacity="0.22"
+                                             StartPoint="0,0"
+                                             EndPoint="1,1">
+                            <GradientStop Offset="0" Color="#3286EE" />
+                            <GradientStop Offset="1" Color="#C8AEC4" />
+                        </LinearGradientBrush>
+                    </Border.Background>
+                </Border>
+
+                <Image x:Name="PosterImage"
+                       Opacity="0"
+                       Stretch="UniformToFill" />
+
+                <!--  压暗层:让播放键与状态文字在任何封面上都可读  -->
+                <Grid x:Name="CoverOverlay">
+                    <Border Background="#40000000" />
+
+                    <Button x:Name="PlayButton"
+                            Padding="0"
+                            HorizontalAlignment="Stretch"
+                            VerticalAlignment="Stretch"
+                            AutomationProperties.Name="播放视频"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Click="PlayButton_Click">
+                        <ic:SymbolIcon Symbol="Play"
+                                       FontSize="30"
+                                       Foreground="White" />
+                    </Button>
+
+                    <ProgressRing x:Name="BusyRing"
+                                  Width="36"
+                                  Height="36"
+                                  IsActive="False"
+                                  Visibility="Collapsed"
+                                  Foreground="White" />
+
+                    <TextBlock x:Name="StatusText"
+                               Margin="12,0,12,12"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Bottom"
+                               FontSize="12"
+                               Foreground="White"
+                               TextAlignment="Center"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed" />
+                </Grid>
+
+                <!--  播放器宿主:点击播放后才创建 VideoPlayer  -->
+                <Grid x:Name="PlayerHost"
+                      Opacity="0"
+                      Visibility="Collapsed" />
+            </Grid>
+
+            <!--  信息栏:与 [bili] 卡片同构  -->
+            <Grid Grid.Row="1"
+                  Padding="10,6,6,6"
+                  ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <StackPanel Grid.Column="0"
+                            VerticalAlignment="Center"
+                            Spacing="1">
+                    <TextBlock x:Name="TitleText"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               MaxLines="1"
+                               Text="视频"
+                               TextTrimming="CharacterEllipsis" />
+                    <TextBlock x:Name="SubtitleText"
+                               FontSize="12"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               MaxLines="1"
+                               TextTrimming="CharacterEllipsis" />
+                </StackPanel>
+
+                <HyperlinkButton x:Name="OpenLinkButton"
+                                 Grid.Column="1"
+                                 VerticalAlignment="Center"
+                                 Click="OpenLinkButton_Click">
+                    <StackPanel Orientation="Horizontal" Spacing="4">
+                        <FontIcon Glyph="&#xE896;" FontSize="14"></FontIcon>
+                        <TextBlock Text="下载"  FontSize="13"/>
+                    </StackPanel>
+                </HyperlinkButton>
+            </Grid>
+        </Grid>
+    </Border>
+</UserControl>

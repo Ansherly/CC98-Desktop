@@ -14,6 +14,7 @@ using Microsoft.UI.Xaml.Documents;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
 using CC98.Controls.Extensions;
+using CC98.Kernel.Bilibili;
 
 namespace CC98.Controls.UbbTextBlock.Common;
 
@@ -840,16 +841,20 @@ public class VideoRenderStrategy : IRenderStrategy
 
             if (!string.IsNullOrEmpty(src))
             {
-                var player = new VideoPlayer
+                // 卡片外壳对齐 [bili]:卡片底 + 圆角 + 信息栏,媒体区按内容比例;点击才创建播放器
+                var card = new VideoCard
                 {
-                    LoadVideoCallback = new SmartMediaLoader(),
-                    Src = src,
-                    MaxHeight = 400,
+                    Source = src,
+                    Title = tagNode.GetAttribute("title"),
+                    Poster = tagNode.GetAttribute("poster"),
+                    ShowPoster = !context.Control.HideImage,
                     Margin = new(10),
-                    AutoPlay = false
                 };
 
-                context.AddToContainer(player);
+                // 「打开原链接」复用宿主的链接点击(与 [url] 一致)
+                card.OpenRequested += url => context.Control.OnMediaClicked(url, MediaType.Link);
+
+                context.AddToContainer(card);
             }
         }
     }
@@ -857,9 +862,6 @@ public class VideoRenderStrategy : IRenderStrategy
 
 public class BilibiliRenderStrategy : IRenderStrategy
 {
-    /// <summary>BV 号补全用的视频页前缀。</summary>
-    private const string VideoUrlPrefix = "https://www.bilibili.com/video/";
-
     public void Render(UbbNode node, RenderContext context)
     {
         // 取值顺序:属性 [bili=BVxxx] → 子文本 [bili]BVxxx[/bili]
@@ -869,10 +871,37 @@ public class BilibiliRenderStrategy : IRenderStrategy
 
         if (string.IsNullOrEmpty(raw)) return;
 
+        if (!BilibiliVideoId.TryParse(raw, out var id, out var page))
+        {
+            // 里面不是视频号(有人会往 [bili] 里写说明文字):退回纯链接,与旧版行为一致
+            RenderAsLink(raw, context);
+            return;
+        }
+
+        // 卡片自身负责懒加载与播放;这里只摆一个空壳,渲染时不产生任何网络请求
+        var player = new BilibiliPlayer
+        {
+            VideoId = id,
+            Page = page,
+            Margin = new(10),
+            ShowCover = !context.Control.HideImage
+        };
+
+        // 「在 B 站打开」复用宿主的链接点击(与 [url] 一致:站内页走导航,外部地址交给浏览器)
+        player.OpenInBrowserRequested += url => context.Control.OnMediaClicked(url, MediaType.Link);
+
+        context.AddToContainer(player);
+    }
+
+    /// <summary>
+    ///     解析不出视频号时的降级渲染:按普通链接输出(旧版 [bili] 的行为)。
+    /// </summary>
+    private static void RenderAsLink(string raw, RenderContext context)
+    {
         // 已是完整地址则原样使用,否则按 BV/av 号补全为视频页地址
         var url = raw.StartsWith("http", StringComparison.OrdinalIgnoreCase)
             ? raw
-            : VideoUrlPrefix + raw.TrimStart('/');
+            : BilibiliVideoId.PagePrefix + raw.TrimStart('/');
 
         var hyperlink = new Hyperlink();
         RenderHelper.ApplyLinkStyle(hyperlink, context);

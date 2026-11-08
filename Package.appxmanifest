@@ -14,7 +14,7 @@
   <Identity
     Name="OrangePlanet.CC98"
     Publisher="CN=5E739DE2-5824-463F-BFB7-16411BC0F71A"
-    Version="1.2.7.0" />
+    Version="1.2.7.1" />
 
   <mp:PhoneIdentity PhoneProductId="a2ec001f-daa2-4596-9440-ebb1152b864d" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 

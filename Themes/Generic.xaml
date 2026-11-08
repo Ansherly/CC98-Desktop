@@ -3,7 +3,8 @@
                     xmlns:smartImage="using:CC98.Controls"
                     xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
                     xmlns:fileCard="using:CC98.Controls"
-                    xmlns:fancy="using:CC98.Controls">
+                    xmlns:fancy="using:CC98.Controls"
+                    xmlns:ic="using:FluentIcons.WinUI">
 
     <!--
         自定义控件的默认样式必须在 Themes/Generic.xaml 中(含其合并字典)才能被
@@ -84,6 +85,84 @@
                                  Background="Transparent"
                                  BorderThickness="0"
                                  CornerRadius="0" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        一次性上浮提示(移植自 winui-kernel 的 TipPopup):
+        外观 = Acrylic 底 + 1px 分隔线描边 + OverlayCornerRadius 圆角;
+        使用时放在页面最外层 Grid 的最后一个子元素(默认 Bottom + Center),
+        显示/隐藏动画由 TipPopup.cs 用 CommunityToolkit 的 AnimationBuilder 播放。
+    -->
+    <Style TargetType="fancy:TipPopup">
+        <Setter Property="HorizontalAlignment"
+                Value="Center" />
+        <Setter Property="VerticalAlignment"
+                Value="Bottom" />
+        <Setter Property="Margin"
+                Value="0,0,0,12" />
+        <Setter Property="IsTabStop"
+                Value="False" />
+        <Setter Property="IsHitTestVisible"
+                Value="False" />
+        <Setter Property="Visibility"
+                Value="Collapsed" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="fancy:TipPopup">
+                    <Border x:Name="PART_Root"
+                            Padding="12,8"
+                            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource OverlayCornerRadius}">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Margin="0,4,0,0"
+                                  VerticalAlignment="Center">
+                                <ic:SymbolIcon x:Name="PART_InformationIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarInformationalSeverityIconBackground}"
+                                               Symbol="Info"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_WarningIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarWarningSeverityIconBackground}"
+                                               Symbol="Warning"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_SuccessIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarSuccessSeverityIconBackground}"
+                                               Symbol="CheckmarkCircle"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_ErrorIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarErrorSeverityIconBackground}"
+                                               Symbol="DismissCircle"
+                                               Visibility="Collapsed" />
+                                <ProgressRing x:Name="PART_LoadingRing"
+                                              Width="12"
+                                              Height="12"
+                                              MinWidth="12"
+                                              MinHeight="12"
+                                              VerticalAlignment="Center"
+                                              IsActive="False"
+                                              Visibility="Collapsed" />
+                            </Grid>
+                            <TextBlock Grid.Column="1"
+                                       MaxWidth="520"
+                                       Margin="0,2,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="13"
+                                       Text="{TemplateBinding Text}"
+                                       TextWrapping="Wrap" />
+                        </Grid>
                     </Border>
                 </ControlTemplate>
             </Setter.Value>

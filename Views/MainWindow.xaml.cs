@@ -148,10 +148,18 @@ public sealed partial class MainWindow : Window
         InitializeTimer();
         // VPN 检查 fire-and-forget:异常在内部捕获,失败/缓慢不影响其他任务
         _ = CheckVpnStatusSafelyAsync();
-        await Task.WhenAll(
-            RefreshMessage(),
-            LoadUserProfile(),
-            GetFavorites());
+        try
+        {
+            await Task.WhenAll(
+                RefreshMessage(),
+                LoadUserProfile(),
+                GetFavorites());
+        }
+        catch (Exception ex)
+        {
+            // 这里是 DispatcherQueue 回调里的 async 调用,异常一旦逃逸会以 stowed exception 结束进程
+            Debug.WriteLine($"主窗口启动数据加载异常: {ex}");
+        }
     }
     /// <summary>
     /// VPN 启动检查的安全包装:任何异常都只记录,不传播到调用链。
@@ -406,43 +414,65 @@ public sealed partial class MainWindow : Window
 
     private async Task RefreshMessage()
     {
-        var url = ApiEndpoints.User.UnreadMessage();
-        var result = await ApiService.Fetch<UnreadMessageInfo>(url);
-        if (!result.IsSuccess || result.Data == null)
+        try
         {
-            //await App.Logger.WriteAsync("MainWindow", "刷新未读消息失败", $"{result.StatusCode}:{result.Message}");
-            return;
-        }
+            var url = ApiEndpoints.User.UnreadMessage();
+            var result = await ApiService.Fetch<UnreadMessageInfo>(url);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                return;
+            }
 
-        var data = result.Data;
-        GlobalService.AtCount = data.AtCount;
-        GlobalService.ReplyCount = data.ReplyCount;
-        GlobalService.SystemCount = data.SystemCount;
-        GlobalService.MessageCount = data.MessageCount;
-        UnreadCount = data.MessageCount + data.AtCount + data.ReplyCount + data.SystemCount;
-        BadgeNotificationManager.Current.SetBadgeAsCount((uint)UnreadCount);
+            var data = result.Data;
+            GlobalService.AtCount = data.AtCount;
+            GlobalService.ReplyCount = data.ReplyCount;
+            GlobalService.SystemCount = data.SystemCount;
+            GlobalService.MessageCount = data.MessageCount;
+            UnreadCount = data.MessageCount + data.AtCount + data.ReplyCount + data.SystemCount;
+
+            try
+            {
+                BadgeNotificationManager.Current.SetBadgeAsCount((uint)UnreadCount);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"设置应用角标失败: {ex.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"刷新未读消息失败: {ex.Message}");
+        }
     }
 
 
     private async Task<bool> GetFavorites()
     {
-        var favoritesInfoUrl = ApiEndpoints.User.FavoritesList();
-        var favoritesInfoResult = await ApiService.Fetch<FavoritesInfo>(favoritesInfoUrl);
-        if (!favoritesInfoResult.IsSuccess || favoritesInfoResult.Data == null)
-            //
-            return false;
-        var data = favoritesInfoResult.Data;
-        var groups = data.FavoriteTopicGroups;
-        if (groups.IsNonEmpty())
+        try
         {
-            //存储收藏夹列表
-            var favoJson = SerializationHelper.TrySerialize(groups);
-            AppSettings.Current.FavoriteGroups = favoJson ?? "";
-            return true;
-        }
+            var favoritesInfoUrl = ApiEndpoints.User.FavoritesList();
+            var favoritesInfoResult = await ApiService.Fetch<FavoritesInfo>(favoritesInfoUrl);
+            if (!favoritesInfoResult.IsSuccess || favoritesInfoResult.Data == null)
+                //
+                return false;
+            var data = favoritesInfoResult.Data;
+            var groups = data.FavoriteTopicGroups;
+            if (groups.IsNonEmpty())
+            {
+                //存储收藏夹列表
+                var favoJson = SerializationHelper.TrySerialize(groups);
+                AppSettings.Current.FavoriteGroups = favoJson ?? "";
+                return true;
+            }
 
-        Flower.Play(FlowStatus.Info, "暂无收藏夹");
-        return false;
+            Flower.Play(FlowStatus.Info, "暂无收藏夹");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"刷新收藏夹失败: {ex.Message}");
+            return false;
+        }
     }
 
 
