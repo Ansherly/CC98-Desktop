@@ -51,6 +51,9 @@ public sealed partial class BilibiliPlayer : UserControl
     // 首帧到手之前继续显示封面:否则 mpv 初始化那两秒会闪一下黑底
     private bool _playerReady;
 
+    // 命中缓存的直链可能已过期:播放失败时作废它并自动重试一次,不必让用户反复点
+    private bool _playbackRetried;
+
     // 封面 / 视频的真实宽高比(宽÷高):媒体区高度跟着它走,而不是固定 16:9
     private double? _coverAspect;
     private double? _videoAspect;
@@ -333,8 +336,11 @@ public sealed partial class BilibiliPlayer : UserControl
         if (_stage == Stage.Ready) await StartPlaybackAsync();
     }
 
-    private async Task StartPlaybackAsync()
+    private async Task StartPlaybackAsync(bool retryAfterStaleUrl = false)
     {
+        // 用户主动点播放时重新给一次重试机会;自动重试不能把那一次机会刷掉
+        if (!retryAfterStaleUrl) _playbackRetried = false;
+
         if (_info is null || _stage is Stage.Resolving or Stage.Playing) return;
 
         var part = _info.GetPart(Page);
@@ -408,6 +414,22 @@ public sealed partial class BilibiliPlayer : UserControl
     private void OnPlayerFailed(object? sender, VideoPlayerFailedEventArgs e)
     {
         Debug.WriteLine("Bilibili", $"播放失败:{e.ErrorMessage}");
+
+        var info = _info;
+        var part = info?.GetPart(Page);
+
+        // 直链可能已经过期(尤其是命中缓存的那条):作废缓存并重试一次
+        if (info is not null && part is not null && !_playbackRetried)
+        {
+            _playbackRetried = true;
+            BilibiliApi.InvalidatePlayUrl(info.Bvid, part.Cid);
+
+            DestroyPlayer();
+            SetStage(Stage.Ready);
+            _ = StartPlaybackAsync(true);
+            return;
+        }
+
         DestroyPlayer();
         SetStage(Stage.Failed, $"播放失败:{e.ErrorMessage}");
     }

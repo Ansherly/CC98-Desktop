@@ -15,17 +15,34 @@
                                      Color="#B3000000" />
                     <SolidColorBrush x:Key="VideoBarForegroundBrush"
                                      Color="White" />
+
+                    <!--  音量浮层:深色下不用卡片底(#0DFFFFFF 只有 5% 的白,压在画面上等于透明),改成不透明深色  -->
+                    <SolidColorBrush x:Key="VideoFlyoutBackgroundBrush"
+                                     Color="#F21F1F1F" />
+                    <SolidColorBrush x:Key="VideoFlyoutBorderBrush"
+                                     Color="#33FFFFFF" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="Light">
                     <SolidColorBrush x:Key="VideoBarBackgroundBrush"
                                      Color="#D9FFFFFF" />
                     <SolidColorBrush x:Key="VideoBarForegroundBrush"
                                      Color="#E4000000" />
+
+                    <!--  浅色与原来的卡片底同值:视觉不变  -->
+                    <SolidColorBrush x:Key="VideoFlyoutBackgroundBrush"
+                                     Color="#B3FFFFFF" />
+                    <SolidColorBrush x:Key="VideoFlyoutBorderBrush"
+                                     Color="#0F000000" />
                 </ResourceDictionary>
                 <ResourceDictionary x:Key="HighContrast">
                     <SolidColorBrush x:Key="VideoBarBackgroundBrush"
                                      Color="{ThemeResource SystemColorWindowColor}" />
                     <SolidColorBrush x:Key="VideoBarForegroundBrush"
+                                     Color="{ThemeResource SystemColorWindowTextColor}" />
+
+                    <SolidColorBrush x:Key="VideoFlyoutBackgroundBrush"
+                                     Color="{ThemeResource SystemColorWindowColor}" />
+                    <SolidColorBrush x:Key="VideoFlyoutBorderBrush"
                                      Color="{ThemeResource SystemColorWindowTextColor}" />
                 </ResourceDictionary>
             </ResourceDictionary.ThemeDictionaries>
@@ -46,8 +63,8 @@
                 <Setter Property="MinWidth" Value="0" />
                 <Setter Property="MinHeight" Value="0" />
                 <Setter Property="CornerRadius" Value="6" />
-                <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
-                <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                <Setter Property="Background" Value="{ThemeResource VideoFlyoutBackgroundBrush}" />
+                <Setter Property="BorderBrush" Value="{ThemeResource VideoFlyoutBorderBrush}" />
                 <Setter Property="BorderThickness" Value="1" />
             </Style>
 

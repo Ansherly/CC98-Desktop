@@ -11,16 +11,20 @@ namespace CC98.Kernel.Bilibili;
 ///     <c>av170001</c>,也有人直接贴整条视频页地址(可能带 <c>?p=2</c> 或 <c>&amp;t=30</c>)。
 ///     渲染层只需要"能解析 / 不能解析"两种结果,所以归一化放在这一处完成,接口层与控件都复用同一套判定。
 /// </remarks>
-public static class BilibiliVideoId
+public static partial class BilibiliVideoId
 {
     /// <summary>视频页前缀(<c>[bili]</c> 里只写号码时,用于拼"在 B 站打开"的地址)。</summary>
     public const string PagePrefix = "https://www.bilibili.com/video/";
 
-    // 编译期单例正则:每次 new Regex 都会重新编译,列表滚动时渲染频繁,不能放在方法里
-    private static readonly Regex BvPattern = new(@"BV[0-9A-Za-z]{10}", RegexOptions.Compiled);
-    private static readonly Regex AvPattern = new(@"av(\d+)", RegexOptions.Compiled | RegexOptions.IgnoreCase);
-    private static readonly Regex PagePattern = new(@"[?&]p=(\d+)", RegexOptions.Compiled);
+    // 源生成器在编译期把这三条正则直接落成 IL:没有正则解析与 JIT,也没有静态字段的初始化顺序问题,取用就是一次静态调用
+    [GeneratedRegex(@"BV[0-9A-Za-z]{10}")]
+    private static partial Regex BvPattern();
 
+    [GeneratedRegex(@"av(\d+)", RegexOptions.IgnoreCase)]
+    private static partial Regex AvPattern();
+
+    [GeneratedRegex(@"[?&]p=(\d+)")]
+    private static partial Regex PagePattern();
     /// <summary>
     ///     尝试解析视频标识。
     /// </summary>
@@ -37,21 +41,21 @@ public static class BilibiliVideoId
 
         var text = raw.Trim();
 
-        var pageMatch = PagePattern.Match(text);
+        var pageMatch = PagePattern().Match(text);
         if (pageMatch.Success
             && int.TryParse(pageMatch.Groups[1].Value, out var pageNumber)
             && pageNumber > 0)
             page = pageNumber;
 
         // BV 号优先:地址里同时出现 av 与 BV 时以 BV 为准
-        var bvMatch = BvPattern.Match(text);
+        var bvMatch = BvPattern().Match(text);
         if (bvMatch.Success)
         {
             id = bvMatch.Value;
             return true;
         }
 
-        var avMatch = AvPattern.Match(text);
+        var avMatch = AvPattern().Match(text);
         if (avMatch.Success)
         {
             id = "av" + avMatch.Groups[1].Value;

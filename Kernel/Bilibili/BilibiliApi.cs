@@ -53,6 +53,19 @@ public sealed class BilibiliApi(IHttpClientFactory httpClientFactory)
 
     private static readonly ConcurrentDictionary<string, (DateTimeOffset ExpireAt, BilibiliVideoInfo Info)> InfoCache = new();
 
+    /// <summary>直链的进程内缓存时长:同一条视频反复点播放时,不该每次都重新过一遍风控。</summary>
+    /// <remarks>
+    ///     B 站下发的 <c>durl</c> 地址通常几小时内有效,这里只留 10 分钟 ——
+    ///     足够覆盖"点开、关掉、再点开"的来回操作,又不会把地址留得太久。
+    ///     万一命中的地址确实失效,播放失败时调用方用 <see cref="InvalidatePlayUrl" /> 丢掉它再重取。
+    /// </remarks>
+    private static readonly TimeSpan PlayUrlCacheTtl = TimeSpan.FromMinutes(10);
+
+    /// <summary>直链缓存条目上限,超过后先清理已过期的条目。</summary>
+    private const int MaxPlayUrlCacheEntries = 128;
+
+    private static readonly ConcurrentDictionary<(string Bvid, long Cid), (DateTimeOffset ExpireAt, BilibiliPlayUrl Play)> PlayUrlCache = new();
+
     private readonly SemaphoreSlim _cookieLock = new(1, 1);
 
     // 匿名指纹只取一次;取不到就退回"不带 Cookie",接口本身也允许
@@ -137,6 +150,14 @@ public sealed class BilibiliApi(IHttpClientFactory httpClientFactory)
     {
         if (string.IsNullOrEmpty(bvid) || cid <= 0) return null;
 
+        // 命中缓存就不再打接口:这是一次完整的 HTTPS 往返,省下来体感差别很明显
+        var key = (bvid, cid);
+        if (PlayUrlCache.TryGetValue(key, out var cached) && cached.ExpireAt > DateTimeOffset.Now)
+        {
+            Debug.WriteLine("Bilibili", $"直链命中缓存({bvid}/{cid})");
+            return cached.Play;
+        }
+
         // fnval=1 表示走 durl(单文件)而不是 DASH;platform=html5 + high_quality=1 才会下发 720P
         var query = $"{PlayUrlApi}?bvid={bvid}&cid={cid}&qn=64&fnval=1&platform=html5&high_quality=1";
 
@@ -167,17 +188,35 @@ public sealed class BilibiliApi(IHttpClientFactory httpClientFactory)
             var url = GetString(first, "url");
             if (string.IsNullOrEmpty(url)) return null;
 
-            return new(
+            var play = new BilibiliPlayUrl(
                 url,
                 (int)GetInt64(data, "quality"),
                 GetString(data, "format") ?? "mp4",
                 GetInt64(first, "size"),
                 GetInt64(first, "length") > 0 ? GetInt64(first, "length") : GetInt64(data, "timelength"));
+
+            if (PlayUrlCache.Count > MaxPlayUrlCacheEntries) PurgeExpiredPlayUrlCache();
+            PlayUrlCache[key] = (DateTimeOffset.Now + PlayUrlCacheTtl, play);
+
+            return play;
         }
         finally
         {
             root.Dispose();
         }
+    }
+
+    /// <summary>
+    ///     作废某条视频的直链缓存。
+    /// </summary>
+    /// <remarks>播放失败说明地址可能已经过期:调用方先作废,再重新取一次。</remarks>
+    /// <param name="bvid">BV 号。</param>
+    /// <param name="cid">分 P 的 cid。</param>
+    public static void InvalidatePlayUrl(string bvid, long cid)
+    {
+        if (string.IsNullOrEmpty(bvid) || cid <= 0) return;
+
+        PlayUrlCache.TryRemove((bvid, cid), out _);
     }
 
     /// <summary>
@@ -347,6 +386,15 @@ public sealed class BilibiliApi(IHttpClientFactory httpClientFactory)
         foreach (var entry in InfoCache)
             if (entry.Value.ExpireAt <= now)
                 InfoCache.TryRemove(entry.Key, out _);
+    }
+
+    /// <summary>清理已经过期的直链缓存条目。</summary>
+    private static void PurgeExpiredPlayUrlCache()
+    {
+        var now = DateTimeOffset.Now;
+        foreach (var entry in PlayUrlCache)
+            if (entry.Value.ExpireAt <= now)
+                PlayUrlCache.TryRemove(entry.Key, out _);
     }
 
     private static JsonElement GetObject(JsonElement element, string name) =>
