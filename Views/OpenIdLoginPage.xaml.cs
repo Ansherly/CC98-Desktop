@@ -63,10 +63,25 @@ namespace CC98.Views
                 var authorizeUrl = loginState.StartUrl;
                 PasswordManager.SavePassword(loginState.State, "OpenIdState");
                 PasswordManager.SavePassword(loginState.CodeVerifier, "OpenIdCodeVerifier");
-                await Launcher.LaunchUriAsync(new Uri(authorizeUrl));
+                bool launched = await Launcher.LaunchUriAsync(new Uri(authorizeUrl));
+                if (!launched)
+                {
+                    // 没有默认浏览器 / 被策略拦截:留在登录页让用户重试,不要退出
+                    AppNotification notification = new AppNotificationBuilder()
+                        .AddText("无法打开浏览器")
+                        .AddText("请检查默认浏览器设置后重试")
+                        .BuildNotification();
+                    AppNotificationManager.Default.Show(notification);
+                    return; // finally 里会恢复按钮
+                }
 
-                await Task.Delay(200);
-                App.Current.Exit();
+                // 浏览器已接管认证。本进程必须退掉:否则 cc98://callback 会拉起第二个进程,
+                // 变成"登录窗口 + 主窗口"两个进程并存。
+                // 但不要在这里直接写 Task.Delay + App.Current.Exit():
+                // Launcher 的 COM 调用可能还在收尾,此时拆掉 UI 调度器会抛 CoreMessagingXP 的
+                // stowed exception(事件日志 0xc000027b),表现为进程崩溃。
+                // 统一交给 App 做"延后 + 兜异常"的安全退出。
+                App.Current.QuitAfterBrowserLogin();
             }
             catch (Exception ex)
             {

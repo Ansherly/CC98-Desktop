@@ -1,6 +1,6 @@
 using System;
 
-namespace CC98.Controls;
+namespace CC98.Controls.Primitives;
 
 /// <summary>
 ///     UBB 媒体卡片(<c>[bili]</c> / <c>[video]</c>)共用的尺寸约束。

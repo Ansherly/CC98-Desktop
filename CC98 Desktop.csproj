@@ -13,9 +13,10 @@
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <!--
-      mpv 的 SwapChainPanel 互操作用到旧式 ComImport 接口(ISwapChainPanelNative),
-      PublishAot/Trim 会把内置 COM 关掉,运行时直接“Built-in COM has been disabled”。
-      WinUI 控件的子类也会因此撑不住:Content 赋值走 AOT 优化路径同样依赖内置 COM。
+      视频播放器把自建的 DXGI 交换链挂到 SwapChainPanel 上,用到旧式 ComImport 接口
+      (ISwapChainPanelNative);PublishAot/Trim 会把内置 COM 关掉,运行时直接
+      “Built-in COM has been disabled”。WinUI 控件的子类也会因此撑不住:Content
+      赋值走 AOT 优化路径同样依赖内置 COM。
     -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <EnableMsixTooling>true</EnableMsixTooling>
@@ -26,17 +27,6 @@
   <ItemGroup>
     <Compile Remove="tools\**\*.cs" />
   </ItemGroup>
-  <!-- mpv 原生库:libmpv-2.dll 不进版本库,由 tools\fetch-libmpv.ps1 下载 -->
-  <ItemGroup>
-    <Content Include="native\libmpv-2.dll">
-      <Link>libmpv-2.dll</Link>
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <Visible>false</Visible>
-    </Content>
-  </ItemGroup>
-  <Target Name="CheckLibMpv" BeforeTargets="BeforeBuild">
-    <Error Condition="!Exists('$(MSBuildProjectDirectory)\native\libmpv-2.dll')" Text="缺少 native\libmpv-2.dll,请先运行 tools\fetch-libmpv.ps1 下载 libmpv。" />
-  </Target>
   <ItemGroup>
     <Content Remove="Assets\cc98.altform-lightunplated_targetsize-16.png" />
     <Content Remove="Assets\cc98.altform-lightunplated_targetsize-24.png" />
@@ -223,10 +213,25 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
     <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.154.0" />
-    <!-- mpv 播放器:OpenGL 渲染 + D3D11 共享纹理,见 Controls\Mpv 与 Kernel\Mpv -->
-    <PackageReference Include="OpenTK" Version="4.8.2" />
+    <!-- 视频播放器(Media Foundation)自建 D3D11 设备与 DXGI 合成交换链;OpenTK / OpenGL 已随 mpv 移除 -->
     <PackageReference Include="Silk.NET.Direct3D11" Version="2.21.0" />
-    <PackageReference Include="Silk.NET.OpenGL" Version="2.21.0" />
+  </ItemGroup>
+  <!--
+    精简 AI/ML 载荷：WASDK 2.6 的元包会连带 Widgets / AI / ML / Search 四个子组件，
+    其中 onnxruntime + DirectML + Microsoft.Windows.AI.MachineLearning（以及同族的
+    Imaging/Text/Video/Workloads/NPUDetect）在输出目录里实测约 46 MB，而本项目
+    从未调用任何本地推理 API（源码零命中）。
+    它们原本只是元包的传递依赖，而 NuGet 对“传递依赖上的 Update/ExcludeAssets”不生效，
+    所以这里把它们提成直接引用（Include）再加 ExcludeAssets=all：既钉死版本，又能让
+    它们的 props/targets/lib/runtime 全部不进入构建，WASDK 自包含载荷枚举
+    （@(WindowsAppSdkComponentPackages)）也就不会把它们铺进输出和 MSIX。
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.4.89" ExcludeAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\HistoryPage.xaml">

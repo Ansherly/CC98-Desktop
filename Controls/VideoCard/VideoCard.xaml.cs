@@ -1,7 +1,7 @@
 // VideoCard.xaml.cs
 //
 // UBB [video] 的卡片外壳:布局与 [bili] 卡片保持一致(卡片底 + 圆角 + 媒体区 + 信息栏),
-// 媒体区按内容自身比例定尺寸,点击才创建 mpv 播放器。
+// 媒体区按内容自身比例定尺寸,点击才创建播放器。
 
 using System;
 using System.Diagnostics;
@@ -16,6 +16,7 @@ using Microsoft.UI.Xaml.Media;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 using CC98.Kernel;
+using CC98.Controls.Primitives;
 using System.Runtime.InteropServices.WindowsRuntime;
 
 namespace CC98.Controls;
@@ -221,7 +222,7 @@ public sealed partial class VideoCard : UserControl
             VerticalAlignment = VerticalAlignment.Stretch,
         };
 
-        // CC98 自己的媒体要带登录令牌,mpv 直接拉流拿不到 ForumClient 的处理器
+        // CC98 自己的媒体要带登录令牌,直链拉流拿不到 ForumClient 的处理器
         if (Uri.TryCreate(Source, UriKind.Absolute, out var uri)
             && uri.Host.EndsWith("cc98.org", StringComparison.OrdinalIgnoreCase))
         {

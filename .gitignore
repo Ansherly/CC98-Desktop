@@ -371,6 +371,7 @@ FodyWeavers.xsd
 # WorkBuddy 会话记忆/截图等本地数据
 .workbuddy/
 
-# mpv 原生库(由 tools/fetch-libmpv.ps1 下载,不进版本库)
-native/*.dll
+# 字体子集化产物（tools/subset-fonts.py 生成，不入库；确认后再手动覆盖 Assets/Fonts）
+/build/
+
 

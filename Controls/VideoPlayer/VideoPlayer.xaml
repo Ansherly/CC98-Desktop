@@ -74,7 +74,7 @@
     <Grid x:Name="RootGrid"
           Background="Black">
 
-        <!--  mpv 的渲染面:OpenGL 画到共享纹理,再由 SwapChainPanel 交给 XAML 合成  -->
+        <!--  Media Foundation 的渲染面:每帧拷进自建 D3D11 纹理,再由 SwapChainPanel 交给 XAML 合成  -->
         <SwapChainPanel x:Name="Surface"
                         Visibility="Collapsed" />
 

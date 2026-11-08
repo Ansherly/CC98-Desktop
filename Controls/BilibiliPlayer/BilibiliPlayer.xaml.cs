@@ -10,6 +10,7 @@ using Windows.Storage.Streams;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using CC98.Controls.Primitives;
 
 namespace CC98.Controls;
 
@@ -48,7 +49,7 @@ public sealed partial class BilibiliPlayer : UserControl
     private BilibiliVideoInfo? _info;
     private VideoPlayer? _player;
 
-    // 首帧到手之前继续显示封面:否则 mpv 初始化那两秒会闪一下黑底
+    // 首帧到手之前继续显示封面:否则播放器初始化那两秒会闪一下黑底
     private bool _playerReady;
 
     // 命中缓存的直链可能已过期:播放失败时作废它并自动重试一次,不必让用户反复点
@@ -366,7 +367,7 @@ public sealed partial class BilibiliPlayer : UserControl
 
         DurationText.Text = $"{FormatDuration(_info.Duration)} · {play.QualityText}";
 
-        // 拿到直链后直接交给 mpv:参考头由播放器带上,不再走"下载到缓存再播"
+        // 拿到直链后直接交给播放器:参考头由播放器带上,不再走"下载到缓存再播"
         SetStage(Stage.Playing, play.QualityText);
 
         PlayUrl(play.Url);
@@ -377,8 +378,8 @@ public sealed partial class BilibiliPlayer : UserControl
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
     /// <summary>
-    ///     直接播放直链:mpv 自己发 HTTP 请求,带上 Referer / UA 就能过 CDN 的防盗链,
-    ///     所以不需要"先下载完整文件再播"。
+    ///     直接播放直链:播放器自己发 HTTP 请求(经本机回环代理),带上 Referer / UA
+    ///     就能过 CDN 的防盗链,所以不需要"先下载完整文件再播"。
     /// </summary>
     private void PlayUrl(string url)
     {
@@ -458,7 +459,7 @@ public sealed partial class BilibiliPlayer : UserControl
         StatusText.Visibility = string.IsNullOrEmpty(StatusText.Text) ? Visibility.Collapsed : Visibility.Visible;
 
         // 播放器必须保持可见(只是透明):它要参与布局才有实际宽高,
-        // 隐藏会让播放区域量到 0,mpv 那边会当“区域没准备好”。
+        // 隐藏会让播放区域量到 0,交换链那边会当“区域没准备好”。
         // 首帧到手前保持封面可见,避免黑底闪一下。
         CoverOverlay.Visibility = playing ? Visibility.Collapsed : Visibility.Visible;
         PlayerHost.Visibility = playing ? Visibility.Visible : Visibility.Collapsed;

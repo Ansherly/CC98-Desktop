@@ -1,58 +1,89 @@
-// VideoPlayer.xaml.cs
-//
-// 基于 mpv 的播放控件:
-//   libmpv 用 OpenGL 解码渲染 → WGL_NV_DX_interop 共享到 D3D11 纹理 → SwapChainPanel 交给 XAML 合成。
-//   之所以不用 MediaPlayerElement:它在控件卸载/拆树过程中被 Dispose 时会以 E_ABORT(0x80004004)
-//   触发原生 failfast(0xc000027b),托管层的 try/catch 拦不住。
-
 using System;
+using System.Reflection;
 using System.Diagnostics;
+using System.IO;
+using System.Runtime.InteropServices;
+using System.Runtime.InteropServices.WindowsRuntime;
+using System.Collections.Generic;
+using System.Net.Http;
+using System.Threading;
 using System.Threading.Tasks;
+using CC98.Controls.Interop;
+using Microsoft.UI.Dispatching;
 using CC98.Controls.Primitives;
-using CC98.Kernel.Mpv;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
-using Mpv.Core.Args;
-using Mpv.Core.Enums.Player;
-using MpvWinUI.Common;
-using OpenTK.Windowing.Common;
-using MpvContextSettings = MpvWinUI.Common.ContextSettings;
-using MpvPlayerCore = Mpv.Core.Player;
-using MpvRenderContext = MpvWinUI.Common.RenderContext;
+using Silk.NET.Core.Native;
+using Silk.NET.Direct3D11;
+using Silk.NET.DXGI;
+using Windows.Foundation;
+using Windows.Media.Core;
+using Windows.Media.Playback;
+using Windows.Storage;
+using WinRT;
+using WinRTSurface = Windows.Graphics.DirectX.Direct3D11.IDirect3DSurface;
 
 namespace CC98.Controls;
 
 /// <summary>
-///     视频播放控件(mpv)。
+///     视频播放控件(Media Foundation)。
 /// </summary>
+/// <remarks>
+///     <para>MediaPlayer 走"帧服务器"模式:只负责解码,不发显示。每一帧通过
+///     <see cref="MediaPlayer.CopyFrameToVideoSurface(WinRTSurface, Rect)" /> 拷进我们自己的 D3D11
+///     纹理,再 <c>Present</c> 到 SwapChainPanel 的合成交换链上。</para>
+///     <para>之所以不用 MediaPlayerElement:它在控件卸载/拆树过程中被 Dispose 时会以
+///     E_ABORT(0x80004004) 触发原生 failfast(0xc000027b),托管层的 try/catch 拦不住。</para>
+/// </remarks>
 public sealed partial class VideoPlayer : UserControl, IDisposable
 {
-    private MpvPlayerCore? _player;
+    private const string DefaultUserAgent =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
+
+    /// <summary>渲染资源的锁:帧回调在 MF 线程,换尺寸在 UI 线程。</summary>
+    private readonly object _renderLock = new();
+
+    /// <summary>已经有一帧排队到 UI 线程了:帧率高于渲染时直接丢,避免队列堆积。</summary>
+    private bool _framePending;
+
+    // 渲染:全部用 IntPtr 存句柄,避免把整个类标成 unsafe(XAML 生成了另一半 partial)
+    private IntPtr _device;
+    private IntPtr _context;
+    private IntPtr _swapChain;
+    private IntPtr _backBuffer;
+    private IntPtr _renderTargetView;
+    private WinRTSurface? _frameSurface;
+    private int _pixelWidth;
+    private int _pixelHeight;
+    private long _renderedFrames;
+
+    private MediaPlayer? _player;
+    private DispatcherQueueTimer? _positionTimer;
+    private LocalMediaProxy? _proxy;
+
     private bool _isDisposed;
     private bool _isInitialized;
     private bool _isMediaLoaded;
     private bool _reportedInitialized;
     private bool _isUpdatingFromPlayer;
 
-    // 静音在 mpv 里就是音量 0:不单独用 mute 属性,否则两边状态会打架
+    // 静音就是音量 0:不单独用 mute,否则两边状态会打架
     private double _lastVolumePercent = 100;
     private Stretch _stretch = Stretch.Uniform;
     private string? _httpHeaders;
     private string? _referer;
     private string? _userAgent;
-    private MpvRenderSurface? _surface;
 
-    // mpv 读出来的视频宽高比(宽÷高),宿主可以据此把容器调成同一个比例
     private double? _videoAspect;
 
-    // 防止 Loaded 自动加载与宿主显式调用撞车:重入会重复 loadfile
+    // 防止 Loaded 自动加载与宿主显式调用撞车:重入会重复换源
     private bool _isLoading;
 
-    // mpv 的最后一条错误日志:失败时拼进提示,否则用户只能看到干巴巴的“播放失败”
-    private string? _lastMpvError;
+    /// <summary>最近一条播放错误:失败时拼进提示,否则用户只能看到干巴巴的"播放失败"。</summary>
+    private string? _lastError;
 
     /// <summary>
     ///     初始化 <see cref="VideoPlayer" />。
@@ -63,7 +94,10 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
         Loaded += OnLoaded;
         Unloaded += OnUnloaded;
+        Surface.SizeChanged += OnSurfaceSizeChanged;
+        Surface.CompositionScaleChanged += OnSurfaceCompositionScaleChanged;
     }
+
 
     #region 依赖属性
 
@@ -72,7 +106,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         DependencyProperty.Register("Src", typeof(string), typeof(VideoPlayer),
             new(null, OnSrcChanged));
 
-    /// <summary>旧版媒体加载器;mpv 直接吃地址,这里只保留属性以兼容既有调用方。</summary>
+    /// <summary>旧版媒体加载器;保留属性只为兼容既有调用方。</summary>
     public static readonly DependencyProperty LoadVideoCallbackProperty =
         DependencyProperty.Register("LoadVideoCallback", typeof(IMediaLoader),
             typeof(VideoPlayer), new(new DefaultMediaLoader()));
@@ -84,7 +118,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         set => SetValue(SrcProperty, value);
     }
 
-    /// <summary>旧版媒体加载器;mpv 版本不使用它。</summary>
+    /// <summary>旧版媒体加载器;当前实现不使用它。</summary>
     public IMediaLoader LoadVideoCallback
     {
         get => (IMediaLoader)GetValue(LoadVideoCallbackProperty);
@@ -94,7 +128,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     /// <summary>加载完成后是否自动开始播放。</summary>
     public bool AutoPlay { get; set; }
 
-    /// <summary>画面填充方式(仅保存,绘制时统一按等比铺满处理)。</summary>
+    /// <summary>画面填充方式:Uniform 等比留黑,UniformToFill 等比裁切,Fill 拉伸铺满。</summary>
     public Stretch Stretch
     {
         get => _stretch;
@@ -126,7 +160,8 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     public bool IsMediaLoaded => _isMediaLoaded;
 
     /// <summary>已经提交到交换链的帧数(诊断用)。</summary>
-    public long RenderedFrames => _surface?.RenderCount ?? 0;
+    public long RenderedFrames => Interlocked.Read(ref _renderedFrames);
+
     #endregion
 
     #region 事件
@@ -136,17 +171,17 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
     /// <summary>播放失败,参数里带错误原因。</summary>
     public event EventHandler<VideoPlayerFailedEventArgs>? VideoFailed;
+
     /// <summary>视频真实宽高比确定后触发,参数是 宽÷高。</summary>
     public event EventHandler<double>? VideoAspectRatioChanged;
 
     /// <summary>视频真实宽高比(宽÷高);还没读到时为 <c>null</c>。</summary>
     public double? VideoAspectRatio => _videoAspect;
+
     /// <summary>播放器初始化完成并成功解出第一帧。</summary>
     public event EventHandler<VideoPlayerEventArgs>? VideoInitialized;
 
     #endregion
-
-    #region 加载与播放
 
     /// <summary>
     ///     初始化播放器并载入 <see cref="Src" />。
@@ -161,14 +196,14 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             return false;
         }
 
-        // 已经有一次加载在跑:Loaded 会自动触发一次,宿主往往又显式调一次,不要重复 loadfile
+        // 已经有一次加载在跑:Loaded 会自动触发一次,宿主往往又显式调一次,不要重复换源
         if (_isLoading) return false;
 
         _isLoading = true;
 
         try
         {
-            _lastMpvError = null;
+            _lastError = null;
             ErrorText.Visibility = Visibility.Collapsed;
             ShowBusy(true);
 
@@ -179,16 +214,19 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             _reportedInitialized = false;
             _videoAspect = null;
 
-            try
+            var source = await CreateSourceAsync(src);
+            if (source is null)
             {
-                player.Client.SetProperty("pause", !AutoPlay);
-            }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("VideoPlayer", $"设置播放状态失败:{ex.Message}");
+                ReportError("无法解析视频地址");
+                VideoFailed?.Invoke(this, new(Src, "无法解析视频地址"));
+                return false;
             }
 
-            await player.Client.ExecuteWithResultAsync(["loadfile", src, "replace"]);
+            player.Source = source;
+
+            if (AutoPlay) player.Play();
+            else player.Pause();
+
             return true;
         }
         catch (Exception ex)
@@ -208,24 +246,21 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     public void Play() => SetPaused(false);
 
     /// <summary>暂停。</summary>
-    public void Pause()
-    {
-        try
-        {
-            _player?.Pause();
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine("VideoPlayer", $"暂停失败:{ex.Message}");
-        }
-    }
+    public void Pause() => SetPaused(true);
 
     /// <summary>跳转到指定位置。</summary>
     public void Seek(TimeSpan position)
     {
         try
         {
-            _player?.Seek(position);
+            var session = _player?.PlaybackSession;
+            if (session is null || !session.CanSeek) return;
+
+            var duration = session.NaturalDuration;
+            if (duration > TimeSpan.Zero && position > duration) position = duration;
+            if (position < TimeSpan.Zero) position = TimeSpan.Zero;
+
+            session.Position = position;
         }
         catch (Exception ex)
         {
@@ -237,7 +272,10 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     {
         try
         {
-            _player?.Client.SetProperty("pause", paused);
+            if (_player is null) return;
+
+            if (paused) _player.Pause();
+            else _player.Play();
         }
         catch (Exception ex)
         {
@@ -255,26 +293,15 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             return;
         }
 
-        try
-        {
-            SetPaused(!player.IsPaused());
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine("VideoPlayer", $"切换播放状态失败:{ex.Message}");
-        }
+        var playing = player.PlaybackSession.PlaybackState == MediaPlaybackState.Playing;
+        SetPaused(playing);
     }
+
+    #region 初始化与渲染
 
     private async Task<bool> EnsureInitializedAsync()
     {
         if (_isInitialized) return true;
-
-        if (!MpvEnvironment.Initialize())
-        {
-            ShowBusy(false);
-            ReportError("缺少 libmpv-2.dll,无法播放视频");
-            return false;
-        }
 
         await WaitForLayoutAsync();
 
@@ -285,67 +312,52 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             return false;
         }
 
-        // 1) 渲染面:GL 上下文 + D3D11 交换链(面板由 XAML 提供)
+        // 面板默认是 Collapsed,先亮出来它才会有实际尺寸(否则交换链只能是 1x1)
         Surface.Visibility = Visibility.Visible;
-
-        if (_surface is null)
-        {
-            _surface = new MpvRenderSurface(Surface, new MpvContextSettings
-            {
-                MajorVersion = 4,
-                MinorVersion = 6,
-                GraphicsProfile = ContextProfile.Compatability,
-            });
-            _surface.Render += OnRender;
-        }
-
         Surface.PointerPressed -= OnRenderPointerPressed;
         Surface.PointerPressed += OnRenderPointerPressed;
-        _surface.Initialize();
 
-        // 2) mpv 核心:全部选项在 mpv_initialize 之前设定
-        var player = new MpvPlayerCore();
-        var client = player.Client;
-
-        client.SetOption("vo", "libmpv");
-        client.SetOption("gpu-api", "opengl");
-        client.SetOption("ao", "wasapi");
-        client.SetOption("idle", "yes");
-        client.SetOption("keep-open", "no");
-        client.SetOption("osc", "no");
-        client.SetOption("border", "no");
-        client.SetOption("input-default-bindings", "no");
-        client.SetOption("input-vo-keyboard", "no");
-        client.SetOption("terminal", "no");
-        client.SetOption("msg-level", "all=error");
-        client.SetOption("demuxer-max-bytes", "64MiB");
-        client.SetOption("demuxer-readahead-secs", "20");
-
-        if (!string.IsNullOrWhiteSpace(_httpHeaders)) client.SetOption("http-header-fields", _httpHeaders!);
-        if (!string.IsNullOrWhiteSpace(_referer)) client.SetOption("referrer", _referer!);
-        if (!string.IsNullOrWhiteSpace(_userAgent)) client.SetOption("user-agent", _userAgent!);
-
-        player.PlaybackStateChanged += OnMpvStateChanged;
-        player.PlaybackPositionChanged += OnMpvPositionChanged;
-        player.PlaybackStopped += OnMpvStopped;
-        player.LogMessageReceived += OnMpvLog;
-
+        for (var i = 0; i < 20 && Surface.ActualWidth <= 0; i++)
+        {
+            await Task.Delay(25);
+        }
         try
         {
-            await player.InitializeAsync(new InitializeArgument(null!, true, MpvRenderContext.GetProcAddress));
+            CreateDevice();
+            var panelWidth = Surface.ActualWidth > 0 ? Surface.ActualWidth : ActualWidth;
+            var panelHeight = Surface.ActualHeight > 0 ? Surface.ActualHeight : ActualHeight;
+            var width = Math.Max(1, (int)Math.Round(panelWidth * Surface.CompositionScaleX));
+            var height = Math.Max(1, (int)Math.Round(panelHeight * Surface.CompositionScaleY));
+            CreateSwapChain(width, height);
         }
         catch (Exception ex)
         {
             ShowBusy(false);
-            ReportError($"播放器初始化失败:{ex.Message}");
-            _ = player.DisposeAsync();
+            ReportError($"渲染初始化失败:{ex.Message}");
+            ReleaseRenderResources();
             return false;
         }
+
+        var player = new MediaPlayer
+        {
+            IsVideoFrameServerEnabled = true,
+            AutoPlay = false,
+            Volume = Math.Clamp(VolumeSlider.Value, 0, 100) / 100.0,
+        };
+
+        try { player.CommandManager.IsEnabled = false; } catch { }
+
+        player.MediaOpened += OnMediaOpened;
+        player.MediaEnded += OnMediaEnded;
+        player.MediaFailed += OnMediaFailed;
+        player.VideoFrameAvailable += OnVideoFrameAvailable;
+        player.PlaybackSession.PlaybackStateChanged += OnPlaybackStateChanged;
 
         _player = player;
         _isInitialized = true;
 
         ApplyVolume(VolumeSlider.Value);
+        ResizeSwapChain();
         return true;
     }
 
@@ -355,13 +367,13 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     /// </summary>
     private async Task WaitForLayoutAsync()
     {
-        if (ActualWidth > 0 && ActualHeight > 0) return;
+        if (Surface.ActualWidth > 0 && Surface.ActualHeight > 0) return;
 
         var completion = new TaskCompletionSource();
 
         void OnLayoutUpdated(object? sender, object e)
         {
-            if (ActualWidth <= 0 || ActualHeight <= 0) return;
+            if (Surface.ActualWidth <= 0 || Surface.ActualHeight <= 0) return;
 
             LayoutUpdated -= OnLayoutUpdated;
             completion.TrySetResult();
@@ -379,34 +391,429 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         }
     }
 
-    #endregion
-
-    #region mpv 事件
-
-    private void OnRender(TimeSpan elapsed)
+    private unsafe void CreateDevice()
     {
-        var player = _player;
-        if (player?.RenderContext is null) return;
+        if (_device != IntPtr.Zero) return;
+
+        var flags = CreateDeviceFlag.BgraSupport | CreateDeviceFlag.VideoSupport;
+        ID3D11Device* device;
+        ID3D11DeviceContext* context;
+        var hr = D3D11.GetApi(null).CreateDevice(
+            null, D3DDriverType.Hardware, 0, (uint)flags, null, 0, D3D11.SdkVersion,
+            &device, null, &context);
+
+        if (hr < 0) throw new InvalidOperationException($"D3D11 设备创建失败 0x{hr:X8}");
+
+        _device = (IntPtr)device;
+        _context = (IntPtr)context;
+    }
+
+    private unsafe void CreateSwapChain(int pixelWidth, int pixelHeight)
+    {
+        var device = (ID3D11Device*)_device;
+        if (device == null) throw new InvalidOperationException("D3D11 设备尚未创建");
+
+        Guid factoryId = typeof(IDXGIFactory2).GetTypeInfo().GUID;
+        IDXGIFactory2* factory;
+        var hr = DXGI.GetApi(null).CreateDXGIFactory2(0, &factoryId, (void**)&factory);
+        if (hr < 0) throw new InvalidOperationException($"DXGI 工厂创建失败 0x{hr:X8}");
+
+        IDXGISwapChain1* chain = null;
+        try
+        {
+            var description = new SwapChainDesc1
+            {
+                Width = (uint)pixelWidth,
+                Height = (uint)pixelHeight,
+                Format = Format.FormatB8G8R8A8Unorm,
+                Stereo = 0,
+                SampleDesc = new SampleDesc(1, 0),
+                BufferUsage = DXGI.UsageRenderTargetOutput,
+                BufferCount = 2,
+                Scaling = Scaling.Stretch,
+                SwapEffect = SwapEffect.FlipDiscard,
+                AlphaMode = AlphaMode.Ignore,
+                Flags = 0,
+            };
+
+            hr = factory->CreateSwapChainForComposition((IUnknown*)device, &description, null, &chain);
+            if (hr < 0) throw new InvalidOperationException($"交换链创建失败 0x{hr:X8}");
+
+            // SwapChainPanel 要按合成缩放把像素尺寸映射回 DIP,否则高 DPI 下画面/位置都不对
+            var scaleX = Math.Max(0.01, Surface.CompositionScaleX);
+            var scaleY = Math.Max(0.01, Surface.CompositionScaleY);
+            ((IDXGISwapChain2*)chain)->SetMatrixTransform(new Matrix3X2F
+            {
+                DXGI11 = 1.0f / (float)scaleX,
+                DXGI22 = 1.0f / (float)scaleY,
+            });
+        }
+        finally
+        {
+            factory->Release();
+        }
+
+        ID3D11Texture2D* backBuffer = null;
+        ID3D11RenderTargetView* renderTargetView = null;
+        WinRTSurface? frameSurface = null;
 
         try
         {
-            var surface = _surface;
-            if (surface is null) return;
+            Guid textureId = typeof(ID3D11Texture2D).GetTypeInfo().GUID;
+            hr = chain->GetBuffer(0, &textureId, (void**)&backBuffer);
+            if (hr < 0) throw new InvalidOperationException($"取后台缓冲失败 0x{hr:X8}");
 
-            var width = Math.Max(1, (int)Math.Round(Surface.ActualWidth * surface.ScaleX));
-            var height = Math.Max(1, (int)Math.Round(Surface.ActualHeight * surface.ScaleY));
+            hr = device->CreateRenderTargetView((ID3D11Resource*)backBuffer, null, &renderTargetView);
+            if (hr < 0) throw new InvalidOperationException($"创建渲染目标失败 0x{hr:X8}");
 
-            player.RenderGL(width, height, surface.GetBufferHandle());
+            frameSurface = CreateFrameSurface(backBuffer);
         }
-        catch (Exception ex)
+        catch
         {
-            Debug.WriteLine("VideoPlayer", $"渲染失败:{ex.Message}");
+            if (renderTargetView != null) renderTargetView->Release();
+            if (backBuffer != null) backBuffer->Release();
+            chain->Release();
+            throw;
+        }
+
+        // 先挂新链,再释放旧资源,避免面板指向已释放的交换链
+        var previousChain = _swapChain;
+        var previousBackBuffer = _backBuffer;
+        var previousRtv = _renderTargetView;
+        var previousSurface = _frameSurface;
+
+        _swapChain = (IntPtr)chain;
+        _backBuffer = (IntPtr)backBuffer;
+        _renderTargetView = (IntPtr)renderTargetView;
+        _frameSurface = frameSurface;
+        _pixelWidth = pixelWidth;
+        _pixelHeight = pixelHeight;
+
+        Surface.As<ISwapChainPanelNative>().SetSwapChain((IntPtr)chain);
+
+        if (previousSurface is not null) previousSurface.Dispose();
+        if (previousRtv != IntPtr.Zero) ((ID3D11RenderTargetView*)previousRtv)->Release();
+        if (previousBackBuffer != IntPtr.Zero) ((ID3D11Texture2D*)previousBackBuffer)->Release();
+        if (previousChain != IntPtr.Zero) ((IDXGISwapChain1*)previousChain)->Release();
+    }
+
+    private static unsafe WinRTSurface CreateFrameSurface(ID3D11Texture2D* texture)
+    {
+        Guid surfaceId = typeof(IDXGISurface).GetTypeInfo().GUID;
+        IDXGISurface* dxgiSurface;
+        var hr = texture->QueryInterface(&surfaceId, (void**)&dxgiSurface);
+        if (hr < 0) throw new InvalidOperationException($"取 DXGI 表面失败 0x{hr:X8}");
+
+        try
+        {
+            hr = CreateDirect3D11SurfaceFromDXGISurface((IntPtr)dxgiSurface, out var abi);
+            if (hr < 0 || abi == IntPtr.Zero) throw new InvalidOperationException($"包装 IDirect3DSurface 失败 0x{hr:X8}");
+
+            try
+            {
+                return WinRT.MarshalInspectable<WinRTSurface>.FromAbi(abi);
+            }
+            finally
+            {
+                Marshal.Release(abi);
+            }
+        }
+        finally
+        {
+            dxgiSurface->Release();
         }
     }
 
-    private void OnMpvStateChanged(object? sender, PlaybackStateChangedEventArgs e)
+    [DllImport("d3d11.dll")]
+    private static extern int CreateDirect3D11SurfaceFromDXGISurface(IntPtr dxgiSurface, out IntPtr d3dSurface);
+
+    /// <summary>每来一帧:清黑边 → 把画面拷进后台缓冲的对应矩形 → 提交。</summary>
+    /// <summary>
+    ///     VideoFrameAvailable 在 MF 的工作线程上触发,而 MediaPlayer 本身是 UI 线程创建的
+    ///     STA 对象:直接在那里调 CopyFrameToVideoSurface 会抛 RPC_E_WRONG_THREAD(0x8001010E)。
+    ///     所以只在这里置位,真正拷贝+提交放到 UI 线程做,来不及就丢帧。
+    /// </summary>
+    private void OnVideoFrameAvailable(MediaPlayer sender, object args)
     {
-        var state = e.NewState;
+        if (_framePending || _isDisposed) return;
+        _framePending = true;
+
+        if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                _framePending = false;
+                RenderFrame(sender);
+            }))
+        {
+            _framePending = false;
+        }
+    }
+
+    private void RenderFrame(MediaPlayer sender)
+    {
+        lock (_renderLock)
+        {
+            if (_isDisposed || _frameSurface is null || _swapChain == IntPtr.Zero) return;
+
+            try
+            {
+                unsafe
+                {
+                    var context = (ID3D11DeviceContext*)_context;
+                    var renderTarget = (ID3D11RenderTargetView*)_renderTargetView;
+                    var chain = (IDXGISwapChain1*)_swapChain;
+
+                    if (context != null && renderTarget != null)
+                    {
+                        var black = stackalloc float[4];
+                        context->ClearRenderTargetView(renderTarget, black);
+                    }
+
+                    sender.CopyFrameToVideoSurface(_frameSurface, GetVideoRect());
+                    chain->Present(1, 0);
+                }
+
+                Interlocked.Increment(ref _renderedFrames);
+            }
+            catch (Exception ex)
+            {
+                if (_renderedFrames < 3) Debug.WriteLine("VideoPlayer", $"渲染失败:{ex.Message}");
+            }
+        }
+    }
+
+    /// <summary>按视频宽高比和 <see cref="Stretch" /> 算出画面在交换链里占的矩形(像素)。</summary>
+    private Rect GetVideoRect()
+    {
+        var width = _pixelWidth;
+        var height = _pixelHeight;
+
+        var session = _player?.PlaybackSession;
+        var videoWidth = session?.NaturalVideoWidth ?? 0;
+        var videoHeight = session?.NaturalVideoHeight ?? 0;
+
+        if (videoWidth <= 0 || videoHeight <= 0 || width <= 0 || height <= 0)
+        {
+            return new Rect(0, 0, Math.Max(1, width), Math.Max(1, height));
+        }
+
+        var scaleX = (double)width / videoWidth;
+        var scaleY = (double)height / videoHeight;
+
+        var scale = _stretch switch
+        {
+            Stretch.Fill => double.NaN,
+            Stretch.UniformToFill => Math.Max(scaleX, scaleY),
+            _ => Math.Min(scaleX, scaleY),
+        };
+
+        if (double.IsNaN(scale))
+        {
+            return new Rect(0, 0, width, height);
+        }
+
+        var drawWidth = videoWidth * scale;
+        var drawHeight = videoHeight * scale;
+        return new Rect((width - drawWidth) / 2, (height - drawHeight) / 2, drawWidth, drawHeight);
+    }
+
+    private void OnSurfaceSizeChanged(object sender, SizeChangedEventArgs e) => ResizeSwapChain();
+
+    private void OnSurfaceCompositionScaleChanged(SwapChainPanel sender, object args) => ResizeSwapChain();
+
+    private void ResizeSwapChain()
+    {
+        if (_isDisposed || _swapChain == IntPtr.Zero || !_isInitialized) return;
+
+        var width = Math.Max(1, (int)Math.Round(Surface.ActualWidth * Surface.CompositionScaleX));
+        var height = Math.Max(1, (int)Math.Round(Surface.ActualHeight * Surface.CompositionScaleY));
+
+        if (width == _pixelWidth && height == _pixelHeight) return;
+
+        lock (_renderLock)
+        {
+            try
+            {
+                CreateSwapChain(width, height);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("VideoPlayer", $"调整交换链尺寸失败:{ex.Message}");
+            }
+        }
+    }
+
+    private void ReleaseRenderResources()
+    {
+        lock (_renderLock)
+        {
+            try
+            {
+                if (Surface is not null)
+                {
+                    Surface.As<ISwapChainPanelNative>().SetSwapChain(IntPtr.Zero);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("VideoPlayer", $"解绑交换链失败:{ex.Message}");
+            }
+
+            _frameSurface?.Dispose();
+            _frameSurface = null;
+
+            unsafe
+            {
+                if (_renderTargetView != IntPtr.Zero) ((ID3D11RenderTargetView*)_renderTargetView)->Release();
+                if (_backBuffer != IntPtr.Zero) ((ID3D11Texture2D*)_backBuffer)->Release();
+                if (_swapChain != IntPtr.Zero) ((IDXGISwapChain1*)_swapChain)->Release();
+                if (_context != IntPtr.Zero) ((ID3D11DeviceContext*)_context)->Release();
+                if (_device != IntPtr.Zero) ((ID3D11Device*)_device)->Release();
+            }
+
+            _renderTargetView = IntPtr.Zero;
+            _backBuffer = IntPtr.Zero;
+            _swapChain = IntPtr.Zero;
+            _context = IntPtr.Zero;
+            _device = IntPtr.Zero;
+            _pixelWidth = 0;
+            _pixelHeight = 0;
+        }
+    }
+
+    #endregion
+
+    #region 媒体源
+
+    private async Task<MediaSource?> CreateSourceAsync(string src)
+    {
+        var headers = BuildHeaders();
+
+        if (Uri.TryCreate(src, UriKind.Absolute, out var uri))
+        {
+            if (uri.Scheme is "http" or "https")
+            {
+                // 统一走本机回环代理:能带请求头、能走系统代理,也不受 MF 自己那套网络栈影响;
+                // 且不需要在托管代码里实现 WinRT 接口(AOT + full trim 下 CCW 会创建失败)。
+                _proxy?.Dispose();
+                _proxy = LocalMediaProxy.Start(uri, headers);
+                return MediaSource.CreateFromUri(_proxy.Url);
+            }
+
+            if (uri.Scheme is "ms-appx" or "ms-appdata") return MediaSource.CreateFromUri(uri);
+        }
+
+        var file = await StorageFile.GetFileFromPathAsync(src);
+        return MediaSource.CreateFromStorageFile(file);
+    }
+
+    private Dictionary<string, string> BuildHeaders()
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        // 只有显式给了 Referer / 额外头才走自建流:纯直链交给 MF 自己发请求(它会按 Range 取)
+        if (!string.IsNullOrWhiteSpace(_referer)) headers["Referer"] = _referer!;
+
+        if (!string.IsNullOrWhiteSpace(_httpHeaders))
+        {
+            foreach (var pair in _httpHeaders!.Split(',', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var index = pair.IndexOf(':');
+                if (index <= 0) continue;
+
+                var name = pair[..index].Trim();
+                var value = pair[(index + 1)..].Trim();
+                if (name.Length > 0) headers[name] = value;
+            }
+        }
+
+        if (headers.Count > 0)
+        {
+            headers["User-Agent"] = string.IsNullOrWhiteSpace(_userAgent) ? DefaultUserAgent : _userAgent!;
+        }
+
+        return headers;
+    }
+
+    private static string GuessContentType(Uri uri)
+    {
+        var extension = Path.GetExtension(uri.AbsolutePath).ToLowerInvariant();
+        return extension switch
+        {
+            ".mkv" => "video/x-matroska",
+            ".webm" => "video/webm",
+            ".mov" => "video/quicktime",
+            ".m4v" => "video/x-m4v",
+            ".mp3" => "audio/mpeg",
+            ".m4a" => "audio/mp4",
+            ".ts" => "video/mp2t",
+            _ => "video/mp4",
+        };
+    }
+
+    #endregion
+
+    #region 播放器事件
+
+    private void OnMediaOpened(MediaPlayer sender, object args)
+    {
+        var session = sender.PlaybackSession;
+        var width = session.NaturalVideoWidth;
+        var height = session.NaturalVideoHeight;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isDisposed) return;
+
+            _isMediaLoaded = true;
+            ShowBusy(false);
+            ShowSurface();
+            SetPlayPauseGlyph(true);
+            UpdateVideoAspect(width, height);
+            StartPositionTimer();
+
+            if (!_reportedInitialized)
+            {
+                _reportedInitialized = true;
+                VideoInitialized?.Invoke(this, new(Src));
+                VideoLoaded?.Invoke(this, new(Src));
+            }
+        });
+    }
+
+    private void OnMediaEnded(MediaPlayer sender, object args)
+    {
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isDisposed) return;
+
+            _isMediaLoaded = false;
+            SetPlayPauseGlyph(false);
+            StopPositionTimer();
+        });
+    }
+
+    private void OnMediaFailed(MediaPlayer sender, MediaPlayerFailedEventArgs args)
+    {
+        _lastError = string.IsNullOrWhiteSpace(args.ErrorMessage)
+            ? args.Error.ToString()
+            : $"{args.Error}: {args.ErrorMessage}";
+
+        var message = _lastError;
+
+        DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_isDisposed) return;
+
+            _isMediaLoaded = false;
+            StopPositionTimer();
+            ReportError("视频播放失败");
+            VideoFailed?.Invoke(this, new(Src, message));
+        });
+    }
+
+    private void OnPlaybackStateChanged(MediaPlaybackSession sender, object args)
+    {
+        var state = sender.PlaybackState;
 
         DispatcherQueue.TryEnqueue(() =>
         {
@@ -414,116 +821,38 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
             switch (state)
             {
-                case PlaybackState.Opening:
-                case PlaybackState.Decoding:
-                case PlaybackState.Buffering:
+                case MediaPlaybackState.Opening:
+                case MediaPlaybackState.Buffering:
                     ShowBusy(true);
                     break;
 
-                case PlaybackState.Playing:
-                    _isMediaLoaded = true;
+                case MediaPlaybackState.Playing:
                     ShowBusy(false);
                     ShowSurface();
                     SetPlayPauseGlyph(true);
-                    UpdateVideoAspect();
-                    if (!_reportedInitialized)
-                    {
-                        _reportedInitialized = true;
-                        VideoInitialized?.Invoke(this, new(Src));
-                        VideoLoaded?.Invoke(this, new(Src));
-                    }
-
+                    StartPositionTimer();
                     break;
 
-                case PlaybackState.Paused:
-                    _isMediaLoaded = true;
+                case MediaPlaybackState.Paused:
                     ShowBusy(false);
-                    ShowSurface();
                     SetPlayPauseGlyph(false);
+                    UpdatePositionUi();
                     break;
 
-                case PlaybackState.None:
-                    SetPlayPauseGlyph(false);
-                    break;
-
-                case PlaybackState.Failed:
-                    _isMediaLoaded = false;
+                case MediaPlaybackState.None:
                     ShowBusy(false);
-                    ReportError("视频播放失败");
+                    SetPlayPauseGlyph(false);
+                    StopPositionTimer();
                     break;
             }
-        });
-    }
-
-    private void OnMpvPositionChanged(object? sender, PlaybackPositionChangedEventArgs e)
-    {
-        // 位置/时长单位是秒(mpv 侧按整秒读取)
-        var duration = e.Duration;
-        var position = e.Position;
-
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (_isDisposed || _isUpdatingFromPlayer) return;
-
-            _isUpdatingFromPlayer = true;
-            try
-            {
-                SeekSlider.Maximum = Math.Max(1, duration);
-                SeekSlider.Value = Math.Clamp(position, 0, SeekSlider.Maximum);
-            }
-            finally
-            {
-                _isUpdatingFromPlayer = false;
-            }
-
-            PositionText.Text = FormatTime(position);
-            DurationText.Text = FormatTime(duration);
-        });
-    }
-
-    private void OnMpvStopped(object? sender, PlaybackStoppedEventArgs e)
-    {
-        var interrupted = e.IsInterrupted;
-        var message = e.ErrorMessage;
-
-        DispatcherQueue.TryEnqueue(() =>
-        {
-            if (_isDisposed) return;
-
-            _isMediaLoaded = false;
-            ShowBusy(false);
-            SetPlayPauseGlyph(false);
-
-            if (!interrupted) return;
-
-            var text = string.IsNullOrWhiteSpace(message) ? "播放中断" : message!;
-            ReportError(text);
-            VideoFailed?.Invoke(this, new(Src, text));
         });
     }
 
     /// <summary>
-    ///     从 mpv 读视频真实尺寸,算出宽高比通知宿主。
+    ///     从播放会话读视频真实尺寸,算出宽高比通知宿主。
     /// </summary>
-    /// <remarks>
-    ///     用 dwidth/dheight(已按像素宽高比校正过的显示尺寸),拿不到时退回 width/height。
-    /// </remarks>
-    private void UpdateVideoAspect()
+    private void UpdateVideoAspect(uint width, uint height)
     {
-        var player = _player;
-        if (player is null) return;
-
-        // 走字符串读法:属性尚未就绪时 mpv 返回 PropertyUnavailable,
-        // 用 GetPropertyToLong 会直接抛异常(每加载一条视频都刷一串首帧异常),这里安静地降级。
-        var width = ReadIntProperty(player, "dwidth");
-        var height = ReadIntProperty(player, "dheight");
-
-        if (width <= 0 || height <= 0)
-        {
-            width = ReadIntProperty(player, "width");
-            height = ReadIntProperty(player, "height");
-        }
-
         if (width <= 0 || height <= 0) return;
 
         var aspect = (double)width / height;
@@ -533,28 +862,50 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         VideoAspectRatioChanged?.Invoke(this, aspect);
     }
 
-    private static int ReadIntProperty(MpvPlayerCore player, string name)
+    #endregion
+
+    #region 进度
+
+    private void StartPositionTimer()
     {
-        try
-        {
-            var text = player.Client.GetPropertyToString(name);
-            return int.TryParse(text, out var value) ? value : 0;
-        }
-        catch (Exception ex)
-        {
-            Debug.WriteLine("VideoPlayer", $"读取属性 {name} 失败:{ex.Message}");
-            return 0;
-        }
+        if (_positionTimer is not null) return;
+        if (DispatcherQueue is null) return;
+
+        // 必须存字段:否则被 GC,定时器停掉
+        _positionTimer = DispatcherQueue.CreateTimer();
+        _positionTimer.Interval = TimeSpan.FromMilliseconds(250);
+        _positionTimer.IsRepeating = true;
+        _positionTimer.Tick += (_, _) => UpdatePositionUi();
+        _positionTimer.Start();
     }
 
-    private void OnMpvLog(object? sender, LogMessageReceivedEventArgs e)
+    private void StopPositionTimer()
     {
-        if (e.Level is Mpv.Core.Enums.Client.MpvLogLevel.Error or Mpv.Core.Enums.Client.MpvLogLevel.Fatal)
+        _positionTimer?.Stop();
+        _positionTimer = null;
+    }
+
+    private void UpdatePositionUi()
+    {
+        var session = _player?.PlaybackSession;
+        if (session is null || _isDisposed) return;
+
+        var duration = session.NaturalDuration.TotalSeconds;
+        var position = session.Position.TotalSeconds;
+
+        _isUpdatingFromPlayer = true;
+        try
         {
-            _lastMpvError = $"{e.Prefix}: {e.Message}";
+            SeekSlider.Maximum = Math.Max(1, duration);
+            SeekSlider.Value = Math.Clamp(position, 0, SeekSlider.Maximum);
+        }
+        finally
+        {
+            _isUpdatingFromPlayer = false;
         }
 
-        Debug.WriteLine("VideoPlayer", $"[{e.Level}] {e.Prefix}: {e.Message}");
+        PositionText.Text = FormatTime(position);
+        DurationText.Text = FormatTime(duration);
     }
 
     #endregion
@@ -580,7 +931,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         Surface.Visibility = Visibility.Collapsed;
         ShowBusy(false);
 
-        ErrorText.Text = string.IsNullOrEmpty(_lastMpvError) ? message : $"{message}\n{_lastMpvError}";
+        ErrorText.Text = string.IsNullOrEmpty(_lastError) ? message : $"{message}\n{_lastError}";
         ErrorText.Visibility = Visibility.Visible;
     }
 
@@ -590,7 +941,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         PlayPauseIcon.Glyph = playing ? "\uE769" : "\uE768";
     }
 
-    /// <summary>浮层里的喇叭固定是“静音”;外面那颗跟着当前音量变(与 MusicPlayer 一致)。</summary>
+    /// <summary>浮层里的喇叭固定是"静音";外面那颗跟着当前音量变(与 MusicPlayer 一致)。</summary>
     private void UpdateVolumeVisual(double percent)
     {
         var muted = percent <= 0;
@@ -640,7 +991,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
         try
         {
-            _player?.Client.SetProperty("volume", (long)Math.Round(percent));
+            if (_player is not null) _player.Volume = percent / 100.0;
         }
         catch (Exception ex)
         {
@@ -675,7 +1026,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
     private void OnUnloaded(object sender, RoutedEventArgs e)
     {
-        // 卸载回调处在 XAML 拆树过程中:这里只做"停",不动 GL/D3D/mpv 的原生资源。
+        // 卸载回调处在 XAML 拆树过程中:这里只做"停",不动 D3D/交换链。
         // 在拆树过程中释放原生资源,失败会变成 RoFailFastWithErrorContext(0xc000027b),崩整个进程。
         Pause();
 
@@ -690,7 +1041,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     }
 
     /// <summary>
-    ///     释放渲染面与 mpv 实例,可重复调用。宿主在移除控件后、消息循环的下一拍调用最安全。
+    ///     释放渲染资源与播放器,可重复调用。宿主在移除控件后、消息循环的下一拍调用最安全。
     /// </summary>
     public void Dispose()
     {
@@ -701,18 +1052,34 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         _isInitialized = false;
         _reportedInitialized = false;
 
+        StopPositionTimer();
+
+        var player = _player;
+        _player = null;
+
+        if (player is not null)
+        {
+            try
+            {
+                player.MediaOpened -= OnMediaOpened;
+                player.MediaEnded -= OnMediaEnded;
+                player.MediaFailed -= OnMediaFailed;
+                player.VideoFrameAvailable -= OnVideoFrameAvailable;
+                player.PlaybackSession.PlaybackStateChanged -= OnPlaybackStateChanged;
+
+                player.Pause();
+                player.Source = null;
+                player.Dispose();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("VideoPlayer", $"释放播放器失败:{ex.Message}");
+            }
+        }
+
         try
         {
             Surface.PointerPressed -= OnRenderPointerPressed;
-
-            var surface = _surface;
-            _surface = null;
-            if (surface is not null)
-            {
-                surface.Render -= OnRender;
-                surface.Dispose();
-            }
-
             Surface.Visibility = Visibility.Collapsed;
         }
         catch (Exception ex)
@@ -720,17 +1087,10 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             Debug.WriteLine("VideoPlayer", $"释放渲染面失败:{ex.Message}");
         }
 
-        var player = _player;
-        _player = null;
-        if (player is null) return;
+        ReleaseRenderResources();
 
-        player.PlaybackStateChanged -= OnMpvStateChanged;
-        player.PlaybackPositionChanged -= OnMpvPositionChanged;
-        player.PlaybackStopped -= OnMpvStopped;
-        player.LogMessageReceived -= OnMpvLog;
-
-        // 内部在 Task.Run 里 terminate_destroy,不阻塞 UI
-        _ = player.DisposeAsync();
+        _proxy?.Dispose();
+        _proxy = null;
     }
 
     private static void OnSrcChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
@@ -743,21 +1103,23 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         _isMediaLoaded = false;
         _reportedInitialized = false;
         _videoAspect = null;
-        var player = _player;
-        if (player is not null)
+
+        try
         {
-            try
+            if (_player is not null)
             {
-                await player.Client.ExecuteAsync("stop");
+                await Task.Yield();
+                _player.Source = null;
             }
-            catch (Exception ex)
-            {
-                Debug.WriteLine("VideoPlayer", $"停止旧媒体失败:{ex.Message}");
-            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine("VideoPlayer", $"停止旧媒体失败:{ex.Message}");
         }
 
         if (_isDisposed) return;
 
+        StopPositionTimer();
         ShowBusy(false);
         SetPlayPauseGlyph(false);
 
