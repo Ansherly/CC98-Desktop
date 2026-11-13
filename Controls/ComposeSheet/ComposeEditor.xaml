@@ -9,6 +9,7 @@
              xmlns:md="using:CC98.Controls.MarkdownTextBlock"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:obj="using:CC98.Objects"
+             xmlns:cc="using:CC98.Controls"
              xmlns:ubb="using:CC98.Controls.UbbTextBlock"
              mc:Ignorable="d">
 
@@ -113,9 +114,8 @@
                     BorderBrush="{ThemeResource AcrylicCardBrush}"
                     BorderThickness="1"
                     CornerRadius="4">
-                <TextBox x:Name="TitleBox"
+                <cc:FancyTextBox x:Name="TitleBox"
                          PlaceholderText="给帖子起个标题"
-                         Style="{StaticResource TextBoxBlankStyle}"
                          TextWrapping="NoWrap" />
             </Border>
         </Grid>
@@ -296,8 +296,8 @@
                                              IsAlphaEnabled="False"
                                              IsAlphaSliderVisible="False"
                                              IsColorChannelTextInputVisible="True"
-                                             IsColorSliderVisible="False"
-                                             IsColorSpectrumVisible="False" />
+                                             IsColorSliderVisible="True"
+                                             IsColorSpectrumVisible="True" />
                                 <Button HorizontalAlignment="Right"
                                         Click="InsertColor_Click"
                                         Content="插入"

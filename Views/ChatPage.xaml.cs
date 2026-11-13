@@ -118,7 +118,7 @@ public sealed partial class ChatPage : Page
             var user = result.Data;
             if (user.Id == AppSettings.Current.UserId)
             {
-                Tip.Show(InfoType.Information, "不能和自己聊天");
+                Tip.Show(InfoType.Information, "不能和自己聊天哦~");
                 return;
             }
             var info = new ChatInfo
@@ -498,6 +498,19 @@ public sealed partial class ChatPage : Page
                 // UBB 文件/音视频:显式下载
                 await LinkNavigationService.DownloadFileAsync(e.Source, context);
                 break;
+        }
+    }
+
+    private void UserButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(sender is HyperlinkButton userButton&&userButton.Tag is int userId)
+        {
+            var param = new ProfileNavigationInfo
+            {
+                IsMe = false,//聊天列表不会有自己
+                UserId = userId
+            };
+            Frame.Navigate(typeof(ProfilePage), param);
         }
     }
 }

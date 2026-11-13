@@ -47,7 +47,7 @@
                 </Grid>
             </StackPanel>
         </ContentDialog>
-        <StackPanel Spacing="10"
+        <StackPanel Spacing="8"
                     x:Name="PasswordLoginPanel">
             <TextBlock Text="登录CC98"
                        FontWeight="Bold"

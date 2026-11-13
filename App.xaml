@@ -99,7 +99,8 @@
                 <Setter Property="FontFamily"
                         Value="{StaticResource HarmonySans}" />
             </Style>
-            <Style TargetType="TextBox">
+            <!--某些控件单独设置字体需要BasedOn,否则丢失默认样式-->
+            <Style TargetType="TextBox" BasedOn="{StaticResource DefaultTextBoxStyle}">
                 <Setter Property="FontFamily"
                         Value="{StaticResource HarmonySans}" />
             </Style>
@@ -115,33 +116,7 @@
                 <Setter Property="FontFamily"
                         Value="{StaticResource HarmonySans}" />
             </Style>
-            <Style x:Key="TextBoxBlankStyle"
-                   TargetType="TextBox">
-                <Setter Property="Background"
-                        Value="Transparent" />
-                <Setter Property="BorderThickness"
-                        Value="0" />
-                <Setter Property="CornerRadius"
-                        Value="0" />
-            </Style>
-            <Style x:Key="TextBoxBorderStyle"
-                   TargetType="Border">
-                <Setter Property="BorderBrush"
-                        Value="{ThemeResource AcrylicCardBrush}" />
-                <Setter Property="BorderThickness"
-                        Value="1" />
-                <Setter Property="CornerRadius"
-                        Value="4" />
-            </Style>
-            <Style x:Key="DevTextBoxBlankStyle"
-                   TargetType="dev:TextBox">
-                <Setter Property="Background"
-                        Value="Transparent" />
-                <Setter Property="BorderThickness"
-                        Value="0" />
-                <Setter Property="CornerRadius"
-                        Value="0" />
-            </Style>
+           
 
             <primitives:SmartImageLoader x:Key="PortraitLoader"
                                          LowRes="True" />

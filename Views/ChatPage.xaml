@@ -79,7 +79,7 @@
             </Flyout>
         </Grid.Resources>
         <Grid.RowDefinitions>
-            <RowDefinition Height="60" />
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
@@ -93,6 +93,7 @@
                      x:Name="SearchUser"
                      PlaceholderText="搜索用户名"
                      HorizontalAlignment="Stretch"
+                     VerticalAlignment="Center"
                      Margin="12"
                      KeyDown="SearchUser_KeyDown">
             <Button x:Name="Confirm"
@@ -178,11 +179,16 @@
         <Grid Grid.Row="0"
               Grid.Column="2"
               Margin="15,0,15,0">
-            <TextBlock FontFamily="{StaticResource HarmonySansBold}"
-                       FontSize="18"
-                       VerticalAlignment="Center"
-                       Foreground="LightSeaGreen"
-                       Text="{x:Bind ((obj:ChatInfo)UserList.SelectedItem).Name, Mode=OneWay}" />
+            <HyperlinkButton Tag="{x:Bind ((obj:ChatInfo)UserList.SelectedItem).UserId,Mode=OneWay}"
+                             x:Name="UserButton"
+                             Click="UserButton_Click">
+                <TextBlock FontFamily="{StaticResource HarmonySansBold}"
+                           FontSize="18"
+                           VerticalAlignment="Center"
+                           Foreground="LightSeaGreen"
+                           Text="{x:Bind ((obj:ChatInfo)UserList.SelectedItem).Name, Mode=OneWay}" />
+            </HyperlinkButton>
+
             <StackPanel Orientation="Horizontal"
                         HorizontalAlignment="Right"
                         Spacing="8">

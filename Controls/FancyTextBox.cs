@@ -9,7 +9,7 @@ namespace CC98.Controls;
 /// <remarks>
 ///     用于替代「<see cref="Border" />（TextBoxBorderStyle）套无边线 <see cref="TextBox" />（TextBoxBlankStyle）」
 ///     的组合写法：去掉 TextBox 默认的底部边线等样式，边框整体由外层 Border 绘制，
-///     <see cref="Control.BorderBrush" /> 等外观属性可直接在控件上自定义。
+///     <see cref="Control.BorderBrush" /> 等外观属性可直接在控件上自定义。S
 ///     注意：本工程启用 NativeAOT(PublishAot)，经典 Binding 依赖反射解析属性路径，不可用；
 ///     Text 的双向同步由 DP 变更回调 + TextChanged 事件手工完成。
 ///     必须是 partial:XAML 编译器要生成配套的部分类,缺了会被裁剪,运行时 E_NOINTERFACE 崩溃。
@@ -48,6 +48,15 @@ public partial class FancyTextBox : Control
     {
         get => (string)GetValue(PlaceholderTextProperty);
         set => SetValue(PlaceholderTextProperty, value);
+    }
+
+    public static readonly DependencyProperty TextWrappingProperty = DependencyProperty.Register(
+        nameof(TextWrapping), typeof(TextWrapping), typeof(FancyTextBox), new PropertyMetadata(TextWrapping.NoWrap));
+
+    public TextWrapping TextWrapping
+    {
+        get => (TextWrapping)GetValue(TextWrappingProperty);
+        set => SetValue(TextWrappingProperty, value);
     }
 
     private static void OnTextPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)

@@ -173,6 +173,19 @@
                 </ItemsRepeater.Layout>
             </ItemsRepeater>
         </ScrollViewer>
+        <!--  加载指示器:首次进入或刷新时,瀑布流内容渲染完成前展示,避免空白期  -->
+        <Grid x:Name="LoadingOverlay"
+              Grid.Row="0"
+              Grid.RowSpan="2"
+              Background="{ThemeResource CardGradient1Brush}"
+              Visibility="Visible">
+            <ProgressRing x:Name="LoadingRing"
+                          Width="40"
+                          Height="40"
+                          IsActive="True"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Center" />
+        </Grid>
         <CommandBar x:Name="IndexAction"
                     Grid.Row="2"
                     dev:MaterialAttach.UseAcrylicBackground="True">

@@ -202,16 +202,7 @@
                     <ToggleSwitch x:Name="IsImageVisible"
                                   IsOn="{x:Bind sv:AppSettings.Current.HideImage, Mode=TwoWay}" />
                 </tool:SettingsCard>
-                <tool:SettingsCard Header="图片最大宽度"
-                                   Description="设置图片显示的最大宽度">
-                    <tool:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE9A6;" />
-                    </tool:SettingsCard.HeaderIcon>
-                    <Slider x:Name="ImageMaxWidthSlider"
-                            Minimum="400"
-                            Maximum="1000"
-                            Value="{x:Bind sv:AppSettings.Current.ImageMaxWidth, Mode=TwoWay}" />
-                </tool:SettingsCard>
+                
                 <tool:SettingsCard Header="显示版面通告">
                     <tool:SettingsCard.HeaderIcon>
                         <ic:SymbolIcon Symbol="News" />
@@ -241,9 +232,21 @@
                                               MaxHeight="50"
                                               MaxWidth="400" />
                         </tool:SettingsCard>
+                        
                     </tool:SettingsExpander.Items>
 
                 </tool:SettingsExpander>
+
+                <tool:SettingsCard Header="图片最大宽度"
+                                   Description="设置图片显示的最大宽度">
+                    <tool:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE9A6;" />
+                    </tool:SettingsCard.HeaderIcon>
+                    <Slider x:Name="ImageMaxWidthSlider"
+                            Minimum="400"
+                            Maximum="1000"
+                            Value="{x:Bind sv:AppSettings.Current.ImageMaxWidth, Mode=TwoWay}" />
+                </tool:SettingsCard>
                 <TextBlock Text="关于"
                            FontSize="16"
                            Margin="5,2,0,5" />
@@ -253,7 +256,7 @@
                         <ic:SymbolIcon Symbol="Info" />
                     </tool:SettingsExpander.HeaderIcon>
                     <TextBlock Foreground="{ThemeResource TextFillColorSecondaryBrush}"
-                               Text="Version 1.2.6" />
+                               Text="Version 1.2.7" />
                     <tool:SettingsExpander.ItemsHeader>
                         <TextBlock Text="开放源代码库"
                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}"
@@ -273,6 +276,7 @@
                                 <HyperlinkButton Content="Windows App SDK" />
                                 <HyperlinkButton Content="HtmlAgilityPack" />
                                 <HyperlinkButton Content="IdentityModel" />
+                                <HyperlinkButton Content="Richasy.BiliKernel" />
                             </tool:WrapPanel>
                         </tool:SettingsCard>
 

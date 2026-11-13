@@ -44,7 +44,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36";
 
     /// <summary>渲染资源的锁:帧回调在 MF 线程,换尺寸在 UI 线程。</summary>
-    private readonly object _renderLock = new();
+    private readonly Lock _renderLock = new();
 
     /// <summary>已经有一帧排队到 UI 线程了:帧率高于渲染时直接丢,避免队列堆积。</summary>
     private bool _framePending;
@@ -181,7 +181,25 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     /// <summary>播放器初始化完成并成功解出第一帧。</summary>
     public event EventHandler<VideoPlayerEventArgs>? VideoInitialized;
 
+    /// <summary>
+    ///     调试信息:载入/渲染每一步的进展与失败原因,宿主可以收集起来展示或复制。
+    /// </summary>
+    /// <remarks>
+    ///     和 <see cref="MediaDebugLog" /> 的区别:Debug 输出在 Release 里会被裁掉,
+    ///     这个事件在 Release 里照样触发,所以打包后的应用也能拿到。
+    /// </remarks>
+    public event Action<string>? DebugMessage;
+
     #endregion
+
+    /// <summary>
+    ///     打一条调试信息:同时进 Debug 输出和 <see cref="DebugMessage" /> 订阅方。
+    /// </summary>
+    private void Trace(string message)
+    {
+        MediaDebugLog.Write("VideoPlayer", message);
+        DebugMessage?.Invoke(message);
+    }
 
     /// <summary>
     ///     初始化播放器并载入 <see cref="Src" />。
@@ -192,12 +210,21 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         var src = Src;
         if (string.IsNullOrWhiteSpace(src))
         {
+            Trace("LoadVideoAsync:地址为空,返回 false");
             ReportError("视频地址为空");
             return false;
         }
 
+        Trace($"LoadVideoAsync 进入:src={MediaDebugLog.Url(src)} 已初始化={_isInitialized} " +
+            $"加载中={_isLoading} 尺寸={ActualWidth:F0}x{ActualHeight:F0} " +
+            $"面板={Surface.ActualWidth:F0}x{Surface.ActualHeight:F0} 已加载={_isMediaLoaded}");
+
         // 已经有一次加载在跑:Loaded 会自动触发一次,宿主往往又显式调一次,不要重复换源
-        if (_isLoading) return false;
+        if (_isLoading)
+        {
+            Trace("已在加载中 → 直接返回 false(调用方会把它当失败)");
+            return false;
+        }
 
         _isLoading = true;
 
@@ -207,7 +234,11 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             ErrorText.Visibility = Visibility.Collapsed;
             ShowBusy(true);
 
-            if (!await EnsureInitializedAsync()) return false;
+            if (!await EnsureInitializedAsync())
+            {
+                Trace("渲染初始化失败 → 返回 false");
+                return false;
+            }
 
             var player = _player!;
             _isMediaLoaded = false;
@@ -217,6 +248,7 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             var source = await CreateSourceAsync(src);
             if (source is null)
             {
+                Trace("CreateSourceAsync 返回 null → 返回 false");
                 ReportError("无法解析视频地址");
                 VideoFailed?.Invoke(this, new(Src, "无法解析视频地址"));
                 return false;
@@ -227,10 +259,12 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             if (AutoPlay) player.Play();
             else player.Pause();
 
+            Trace($"已接管媒体:AutoPlay={AutoPlay} 尺寸={ActualWidth:F0}x{ActualHeight:F0}");
             return true;
         }
         catch (Exception ex)
         {
+            Trace($"LoadVideoAsync 抛异常:{ex.GetType().Name} {ex.Message}");
             ShowBusy(false);
             ReportError($"视频加载失败:{ex.Message}");
             VideoFailed?.Invoke(this, new(Src, ex.Message));
@@ -303,7 +337,14 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
     {
         if (_isInitialized) return true;
 
+        // 面板默认是 Collapsed,而 Collapsed 的子树量不到尺寸:必须先亮出来再等布局,
+        // 否则 WaitForLayoutAsync 一定是干等满 1500ms 超时。
+        Surface.Visibility = Visibility.Visible;
+        Surface.PointerPressed -= OnRenderPointerPressed;
+        Surface.PointerPressed += OnRenderPointerPressed;
+
         await WaitForLayoutAsync();
+        Trace($"布局等待结束:播放器={ActualWidth:F0}x{ActualHeight:F0} 面板={Surface.ActualWidth:F0}x{Surface.ActualHeight:F0}");
 
         if (ActualWidth <= 0 || ActualHeight <= 0)
         {
@@ -312,11 +353,6 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             return false;
         }
 
-        // 面板默认是 Collapsed,先亮出来它才会有实际尺寸(否则交换链只能是 1x1)
-        Surface.Visibility = Visibility.Visible;
-        Surface.PointerPressed -= OnRenderPointerPressed;
-        Surface.PointerPressed += OnRenderPointerPressed;
-
         for (var i = 0; i < 20 && Surface.ActualWidth <= 0; i++)
         {
             await Task.Delay(25);
@@ -324,14 +360,21 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         try
         {
             CreateDevice();
+            Trace("D3D11 设备已创建");
             var panelWidth = Surface.ActualWidth > 0 ? Surface.ActualWidth : ActualWidth;
             var panelHeight = Surface.ActualHeight > 0 ? Surface.ActualHeight : ActualHeight;
-            var width = Math.Max(1, (int)Math.Round(panelWidth * Surface.CompositionScaleX));
-            var height = Math.Max(1, (int)Math.Round(panelHeight * Surface.CompositionScaleY));
+            var scaleX = Surface.CompositionScaleX;
+            var scaleY = Surface.CompositionScaleY;
+            var width = Math.Max(1, (int)Math.Round(panelWidth * scaleX));
+            var height = Math.Max(1, (int)Math.Round(panelHeight * scaleY));
+            Trace($"建交换链:{width}x{height} 像素(面板 {panelWidth:F0}x{panelHeight:F0} DIP,缩放 {scaleX:F2}x{scaleY:F2})");
             CreateSwapChain(width, height);
+            Trace("交换链已挂到面板");
         }
         catch (Exception ex)
         {
+            Trace($"渲染初始化失败:{ex.GetType().Name} 0x{ex.HResult:X8} {ex.Message}");
+            Trace(ex.StackTrace ?? string.Empty);
             ShowBusy(false);
             ReportError($"渲染初始化失败:{ex.Message}");
             ReleaseRenderResources();
@@ -489,9 +532,10 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         _pixelWidth = pixelWidth;
         _pixelHeight = pixelHeight;
 
-        Surface.As<ISwapChainPanelNative>().SetSwapChain((IntPtr)chain);
+        var attachHr = SwapChainPanelNative.SetSwapChain(Surface, (IntPtr)chain);
+        if (attachHr < 0) throw new InvalidOperationException($"交换链挂到面板失败 0x{attachHr:X8}");
 
-        if (previousSurface is not null) previousSurface.Dispose();
+        previousSurface?.Dispose();
         if (previousRtv != IntPtr.Zero) ((ID3D11RenderTargetView*)previousRtv)->Release();
         if (previousBackBuffer != IntPtr.Zero) ((ID3D11Texture2D*)previousBackBuffer)->Release();
         if (previousChain != IntPtr.Zero) ((IDXGISwapChain1*)previousChain)->Release();
@@ -524,8 +568,8 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
         }
     }
 
-    [DllImport("d3d11.dll")]
-    private static extern int CreateDirect3D11SurfaceFromDXGISurface(IntPtr dxgiSurface, out IntPtr d3dSurface);
+    [LibraryImport("d3d11.dll")]
+    private static partial int CreateDirect3D11SurfaceFromDXGISurface(IntPtr dxgiSurface, out IntPtr d3dSurface);
 
     /// <summary>每来一帧:清黑边 → 把画面拷进后台缓冲的对应矩形 → 提交。</summary>
     /// <summary>
@@ -650,7 +694,8 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
             {
                 if (Surface is not null)
                 {
-                    Surface.As<ISwapChainPanelNative>().SetSwapChain(IntPtr.Zero);
+                    var detachHr = SwapChainPanelNative.SetSwapChain(Surface, IntPtr.Zero);
+                    if (detachHr < 0) Debug.WriteLine("VideoPlayer", $"解绑交换链返回 0x{detachHr:X8}");
                 }
             }
             catch (Exception ex)
@@ -1001,6 +1046,9 @@ public sealed partial class VideoPlayer : UserControl, IDisposable
 
     private void OnRenderPointerPressed(object sender, PointerRoutedEventArgs e)
     {
+        // 只认左键:右键是宿主的"复制调试信息",不能顺带把播放停掉
+        if (!e.GetCurrentPoint(Surface).Properties.IsLeftButtonPressed) return;
+
         // 还没接管媒体:点一下就开始加载
         if (!_isMediaLoaded)
         {

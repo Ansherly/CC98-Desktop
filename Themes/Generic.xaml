@@ -82,6 +82,7 @@
                             Padding="{TemplateBinding Padding}">
                         <TextBox x:Name="PART_TextBox"
                                  PlaceholderText="{TemplateBinding PlaceholderText}"
+                                 TextWrapping="{TemplateBinding TextWrapping}"
                                  Background="Transparent"
                                  BorderThickness="0"
                                  CornerRadius="0" />

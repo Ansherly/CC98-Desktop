@@ -13,10 +13,10 @@
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <!--
-      视频播放器把自建的 DXGI 交换链挂到 SwapChainPanel 上,用到旧式 ComImport 接口
-      (ISwapChainPanelNative);PublishAot/Trim 会把内置 COM 关掉,运行时直接
-      “Built-in COM has been disabled”。WinUI 控件的子类也会因此撑不住:Content
-      赋值走 AOT 优化路径同样依赖内置 COM。
+      交换链挂到 SwapChainPanel 已经改成裸指针 + vtable 调用(见 Controls\VideoPlayer\Interop.cs),
+      不再依赖内置 COM;但 WinUI 控件子类仍然要它:Content 赋值走 AOT 优化路径会用内置 COM。
+      另外手写 [ComImport] 接口的 As<T>() 在 AOT 下会抛
+      “COM Interop requires ComWrapper instance registered for marshalling”,别再往那条路上走。
     -->
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <EnableMsixTooling>true</EnableMsixTooling>

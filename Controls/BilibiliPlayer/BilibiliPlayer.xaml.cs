@@ -1,14 +1,17 @@
 using System;
 using System.Diagnostics;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using CC98.Kernel.Bilibili;
 using System.Runtime.InteropServices.WindowsRuntime;
 using CC98.Services.Helpers;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Graphics.Imaging;
 using Windows.Storage.Streams;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using CC98.Controls.Primitives;
 
@@ -64,6 +67,15 @@ public sealed partial class BilibiliPlayer : UserControl
     // 代次:控件被回收 / 参数变更后,在途请求的结果不得再回填到 UI
     private int _generation;
 
+    /// <summary>上限:一张卡片被反复点也不至于把内存撑爆。到顶后只追加一行"已停止记录"。</summary>
+    private const int MaxTraceLines = 400;
+
+    /// <summary>本卡片的调试轨迹:每打一条调试日志就同步 append 一份,右键卡片即复制到剪贴板。</summary>
+    private readonly StringBuilder _trace = new();
+
+    private int _traceLines;
+    private bool _traceCapped;
+
     /// <summary>
     ///     初始化 <see cref="BilibiliPlayer" />。
     /// </summary>
@@ -75,7 +87,55 @@ public sealed partial class BilibiliPlayer : UserControl
         Unloaded += OnUnloaded;
         SizeChanged += OnSizeChanged;
 
+        // handledEventsToo: true —— 播放键、视频面板都可能把右键吞掉,这里照样收得到
+        AddHandler(RightTappedEvent, new RightTappedEventHandler(OnRightTapped), true);
+
         UpdateVisuals();
+    }
+
+    /// <summary>
+    ///     打一条调试日志:同时进 Debug 输出和本卡片的 <see cref="_trace" />。
+    /// </summary>
+    private void Log(string message)
+    {
+        MediaDebugLog.Write("Bilibili", message);
+
+        if (_traceCapped) return;
+
+        if (_traceLines >= MaxTraceLines)
+        {
+            _traceCapped = true;
+            _trace.Append("……(超过 ").Append(MaxTraceLines).AppendLine(" 行,后续不再记录)");
+            return;
+        }
+
+        _trace.Append('[').Append(DateTime.Now.ToString("HH:mm:ss.fff")).Append("] ").AppendLine(message);
+        _traceLines++;
+    }
+
+    /// <summary>右键卡片:把这张卡片的调试轨迹放进剪贴板。</summary>
+    private void OnRightTapped(object sender, RightTappedRoutedEventArgs e)
+    {
+        e.Handled = true;
+
+        var text = _trace.Length == 0
+            ? $"(这张卡片还没有调试信息:videoId={VideoId})"
+            : _trace.ToString();
+
+        try
+        {
+            var package = new DataPackage { RequestedOperation = DataPackageOperation.Copy };
+            package.SetText(text);
+            Clipboard.SetContent(package);
+
+            // 不 Flush 的话应用一退出剪贴板就空了
+            Clipboard.Flush();
+            Log($"右键:调试轨迹已复制({text.Length} 字符)");
+        }
+        catch (Exception ex)
+        {
+            Log($"右键:复制调试轨迹失败 {ex.GetType().Name} {ex.Message}");
+        }
     }
 
     /// <summary>
@@ -158,7 +218,8 @@ public sealed partial class BilibiliPlayer : UserControl
         // 让在途的接口请求 / 下载回填全部失效:控件已经被回收,不能再改 UI
         _generation++;
         CancelInFlight();
-        DestroyPlayer();
+        Log("离树(被回收/切换页面)→ 停播并拆播放器");
+        DestroyPlayer("卡片离树");
 
         // 元数据保留(再滚回来不必重新请求),但播放器必须销毁,阶段回到"已就绪"
         SetStage(_info is null ? Stage.Idle : Stage.Ready);
@@ -262,7 +323,7 @@ public sealed partial class BilibiliPlayer : UserControl
 
         if (info is null)
         {
-            SetStage(Stage.Failed, "视频信息获取失败,可点右上角「在 B 站打开」");
+            SetStage(Stage.Failed, "视频信息获取失败,可使用浏览器打开");
             return;
         }
 
@@ -327,26 +388,41 @@ public sealed partial class BilibiliPlayer : UserControl
 
     private async void PlayButton_Click(object sender, RoutedEventArgs e)
     {
+        Log($"用户点击播放:阶段={_stage} bvid={_info?.Bvid} 分P={Page} " +
+            $"卡片={ActualWidth:F0}x{ActualHeight:F0} MediaHost={MediaHost.ActualWidth:F0}x{MediaHost.ActualHeight:F0}");
+
         // Idle:视口事件没来(极少数宿主),点击就是"立刻加载";Failed:允许点一次重试
         if (_stage is Stage.Idle or Stage.Failed)
         {
             await LoadInfoAsync();
-            if (_stage != Stage.Ready) return;
+            if (_stage != Stage.Ready)
+            {
+                Log($"取信息后没到 Ready(阶段={_stage}),不播放");
+                return;
+            }
         }
 
         if (_stage == Stage.Ready) await StartPlaybackAsync();
+        else Log($"当前阶段={_stage},点击被忽略");
     }
 
     private async Task StartPlaybackAsync(bool retryAfterStaleUrl = false)
     {
+        Log($"开始播放(retryAfterStaleUrl={retryAfterStaleUrl}) 阶段={_stage} bvid={_info?.Bvid} 分P={Page}");
+
         // 用户主动点播放时重新给一次重试机会;自动重试不能把那一次机会刷掉
         if (!retryAfterStaleUrl) _playbackRetried = false;
 
-        if (_info is null || _stage is Stage.Resolving or Stage.Playing) return;
+        if (_info is null || _stage is Stage.Resolving or Stage.Playing)
+        {
+            Log($"放弃:信息未就绪或正在解析/播放(阶段={_stage})");
+            return;
+        }
 
         var part = _info.GetPart(Page);
         if (part is null)
         {
+            Log($"分P {Page} 不存在");
             SetStage(Stage.Failed, "该视频没有可播放的分 P");
             return;
         }
@@ -356,12 +432,21 @@ public sealed partial class BilibiliPlayer : UserControl
 
         SetStage(Stage.Resolving, "正在获取播放地址…");
 
+        Log($"请求直链:bvid={_info.Bvid} cid={part.Cid} 分P={Page}");
+        var stopwatch = Stopwatch.StartNew();
         var play = await Api.GetPlayUrlAsync(_info.Bvid, part.Cid, token);
-        if (generation != _generation) return;
+        Log($"直链返回 {stopwatch.ElapsedMilliseconds} ms:" +
+            (play is null ? "null" : $"{play.QualityText} url={MediaDebugLog.Url(play.Url)}"));
+
+        if (generation != _generation)
+        {
+            Log($"直链回来时已经换了一次播放(generation 变化),丢弃");
+            return;
+        }
 
         if (play is null)
         {
-            SetStage(Stage.Failed, "未取到播放地址(可能被风控),可点右上角「在 B 站打开」");
+            SetStage(Stage.Failed, "未取到播放地址,可使用浏览器打开");
             return;
         }
 
@@ -383,7 +468,8 @@ public sealed partial class BilibiliPlayer : UserControl
     /// </summary>
     private void PlayUrl(string url)
     {
-        DestroyPlayer();
+        Log($"交给播放器:url={MediaDebugLog.Url(url)}");
+        DestroyPlayer("换新的直链");
 
         var player = new VideoPlayer
         {
@@ -399,22 +485,44 @@ public sealed partial class BilibiliPlayer : UserControl
         player.VideoLoaded += OnPlayerLoaded;
         player.VideoAspectRatioChanged += OnPlayerAspectRatioChanged;
 
+        // 播放器内部的进展/失败原因也收进本卡片的轨迹:右键复制时才看得到"为什么没出画"
+        player.DebugMessage += message => Log("  · " + message);
+
         PlayerHost.Children.Add(player);
         _player = player;
 
         SetStage(Stage.Playing);
-        _ = player.LoadVideoAsync();
+
+        Log($"播放器已进树:PlayerHost={PlayerHost.ActualWidth:F0}x{PlayerHost.ActualHeight:F0} " +
+            $"播放器={player.ActualWidth:F0}x{player.ActualHeight:F0} " +
+            $"HttpHeaders={MediaDebugLog.HeaderNames(player.HttpHeaders)} Referer={player.Referer}");
+
+        _ = LoadAndLogAsync(player);
+    }
+
+    /// <summary>B 站卡片只管发车、不看结果,这里把结果与耗时打进 Debug 输出。</summary>
+    private async Task LoadAndLogAsync(VideoPlayer player)
+    {
+        var stopwatch = Stopwatch.StartNew();
+        var started = await player.LoadVideoAsync();
+        Log($"LoadVideoAsync 返回 {started}(耗时 {stopwatch.ElapsedMilliseconds} ms," +
+            $"播放器 {player.ActualWidth:F0}x{player.ActualHeight:F0})");
     }
 
     private void OnPlayerLoaded(object? sender, VideoPlayerEventArgs e)
     {
         _playerReady = true;
         UpdateVisuals();
+
+        Log($"VideoLoaded:url={MediaDebugLog.Url(e.Source)} 比例={_videoAspect:F3} " +
+            $"帧数={_player?.RenderedFrames} 播放器={_player?.ActualWidth:F0}x{_player?.ActualHeight:F0}");
     }
 
     private void OnPlayerFailed(object? sender, VideoPlayerFailedEventArgs e)
     {
-        Debug.WriteLine("Bilibili", $"播放失败:{e.ErrorMessage}");
+        Log($"VideoFailed:{e.ErrorMessage} (url={MediaDebugLog.Url(e.Source)} " +
+            $"帧数={_player?.RenderedFrames} 已加载={_player?.IsMediaLoaded} " +
+            $"已重试={_playbackRetried})");
 
         var info = _info;
         var part = info?.GetPart(Page);
@@ -425,13 +533,13 @@ public sealed partial class BilibiliPlayer : UserControl
             _playbackRetried = true;
             BilibiliApi.InvalidatePlayUrl(info.Bvid, part.Cid);
 
-            DestroyPlayer();
+            DestroyPlayer("直链失效,重试");
             SetStage(Stage.Ready);
             _ = StartPlaybackAsync(true);
             return;
         }
 
-        DestroyPlayer();
+        DestroyPlayer("播放失败");
         SetStage(Stage.Failed, $"播放失败:{e.ErrorMessage}");
     }
 
@@ -442,6 +550,11 @@ public sealed partial class BilibiliPlayer : UserControl
 
     private void SetStage(Stage stage, string? status = null)
     {
+        if (_stage != stage || !string.IsNullOrEmpty(status))
+        {
+            Log($"阶段 {_stage} → {stage}" + (string.IsNullOrEmpty(status) ? string.Empty : $",提示「{status}」"));
+        }
+
         _stage = stage;
         StatusText.Text = status ?? string.Empty;
         UpdateVisuals();
@@ -484,10 +597,16 @@ public sealed partial class BilibiliPlayer : UserControl
         _lifetimeCts = null;
     }
 
-    private void DestroyPlayer()
+    private void DestroyPlayer(string reason)
     {
         var player = _player;
-        if (player is null) return;
+        if (player is null)
+        {
+            Log($"拆播放器({reason}):本来就没有");
+            return;
+        }
+
+        Log($"拆播放器({reason}):已加载={_playerReady} 帧数={player.RenderedFrames} 比例={_videoAspect:F3}");
 
         _player = null;
         player.VideoFailed -= OnPlayerFailed;
@@ -532,7 +651,8 @@ public sealed partial class BilibiliPlayer : UserControl
     {
         _generation++;
         CancelInFlight();
-        DestroyPlayer();
+        Log("参数变更 → 清空卡片");
+        DestroyPlayer("参数变更");
 
         _info = null;
         _coverAspect = null;
