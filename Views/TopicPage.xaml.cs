@@ -340,6 +340,7 @@ public sealed partial class TopicPage : Page
         TopicInfo.IsVote = data.IsVote;
         TopicInfo.IsAnonymous = data.IsAnonymous;
         TopicInfo.IsMe = data.IsMe;
+        TopicInfo.LockReason = data.LockReason;
 
         var isFavoriteResult = await isFavoriteTask;
         if (isFavoriteResult.IsNotValid)
@@ -543,6 +544,11 @@ public sealed partial class TopicPage : Page
     /// </summary>
     private void writereply_Click(object sender, RoutedEventArgs e)
     {
+        if(TopicInfo.LockReason != null)
+        {
+            Tip.Show(InfoType.Information, "该主题已被锁定，无法回复");
+            return;
+        }
         ComposeOverlay.Mode = EditorMode.ReplyToTopic;
         ComposeOverlay.TopicId = TopicId;
         ComposeOverlay.HintText = string.Empty; // 普通回复用默认文案，别留着上次引用的「引用某某」
@@ -1029,6 +1035,11 @@ public sealed partial class TopicPage : Page
                 await ShowWealthTransferAsync(reply);
                 break;
             case "RATE":
+                if (TopicInfo.LockReason != null)
+                {
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法进行风评操作");
+                    return;
+                }
                 await ShowRatingAsync(reply);
                 break;
             case "UBB":
@@ -1056,6 +1067,11 @@ public sealed partial class TopicPage : Page
                     Tip.Show(InfoType.Information, "无法回复被删除的帖子");
                     return;
                 }
+                if (TopicInfo.LockReason != null)
+                {
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法回复");
+                    return;
+                }
                 if (reply.Content != null)
                 {
                     var floor = reply.Floor;
@@ -1075,6 +1091,11 @@ public sealed partial class TopicPage : Page
                 }
                 break;
             case "EDIT":
+                if (TopicInfo.LockReason != null)
+                {
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法编辑");
+                    return;
+                }
                 OpenEditorForEdit(reply);
                 break;
         }
@@ -1102,6 +1123,12 @@ public sealed partial class TopicPage : Page
     /// </summary>
     private async void EditTopic_Click(object sender, RoutedEventArgs e)
     {
+
+        if (TopicInfo.LockReason != null)
+        {
+            Tip.Show(InfoType.Information, "该主题已被锁定，无法编辑");
+            return;
+        }
         var first = Replies.FirstOrDefault(x => x.Floor == 1);
 
         if (first == null)

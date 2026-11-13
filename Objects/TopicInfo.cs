@@ -11,6 +11,8 @@ public partial class TopicInfo : ObservableObject
 {
     [ObservableProperty] public partial int Id { get; set; }
 
+    [ObservableProperty] public partial string? LockReason { get; set; }
+
     public string UserName
     {
         get => field ?? "匿名";
@@ -41,8 +43,8 @@ public partial class TopicInfo : ObservableObject
 
     [ObservableProperty] [JsonIgnore] public partial bool IsFavorite { get; set; }
 
-    public MediaContent MediaContent
-    {
+    public MediaContent MediaContent 
+    { 
         get => field ?? new MediaContent();
         set => SetProperty(ref field, value);
     }
@@ -62,7 +64,4 @@ public partial class TopicInfo : ObservableObject
         set => SetProperty(ref field, value);
     }
 
-    /// <summary>头像占位:用户名首字母。</summary>
-    [JsonIgnore]
-    public string Initial => string.IsNullOrWhiteSpace(UserName) ? "?" : UserName[..1].ToUpperInvariant();
 }

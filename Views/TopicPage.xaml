@@ -391,7 +391,7 @@
                             Opacity="{ThemeResource AdaptiveOpacity}" />
             </Border.Background>
             <Border.ContextFlyout>
-                <MenuFlyout>
+                <MenuFlyout dev:MaterialAttach.UseAcrylicBackground="True">
                     <MenuFlyoutItem Text="刷新"
                                     x:Name="TileFlyout"
                                     Tag="0"
@@ -489,6 +489,17 @@
                     <TextBlock Text="{x:Bind TopicInfo.FavoriteCount, Mode=OneWay}"
                                FontSize="14"
                                VerticalAlignment="Center" />
+                    <ic:SymbolIcon Symbol="Info"
+                                   FontSize="13"
+                                   Margin="20,0,0,0"
+                                   Foreground="Red"
+                                   Visibility="{x:Bind TopicInfo.LockReason,Converter={StaticResource NullToVisibilityConverter},Mode=OneWay}">
+                    </ic:SymbolIcon>
+                    <TextBlock Text="{x:Bind TopicInfo.LockReason,Mode=OneWay}"
+                               FontSize="14"
+                               VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis"
+                               Foreground="Red"></TextBlock>
 
                 </StackPanel>
                 <dev:BubbleButton Grid.Row="0"
