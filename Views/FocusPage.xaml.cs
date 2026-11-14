@@ -13,7 +13,9 @@ using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using CC98.Services.Extensions;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using CC98.Services.Helpers;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -25,13 +27,11 @@ namespace CC98.Views;
 /// </summary>
 public sealed partial class FocusPage : Page
 {
-    public GlobalService GlobalService = GlobalService.Instance;
     public Increment Increment = new(20, 0, true);
     public FocusContentType Mode = FocusContentType.Followee;
-    public ApplicationDataContainer Set = ApplicationData.Current.LocalSettings;
-    public HashSet<int> TopicIds = [];
     public ObservableCollection<TopicInfo> Topics = [];
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
     public FocusPage()
     {
         InitializeComponent();
@@ -40,18 +40,11 @@ public sealed partial class FocusPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (GlobalService.ShouldReplaceNavigationArgs)
-        {
-            if (GlobalService.NavigationAnchor is int targetIndex)
-                Navibar.SelectedItem = Navibar.Items[targetIndex];
-            else
-                Navibar.SelectedItem = Navibar.Items[0];
-            return;
-        }
-
+        Increment.Clear();
+        Topics.Clear();
+        Mode = FocusContentType.Followee;
         await GetMoments();
     }
-
 
     private async Task<bool> GetMoments()
     {
@@ -62,8 +55,7 @@ public sealed partial class FocusPage : Page
         if (!result.IsSuccess || result.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载动态失败");
-            //await App.Logger.WriteAsync("Focus", "加载动态失败", result.Message);
+            Tip.Show(InfoType.Error, "加载动态失败");
             return false;
         }
 
@@ -76,7 +68,7 @@ public sealed partial class FocusPage : Page
         var userInfoResult = await ApiService.Fetch<List<BasicUserInfo>>(userInfoUrl);
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
             //报错
-            Flower.Play(FlowStatus.Fail, "获取用户头像出错");
+            Tip.Show(InfoType.Error, "获取用户头像出错");
         var userInfoList = userInfoResult.Data;
         foreach (var topic in data)
         {
@@ -91,10 +83,8 @@ public sealed partial class FocusPage : Page
             if (user != null) topic.PortraitUrl = user.PortraitUrl;
         }
 
-        data = [.. data.Where(x => !TopicIds.Contains(x.Id))];
         Topics.AddRange(data);
-        FocusEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
-        TopicIds.AddRange(data.Select(x => x.Id));
+        FocusEmptyState.Visibility = Topics.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         return true;
     }
 
@@ -104,10 +94,8 @@ public sealed partial class FocusPage : Page
         var s = Navibar.SelectedItem;
         if (s?.Tag is not string tag) return;
         Mode = tag == "0" ? FocusContentType.Followee : FocusContentType.FavoriteUpdate;
-        GlobalService.NavigationAnchor = Navibar.Items.IndexOf(s);
         Increment.Clear();
         Topics.Clear();
-        TopicIds.Clear();
         await GetMoments();
     }
 

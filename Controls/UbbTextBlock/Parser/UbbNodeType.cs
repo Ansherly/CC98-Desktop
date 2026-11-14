@@ -53,6 +53,7 @@ public static class UbbNodeTypeExtensions
         UbbNodeType.Image,
         UbbNodeType.Audio,
         UbbNodeType.Video,
+        UbbNodeType.Bilibili,
         UbbNodeType.Paragraph,
         UbbNodeType.Divider,
         UbbNodeType.Align,

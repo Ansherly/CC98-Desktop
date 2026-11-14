@@ -2,7 +2,7 @@
 
 using System;
 
-namespace CC98.Controls.MusicPlayer;
+namespace CC98.Controls;
 
 public class DownloadEventArgs : EventArgs
 {

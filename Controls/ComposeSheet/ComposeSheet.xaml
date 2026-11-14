@@ -1,0 +1,94 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<UserControl x:Class="CC98.Controls.ComposeSheet"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ic="using:FluentIcons.WinUI"
+             xmlns:local="using:CC98.Controls"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <!--  变暗层：叠在页面上的半透明黑  -->
+        <SolidColorBrush x:Key="SheetScrimBrush"
+                         Color="Black"
+                         Opacity="0.42" />
+    </UserControl.Resources>
+
+    <!--  整层平时是收起状态，Show() 时才显示并开始滑动  -->
+    <Grid x:Name="Root"
+          Visibility="Collapsed">
+
+        <!--  ① 变暗层（点空白处也能收起）  -->
+        <Border x:Name="Scrim"
+                Background="{StaticResource SheetScrimBrush}"
+                Opacity="0"
+                Tapped="Scrim_Tapped" />
+
+        <!--  ② 浮层本体：按钮行 + 白板面板，整体从下往上滑  -->
+        <Grid x:Name="Sheet">
+            <Grid.RenderTransform>
+                <TranslateTransform x:Name="SheetTransform" />
+            </Grid.RenderTransform>
+
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!--  浮在面板上方的两个圆按钮：左边关闭、右边发送  -->
+            <Grid Grid.Row="0"
+                  Margin="24,64,24,16">
+                <Button x:Name="CloseButton"
+                        Width="40"
+                        Height="40"
+                        Padding="0"
+                        HorizontalAlignment="Left"
+                        Background="{ThemeResource ControlSolidFillColorDefaultBrush}"
+                        BorderThickness="0"
+                        Click="Close_Click"
+                        CornerRadius="20"
+                        ToolTipService.ToolTip="关闭">
+                    <ic:SymbolIcon FontSize="14"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   Symbol="Dismiss" />
+                </Button>
+
+                <Button x:Name="SendButton"
+                        Width="40"
+                        Height="40"
+                        Padding="0"
+                        HorizontalAlignment="Right"
+                        Click="Send_Click"
+                        CornerRadius="20"
+                        BorderThickness="0"
+                        Background="{ThemeResource ControlSolidFillColorDefaultBrush}"
+                        ToolTipService.ToolTip="发送">
+                    <ic:SymbolIcon FontSize="14"
+                                   Symbol="Send" />
+                </Button>
+            </Grid>
+
+            <!--  面板：亚克力表面，铺满整个页面宽度，只圆上面两个角  -->
+            <Border x:Name="Panel"
+                    Grid.Row="1"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="0,1,0,0">
+                <Grid>
+                    <!--
+                        亚克力的采样源：由 BackgroundImageSource 传入；没设就不显示，
+                        否则亚克力只是在灰底上糊一层，看不出效果
+                    -->
+                    <Image x:Name="BackdropImage"
+                           Stretch="UniformToFill"
+                           Visibility="Collapsed" />
+
+                    <Border Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}">
+                        <!--  面板里就是编辑器：状态栏 + 工具条 + 源码/预览两栏  -->
+                        <local:ComposeEditor x:Name="Editor" />
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

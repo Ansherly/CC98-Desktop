@@ -1,92 +1,151 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Page
-    x:Class="CC98.Views.SketchPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:CC98"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:ic="using:FluentIcons.WinUI"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:dev="using:DevWinUI"
-    xmlns:ubb="using:CC98.Controls.UbbTextBlock"
-    xmlns:obj="using:CC98.Objects"
-    xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    Background="{ThemeResource DesktopAcrylicTransparentBrush}">
+<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="CC98.Views.SketchPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:tip="using:CC98.Controls"
+      xmlns:local="using:CC98"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      xmlns:ic="using:FluentIcons.WinUI"
+      xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+      xmlns:dev="using:DevWinUI"
+      xmlns:ubb="using:CC98.Controls.UbbTextBlock"
+      xmlns:obj="using:CC98.Objects"
+      xmlns:svc="using:CC98.Services"
+      xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
+      xmlns:md="using:CC98.Controls.MarkdownTextBlock"
+      Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
 
 
-    <Grid Grid.Row="0" Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"  >
+    <Grid Grid.Row="0"
+          Background="{ThemeResource CardBackgroundFillColorDefaultBrush}">
         <Grid.RowDefinitions>
 
-            <RowDefinition Height="Auto" ></RowDefinition>
-            <RowDefinition Height="*"></RowDefinition>
-            <RowDefinition Height="30"></RowDefinition>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="30" />
         </Grid.RowDefinitions>
 
-        <ContentDialog Title="附件上传" x:Name="FileHelper"  CloseButtonText="取消" Closed="FileHelper_Closed">
+        <ContentDialog Title="附件上传"
+                       x:Name="FileHelper"
+                       CloseButtonText="取消"
+                       Closed="FileHelper_Closed">
             <StackPanel Orientation="Vertical">
-                <ListView x:Name="FileUploadChoice" SelectionChanged="FileUploadChoice_SelectionChanged">
+                <ListView x:Name="FileUploadChoice"
+                          SelectionChanged="FileUploadChoice_SelectionChanged">
                     <ListViewItem Tag="1">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ic:SymbolIcon Symbol="FolderAdd"></ic:SymbolIcon>
-                            <TextBlock Text="上传本地文件"></TextBlock>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8">
+                            <ic:SymbolIcon Symbol="FolderAdd" />
+                            <TextBlock Text="上传本地文件" />
                         </StackPanel>
                     </ListViewItem>
 
                     <ListViewItem Tag="2">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ic:SymbolIcon Symbol="Code"></ic:SymbolIcon>
-                            <TextBlock Text="仅输入标签"></TextBlock>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8">
+                            <ic:SymbolIcon Symbol="Code" />
+                            <TextBlock Text="仅输入标签" />
                         </StackPanel>
                     </ListViewItem>
                     <ListViewItem Tag="3">
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <ic:SymbolIcon Symbol="Link"></ic:SymbolIcon>
-                            <TextBlock Text="使用自定义URL"></TextBlock>
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="8">
+                            <ic:SymbolIcon Symbol="Link" />
+                            <TextBlock Text="使用自定义URL" />
                         </StackPanel>
                     </ListViewItem>
                 </ListView>
-                <dev:TextBox x:Name="CustomLink" PlaceholderText="输入现有链接" HorizontalAlignment="Stretch" Margin="5" Visibility="Collapsed" >
-                    <Button Content="&#xE73E;" x:Name="ConfirmCustomLink" Click="ConfirmCustomLink_Click"></Button>
+                <dev:TextBox x:Name="CustomLink"
+                             PlaceholderText="输入现有链接"
+                             HorizontalAlignment="Stretch"
+                             Margin="5"
+                             Visibility="Collapsed">
+                    <Button Content="&#xE73E;"
+                            x:Name="ConfirmCustomLink"
+                            Click="ConfirmCustomLink_Click" />
                 </dev:TextBox>
             </StackPanel>
         </ContentDialog>
-        <ContentDialog Title="颜色标签" PrimaryButtonText="选中" CloseButtonText="取消" x:Name="ColorPanel" >
+        <ContentDialog Title="颜色标签"
+                       PrimaryButtonText="选中"
+                       CloseButtonText="取消"
+                       x:Name="ColorPanel">
             <ContentDialog.PrimaryButtonStyle>
-                <Style  TargetType="Button">
-                    <Setter Property="Background" Value="{ThemeResource AccentAAFillColorDefaultBrush}" />
-                    <Setter Property="CornerRadius" Value="3"></Setter>
-                    <Setter Property="Foreground" Value="{ThemeResource TextOnAccentFillColorDefault}"></Setter>
+                <Style TargetType="Button">
+                    <Setter Property="Background"
+                            Value="{ThemeResource AccentAAFillColorDefaultBrush}" />
+                    <Setter Property="CornerRadius"
+                            Value="3" />
+                    <Setter Property="Foreground"
+                            Value="{ThemeResource TextOnAccentFillColorDefault}" />
                 </Style>
             </ContentDialog.PrimaryButtonStyle>
             <StackPanel>
-                <controls:ColorPicker x:Name="Colors" IsAlphaEnabled="False" IsAlphaSliderVisible="False" IsColorSpectrumVisible="False" ShowAccentColors="True" IsColorChannelTextInputVisible="True" IsColorSliderVisible="False"></controls:ColorPicker>
+                <controls:ColorPicker x:Name="Colors"
+                                      IsAlphaEnabled="False"
+                                      IsAlphaSliderVisible="False"
+                                      IsColorSpectrumVisible="False"
+                                      ShowAccentColors="True"
+                                      IsColorChannelTextInputVisible="True"
+                                      IsColorSliderVisible="False" />
             </StackPanel>
         </ContentDialog>
 
-        <ContentDialog x:Name="SendDialog" CloseButtonText="取消" PrimaryButtonText="发表" >
+        <ContentDialog x:Name="SendDialog"
+                       CloseButtonText="取消"
+                       PrimaryButtonText="发表">
             <ContentDialog.Content>
-                <StackPanel Orientation="Vertical" Spacing="15" Background="Transparent" Padding="15,10,15,10" MinWidth="360">
-                    <SelectorBar HorizontalAlignment="Center" IsEnabled="False"  Foreground="{ThemeResource BackButtonForegroundThemeBrush}">
-                        <SelectorBarItem Text="主题" Tag="0" x:Name="topicselector"></SelectorBarItem>
-                        <SelectorBarItem Text="回帖" Tag="1" x:Name="replyselector"></SelectorBarItem>
-                        <SelectorBarItem Text="投票" Tag="2" x:Name="voteselector"></SelectorBarItem>
+                <StackPanel Orientation="Vertical"
+                            Spacing="15"
+                            Background="Transparent"
+                            Padding="15,10,15,10"
+                            MinWidth="360">
+                    <SelectorBar HorizontalAlignment="Center"
+                                 IsEnabled="False"
+                                 Foreground="{ThemeResource BackButtonForegroundThemeBrush}">
+                        <SelectorBarItem Text="主题"
+                                         Tag="0"
+                                         x:Name="topicselector" />
+                        <SelectorBarItem Text="回帖"
+                                         Tag="1"
+                                         x:Name="replyselector" />
+                        <SelectorBarItem Text="投票"
+                                         Tag="2"
+                                         x:Name="voteselector" />
                     </SelectorBar>
-                    <TextBox AcceptsReturn="True"  x:Name="SetTitle"></TextBox>
-                    <CheckBox Content="接收消息提醒" IsChecked="True"  Checked="ReceiveNotice_Checked" Unchecked="ReceiveNotice_Unchecked" x:Name="ReceiveNotice"></CheckBox>
-                    <RadioButtons Header="发帖类型"  x:Name="SetPostType">
-                        <RadioButton Content="普通" IsChecked="True" x:Name="PostType" Checked="PostType_Checked" Tag="0"></RadioButton>
-                        <RadioButton Content="学术通知" Checked="PostType_Checked" Tag="1"></RadioButton>
+                    <TextBox AcceptsReturn="True"
+                             x:Name="SetTitle" />
+                    <CheckBox Content="接收消息提醒"
+                              IsChecked="True"
+                              Checked="ReceiveNotice_Checked"
+                              Unchecked="ReceiveNotice_Unchecked"
+                              x:Name="ReceiveNotice" />
+                    <RadioButtons Header="发帖类型"
+                                  x:Name="SetPostType">
+                        <RadioButton Content="普通"
+                                     IsChecked="True"
+                                     x:Name="PostType"
+                                     Checked="PostType_Checked"
+                                     Tag="0" />
+                        <RadioButton Content="学术通知"
+                                     Checked="PostType_Checked"
+                                     Tag="1" />
                     </RadioButtons>
 
                 </StackPanel>
             </ContentDialog.Content>
         </ContentDialog>
-        <controls:Ribbon HorizontalAlignment="Stretch" Grid.Row="0" CornerRadius="0" BorderThickness="0,0,0,1" FontFamily="{StaticResource HarmonySans}">
-            <controls:RibbonCollapsibleGroup AccessKey="AB" CollapsedAccessKey="AA" Label="编辑">
+        <controls:Ribbon HorizontalAlignment="Stretch"
+                         Grid.Row="0"
+                         CornerRadius="0"
+                         BorderThickness="0,0,0,1"
+                         FontFamily="{StaticResource HarmonySans}">
+            <controls:RibbonCollapsibleGroup AccessKey="AB"
+                                             CollapsedAccessKey="AA"
+                                             Label="编辑">
                 <controls:RibbonCollapsibleGroup.IconSource>
                     <SymbolIconSource Symbol="Add" />
                 </controls:RibbonCollapsibleGroup.IconSource>
@@ -102,32 +161,46 @@
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <AppBarButton Label="左对齐" Click="AppBarButton_Click">
+                    <AppBarButton Label="左对齐"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="TextAlignLeft" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Column="1" Label="居中" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Column="1"
+                                  Label="居中"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="TextAlignCenter" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Row="1" Label="引用" Click="AppBarButton_Click" >
+                    <AppBarButton Grid.Row="1"
+                                  Label="引用"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="CommentQuote" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Row="1" Grid.Column="1" Label="代码" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Grid.Column="1"
+                                  Label="代码"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Code" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.RowSpan="2" Grid.Column="2" Label="右对齐" Click="AppBarButton_Click">
+                    <AppBarButton Grid.RowSpan="2"
+                                  Grid.Column="2"
+                                  Label="右对齐"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="TextAlignRight" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Row="1" Grid.Column="2" Label="链接" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Grid.Column="2"
+                                  Label="链接"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Link" />
                         </AppBarButton.Icon>
@@ -135,7 +208,8 @@
                 </Grid>
             </controls:RibbonCollapsibleGroup>
 
-            <controls:RibbonCollapsibleGroup CollapsedAccessKey="C"  Label="字体">
+            <controls:RibbonCollapsibleGroup CollapsedAccessKey="C"
+                                             Label="字体">
                 <controls:RibbonCollapsibleGroup.IconSource>
                     <SymbolIconSource Symbol="Font" />
                 </controls:RibbonCollapsibleGroup.IconSource>
@@ -153,13 +227,23 @@
 
 
                     <AppBarButton Grid.Column="0"
-                                  Icon="Bold" Label="粗体" Click="AppBarButton_Click"/>
+                                  Icon="Bold"
+                                  Label="粗体"
+                                  Click="AppBarButton_Click" />
                     <AppBarButton Grid.Column="2"
-                                  Icon="Italic" Label="斜体" Click="AppBarButton_Click"/>
-                    <AppBarButton Grid.Column="0" Grid.Row="1"
-                                  Icon="Underline" Label="下划线" Click="AppBarButton_Click"/>
+                                  Icon="Italic"
+                                  Label="斜体"
+                                  Click="AppBarButton_Click" />
+                    <AppBarButton Grid.Column="0"
+                                  Grid.Row="1"
+                                  Icon="Underline"
+                                  Label="下划线"
+                                  Click="AppBarButton_Click" />
 
-                    <AppBarButton Grid.Row="1" Grid.Column="3"  Label="删除线" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Grid.Column="3"
+                                  Label="删除线"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="TextStrikethrough" />
                         </AppBarButton.Icon>
@@ -167,34 +251,67 @@
                 </Grid>
             </controls:RibbonCollapsibleGroup>
 
-            <controls:RibbonCollapsibleGroup CollapsedAccessKey="G"  Label="表情" Priority="5" RequestedWidths="400,200,370">
+            <controls:RibbonCollapsibleGroup CollapsedAccessKey="G"
+                                             Label="表情"
+                                             Priority="5"
+                                             RequestedWidths="400,200,370">
                 <controls:RibbonCollapsibleGroup.IconSource>
-                    <FontIconSource Glyph="&#xED58;"></FontIconSource>
+                    <FontIconSource Glyph="&#xED58;" />
                 </controls:RibbonCollapsibleGroup.IconSource>
-                <StackPanel Orientation="Vertical" Spacing="8">
-                    <GridView Height="80" x:Name="EmojiContainer" ItemClick="EmojiContainer_ItemClick" IsItemClickEnabled="True" MaxWidth="340"  HorizontalAlignment="Stretch" VerticalAlignment="Center" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
+                <StackPanel Orientation="Vertical"
+                            Spacing="8">
+                    <GridView Height="80"
+                              x:Name="EmojiContainer"
+                              ItemClick="EmojiContainer_ItemClick"
+                              IsItemClickEnabled="True"
+                              MaxWidth="340"
+                              HorizontalAlignment="Stretch"
+                              VerticalAlignment="Center"
+                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                              BorderThickness="1">
                         <GridView.ItemTemplate>
                             <DataTemplate x:DataType="obj:Emoji">
-                                <Border  CornerRadius="2">
-                                    <Image Source="{x:Bind EmojiPath}" Width="32" Height="32"  ToolTipService.ToolTip="{x:Bind EmojiName}" Tag="{x:Bind EmojiName}" x:Name="EmojiCell" ></Image>
+                                <Border CornerRadius="2">
+                                    <Image Source="{x:Bind EmojiPath}"
+                                           Width="32"
+                                           Height="32"
+                                           ToolTipService.ToolTip="{x:Bind EmojiName}"
+                                           Tag="{x:Bind EmojiName}"
+                                           x:Name="EmojiCell" />
                                 </Border>
                             </DataTemplate>
                         </GridView.ItemTemplate>
                     </GridView>
-                    <ScrollViewer HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" >
-                        <controls:Segmented HorizontalAlignment="Center" >
-                            <controls:SegmentedItem Content="CC98" PointerEntered="EmojiType_PointerEntered" IsSelected="True" x:Name="EmojiType" Tag="CC98"></controls:SegmentedItem>
-                            <controls:SegmentedItem Content="AC娘" PointerEntered="EmojiType_PointerEntered"   Tag="ac-white"></controls:SegmentedItem>
-                            <controls:SegmentedItem Content="贴吧" PointerEntered="EmojiType_PointerEntered"   Tag="tb"></controls:SegmentedItem>
-                            <controls:SegmentedItem Content="雀魂" PointerEntered="EmojiType_PointerEntered"   Tag="ms"></controls:SegmentedItem>
-                            <controls:SegmentedItem Content="经典" PointerEntered="EmojiType_PointerEntered"   Tag="em"></controls:SegmentedItem>
+                    <ScrollViewer HorizontalScrollMode="Enabled"
+                                  HorizontalScrollBarVisibility="Hidden"
+                                  VerticalScrollMode="Disabled">
+                        <controls:Segmented HorizontalAlignment="Center">
+                            <controls:SegmentedItem Content="CC98"
+                                                    PointerEntered="EmojiType_PointerEntered"
+                                                    IsSelected="True"
+                                                    x:Name="EmojiType"
+                                                    Tag="CC98" />
+                            <controls:SegmentedItem Content="AC娘"
+                                                    PointerEntered="EmojiType_PointerEntered"
+                                                    Tag="ac-white" />
+                            <controls:SegmentedItem Content="贴吧"
+                                                    PointerEntered="EmojiType_PointerEntered"
+                                                    Tag="tb" />
+                            <controls:SegmentedItem Content="雀魂"
+                                                    PointerEntered="EmojiType_PointerEntered"
+                                                    Tag="ms" />
+                            <controls:SegmentedItem Content="经典"
+                                                    PointerEntered="EmojiType_PointerEntered"
+                                                    Tag="em" />
                         </controls:Segmented>
                     </ScrollViewer>
 
                 </StackPanel>
             </controls:RibbonCollapsibleGroup>
 
-            <controls:RibbonCollapsibleGroup CollapsedAccessKey="E" Label="插入" Priority="2" >
+            <controls:RibbonCollapsibleGroup CollapsedAccessKey="E"
+                                             Label="插入"
+                                             Priority="2">
                 <controls:RibbonCollapsibleGroup.IconSource>
                     <ic:SymbolIconSource Symbol="Insert" />
                 </controls:RibbonCollapsibleGroup.IconSource>
@@ -204,100 +321,177 @@
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="Auto" />
-                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
 
-                    <AppBarButton  Label="图片" Click="AppBarButton_Click">
+                    <AppBarButton Label="图片"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Image" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Column="1"  Label="分割线" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Column="1"
+                                  Label="分割线"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="LineDashes" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Column="2" Label="视频" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Column="2"
+                                  Label="视频"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="MoviesAndTv" />
                         </AppBarButton.Icon>
                     </AppBarButton>
 
 
-                    <AppBarButton Grid.Row="1" Label="文档" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Label="文档"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Document" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Row="1" Grid.Column="1"  Label="哔哩" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Grid.Column="1"
+                                  Label="哔哩"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Stream" />
                         </AppBarButton.Icon>
                     </AppBarButton>
                     <AppBarButton Grid.Row="1"
-                                  Grid.Column="2"  Label="音频" Click="AppBarButton_Click">
+                                  Grid.Column="2"
+                                  Label="音频"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="MusicNote2" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton Grid.Row="0" Grid.Column="3" Background="Transparent" Label="颜色" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="0"
+                                  Grid.Column="3"
+                                  Background="Transparent"
+                                  Label="颜色"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
                             <ic:SymbolIcon Symbol="Color" />
                         </AppBarButton.Icon>
                     </AppBarButton>
-                    <AppBarButton  Grid.Row="1" Grid.Column="3" Background="Transparent" Label="贴图" Click="AppBarButton_Click">
+                    <AppBarButton Grid.Row="1"
+                                  Grid.Column="3"
+                                  Background="Transparent"
+                                  Label="公式"
+                                  Click="AppBarButton_Click">
                         <AppBarButton.Icon>
-                            <ic:SymbolIcon Symbol="PaintBrush"/>
+                            <ic:SymbolIcon Symbol="MathFormula" />
                         </AppBarButton.Icon>
                     </AppBarButton>
                 </Grid>
             </controls:RibbonCollapsibleGroup>
             <controls:RibbonGroup Label="预览">
-                <ToggleButton Height="45" Width="45" Click="PreviewMode_Click" x:Name="PreviewMode" IsChecked="True" BorderThickness="0">
-                    <ic:SymbolIcon Symbol="Edit"></ic:SymbolIcon>
+                <ToggleButton Height="45"
+                              Width="45"
+                              Click="PreviewMode_Click"
+                              x:Name="PreviewMode"
+                              IsChecked="True"
+                              BorderThickness="0">
+                    <ic:SymbolIcon Symbol="Edit" />
                 </ToggleButton>
             </controls:RibbonGroup>
             <controls:RibbonGroup Label="发帖">
-                <HyperlinkButton Height="45" Width="45" x:Name="SendButton" Click="SendButton_Click">
-                    <ic:SymbolIcon Symbol="Send"></ic:SymbolIcon>
+                <HyperlinkButton Height="45"
+                                 Width="45"
+                                 x:Name="SendButton"
+                                 Click="SendButton_Click">
+                    <ic:SymbolIcon Symbol="Send" />
                 </HyperlinkButton>
             </controls:RibbonGroup>
         </controls:Ribbon>
-        <SplitView Grid.Row="1" PanePlacement="Left" DisplayMode="Inline" IsPaneOpen="True" x:Name="EditArea" PaneBackground="{ThemeResource CardBackgroundFillColorDefaultBrush}">
+        <SplitView Grid.Row="1"
+                   PanePlacement="Left"
+                   DisplayMode="Inline"
+                   IsPaneOpen="True"
+                   x:Name="EditArea"
+                   PaneBackground="{ThemeResource CardBackgroundFillColorDefaultBrush}">
             <SplitView.Pane>
                 <ScrollViewer>
                     <Grid>
-                        <controls:MarkdownTextBlock Background="{ThemeResource MarkdownBackgroundBrush}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" x:Name="MdViewer" Visibility="Collapsed" Config="{ThemeResource CustomMarkdownConfig}"></controls:MarkdownTextBlock>
-                        <ubbTextBlock:UbbTextBlock ImageMaxWidth="320" Background="{ThemeResource MarkdownBackgroundBrush}" Foreground="{ThemeResource TextFillColorSecondaryBrush}" QuoteBackground="{ThemeResource QuoteBackgroundBrush}" CodeBackground="{ThemeResource QuoteBackgroundBrush}" BoldFontFamily="{ThemeResource HarmonySansBold}" x:Name="UbbViewer"/>
+                        <md:MarkdownTextBlock FontFamily="{StaticResource HarmonySans}"
+                                              BoldFontFamily="{StaticResource HarmonySansBold}"
+                                              QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                              QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"
+                                              Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                              ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"
+                                              x:Name="MdViewer"
+                                              Visibility="Collapsed" />
+                        <ubbTextBlock:UbbTextBlock ImageMaxWidth="320"
+                                                   Background="{ThemeResource MarkdownBackgroundBrush}"
+                                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                   QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                                   CodeBackground="{ThemeResource QuoteBackgroundBrush}"
+                                                   BoldFontFamily="{ThemeResource HarmonySansBold}"
+                                                   x:Name="UbbViewer" />
                     </Grid>
                 </ScrollViewer>
             </SplitView.Pane>
             <SplitView.Content>
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <controls:PropertySizer  Binding="{x:Bind EditArea.OpenPaneLength,Mode=TwoWay}" Minimum="1"></controls:PropertySizer>
-                    <TextBox Grid.Column="1" AcceptsReturn="True" CornerRadius="0" BorderThickness="1,0,0,0" Background="Transparent" x:Name="Editor" TextChanged="Editor_TextChanged" TextWrapping="Wrap"></TextBox>
+                    <controls:PropertySizer Binding="{x:Bind EditArea.OpenPaneLength, Mode=TwoWay}"
+                                            Minimum="1" />
+                    <TextBox Grid.Column="1"
+                             AcceptsReturn="True"
+                             CornerRadius="0"
+                             BorderThickness="1,0,0,0"
+                             Background="Transparent"
+                             x:Name="Editor"
+                             TextChanged="Editor_TextChanged"
+                             Paste="Editor_Paste"
+                             TextWrapping="Wrap" />
                 </Grid>
             </SplitView.Content>
         </SplitView>
-        <Grid Grid.Row="2" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1">
-            <TextBlock Margin="10,0,10,0" HorizontalAlignment="Left" VerticalAlignment="Center" Text="状态" MaxLines="1" x:Name="status" Foreground="{ThemeResource TextFillColorSecondaryBrush}"></TextBlock>
-            <HyperlinkButton Padding="0" HorizontalAlignment="Right" CornerRadius="0" VerticalAlignment="Stretch" x:Name="SwitchContentType" Click="SwitchContentType_Click" ToolTipService.ToolTip="切换UBB/MD">
-                <StackPanel Orientation="Horizontal" Spacing="10" Margin="3">
-                    <ic:SymbolIcon Symbol="Markdown" x:Name="MD" Visibility="Collapsed"></ic:SymbolIcon>
-                    <ic:SymbolIcon Symbol="Code" x:Name="UBB" ></ic:SymbolIcon>
+        <Grid Grid.Row="2"
+              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+              BorderThickness="1">
+            <TextBlock Margin="10,0,10,0"
+                       HorizontalAlignment="Left"
+                       VerticalAlignment="Center"
+                       Text="状态"
+                       MaxLines="1"
+                       x:Name="status"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            <HyperlinkButton Padding="0"
+                             HorizontalAlignment="Right"
+                             CornerRadius="0"
+                             VerticalAlignment="Stretch"
+                             x:Name="SwitchContentType"
+                             Click="SwitchContentType_Click"
+                             ToolTipService.ToolTip="切换UBB/MD">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="10"
+                            Margin="3">
+                    <ic:SymbolIcon Symbol="Markdown"
+                                   x:Name="MD"
+                                   Visibility="Collapsed" />
+                    <ic:SymbolIcon Symbol="Code"
+                                   x:Name="UBB" />
                 </StackPanel>
             </HyperlinkButton>
 
         </Grid>
-        <infoFlower:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="3" HorizontalAlignment="Center" ></infoFlower:InfoFlower>
+        <tip:TipPopup x:Name="Tip"
+                               Grid.Row="0"
+                               Grid.RowSpan="3"
+                               HorizontalAlignment="Center" />
     </Grid>
 
 

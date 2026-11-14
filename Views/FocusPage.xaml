@@ -1,44 +1,61 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 
-<Page
-    x:Class="CC98.Views.FocusPage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:ic="using:FluentIcons.WinUI"
-    xmlns:controls="using:CommunityToolkit.WinUI.Controls"
-    xmlns:obj="using:CC98.Objects"
-    xmlns:picture="using:CC98.Controls.Picture"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    xmlns:empty="using:CC98.Controls.EmptyState"
-    Background="{ThemeResource DesktopAcrylicTransparentBrush}">
+<Page x:Class="CC98.Views.FocusPage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:tip="using:CC98.Controls"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      xmlns:ic="using:FluentIcons.WinUI"
+      xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+      xmlns:obj="using:CC98.Objects"
+      xmlns:picture="using:CC98.Controls"
+      xmlns:empty="using:CC98.Controls"
+      NavigationCacheMode="Disabled"
+      Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Grid Padding="15,5,15,15">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*" MinHeight="60" />
+            <RowDefinition Height="*"
+                           MinHeight="60" />
             <RowDefinition Height="12*" />
         </Grid.RowDefinitions>
-        <SelectorBar VerticalAlignment="Center" SelectionChanged="TypeChoice_SelectionChanged" x:Name="Navibar">
-            <SelectorBarItem Text="好友动态" IsSelected="True" Tag="0" />
-            <SelectorBarItem Text="收藏更新" Tag="1" />
+        <SelectorBar VerticalAlignment="Center"
+                     SelectionChanged="TypeChoice_SelectionChanged"
+                     x:Name="Navibar">
+            <SelectorBarItem Text="好友动态"
+                             IsSelected="True"
+                             Tag="0" />
+            <SelectorBarItem Text="收藏更新"
+                             Tag="1" />
         </SelectorBar>
 
-        <ScrollViewer Grid.Row="1" CornerRadius="4">
-            <ItemsRepeater x:Name="MomentRepeater" ItemsSource="{x:Bind Topics}"
+        <ScrollViewer x:Name="ContentScrollViewer"
+                      Grid.Row="1"
+                      CornerRadius="4">
+            <ItemsRepeater x:Name="MomentRepeater"
+                           ItemsSource="{x:Bind Topics}"
                            ElementPrepared="MomentRepeater_ElementPrepared">
                 <ItemsRepeater.Layout>
-                    <controls:StaggeredLayout DesiredColumnWidth="300" ItemsStretch="Fill" ColumnSpacing="15"
+                    <controls:StaggeredLayout DesiredColumnWidth="300"
+                                              ItemsStretch="Fill"
+                                              ColumnSpacing="15"
                                               RowSpacing="15" />
                 </ItemsRepeater.Layout>
                 <ItemsRepeater.ItemTemplate>
                     <DataTemplate x:DataType="obj:TopicInfo">
-                        <Grid Padding="15" x:Name="ContentCard" Tag="{x:Bind Id}"
+                        <Grid Padding="15"
+                              x:Name="ContentCard"
+                              Tag="{x:Bind Id}"
                               Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
-                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}" BorderThickness="1"
-                              CornerRadius="5" RowSpacing="8" PointerEntered="ContentCard_PointerEntered"
-                              PointerExited="ContentCard_PointerExited" Tapped="ContentCard_Tapped">
+                              BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                              BorderThickness="1"
+                              CornerRadius="5"
+                              RowSpacing="8"
+                              PointerEntered="ContentCard_PointerEntered"
+                              PointerExited="ContentCard_PointerExited"
+                              Tapped="ContentCard_Tapped">
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="32" />
                                 <RowDefinition Height="3" />
@@ -46,37 +63,70 @@
                                 <RowDefinition Height="45" />
                             </Grid.RowDefinitions>
                             <Grid.RenderTransform>
-                                <TranslateTransform x:Name="CardTranslate" X="0" Y="0" />
+                                <TranslateTransform x:Name="CardTranslate"
+                                                    X="0"
+                                                    Y="0" />
                             </Grid.RenderTransform>
-                            <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="10">
-                                <Border Width="30" Height="30" BorderThickness="0" CornerRadius="9999"
+                            <StackPanel Grid.Row="0"
+                                        Orientation="Horizontal"
+                                        Spacing="10">
+                                <Border Width="30"
+                                        Height="30"
+                                        BorderThickness="0"
+                                        CornerRadius="9999"
                                         Background="{ThemeResource PortraitBackgroundColor}">
-                                    <picture:Picture x:Name="portrait" Src="{x:Bind PortraitUrl}"
+                                    <picture:Picture x:Name="portrait"
+                                                     Src="{x:Bind PortraitUrl}"
                                                      LoadImageCallback="{StaticResource PortraitLoader}" />
                                 </Border>
-                                <TextBlock Text="{x:Bind UserName}" VerticalAlignment="Center"
-                                           FontFamily="{StaticResource HarmonySansBold}" Foreground="LightSeaGreen" />
+                                <TextBlock Text="{x:Bind UserName}"
+                                           VerticalAlignment="Center"
+                                           FontFamily="{StaticResource HarmonySansBold}"
+                                           Foreground="LightSeaGreen" />
                             </StackPanel>
-                            <TextBlock Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center"
-                                       Text="{x:Bind Time}" FontSize="10"
+                            <TextBlock Grid.Row="0"
+                                       HorizontalAlignment="Right"
+                                       VerticalAlignment="Center"
+                                       Text="{x:Bind Time}"
+                                       FontSize="10"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                            <Border Grid.Row="1" Height="1" BorderThickness="1" VerticalAlignment="Center"
+                            <Border Grid.Row="1"
+                                    Height="1"
+                                    BorderThickness="1"
+                                    VerticalAlignment="Center"
                                     BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}" />
-                            <TextBlock Grid.Row="2" Text="{x:Bind Title}" Margin="0,10,0,0" TextWrapping="Wrap"
+                            <TextBlock Grid.Row="2"
+                                       Text="{x:Bind Title}"
+                                       Margin="0,10,0,0"
+                                       TextWrapping="Wrap"
                                        Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
 
-                            <StackPanel Orientation="Horizontal" Grid.Row="3" Spacing="10">
-                                <Button Background="Transparent" HorizontalAlignment="Left" Margin="0,10,0,0">
-                                    <StackPanel Orientation="Horizontal" Spacing="5">
-                                        <ic:SymbolIcon Symbol="Chat" FontSize="11" />
-                                        <TextBlock Text="{x:Bind ReplyCount}" HorizontalAlignment="Right" FontSize="12"
+                            <StackPanel Orientation="Horizontal"
+                                        Grid.Row="3"
+                                        Spacing="10">
+                                <Button Background="Transparent"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="5">
+                                        <ic:SymbolIcon Symbol="Chat"
+                                                       FontSize="11" />
+                                        <TextBlock Text="{x:Bind ReplyCount}"
+                                                   HorizontalAlignment="Right"
+                                                   FontSize="12"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
                                 </Button>
-                                <Button Background="Transparent" HorizontalAlignment="Left" Margin="0,10,0,0">
-                                    <StackPanel Orientation="Horizontal" Spacing="5">
-                                        <ic:SymbolIcon Symbol="Fire" FontSize="11" />
-                                        <TextBlock Text="{x:Bind HitCount}" HorizontalAlignment="Right" FontSize="12"
+                                <Button Background="Transparent"
+                                        HorizontalAlignment="Left"
+                                        Margin="0,10,0,0">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="5">
+                                        <ic:SymbolIcon Symbol="Fire"
+                                                       FontSize="11" />
+                                        <TextBlock Text="{x:Bind HitCount}"
+                                                   HorizontalAlignment="Right"
+                                                   FontSize="12"
                                                    Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                                     </StackPanel>
                                 </Button>
@@ -86,8 +136,18 @@
                 </ItemsRepeater.ItemTemplate>
             </ItemsRepeater>
         </ScrollViewer>
-        <empty:EmptyStateControl x:Name="FocusEmptyState" Grid.Row="1" Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无动态" Subtitle="还没有关注动态" HorizontalAlignment="Center" VerticalAlignment="Center" />
-        <infoFlower:InfoFlower x:Name="Flower" Grid.Row="0" Grid.RowSpan="2" HorizontalAlignment="Center"
+        <empty:EmptyStateControl x:Name="FocusEmptyState"
+                                 Grid.Row="1"
+                                 Visibility="Collapsed"
+                                 IconGlyph="&#xEC4F;"
+                                 Title="暂无动态"
+                                 Subtitle="还没有关注动态"
+                                 HorizontalAlignment="Center"
+                                 VerticalAlignment="Center" />
+        <tip:TipPopup x:Name="Tip"
+                               Grid.Row="0"
+                               Grid.RowSpan="2"
+                               HorizontalAlignment="Center"
                                VerticalAlignment="Bottom" />
 
     </Grid>

@@ -19,6 +19,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Net;
@@ -30,6 +31,7 @@ using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
 using static CC98.Kernel.ApiEndpoints;
 using static CSharpMath.Rendering.Text.TextAtom;
+using CC98.Controls;
 
 namespace CC98.Views;
 
@@ -41,31 +43,79 @@ public sealed partial class TopicPage : Page
     public ObservableCollection<Reply> Replies = [];
     public TopicInfo TopicInfo { get; set; } = new() { };
     public UserInfo Profile = new() { Popularity = 0, PostCount = 0, FanCount = 0 };
-    public ApplicationDataContainer Set = ApplicationData.Current.LocalSettings;
-    public bool IsVote = false;//是否为投票贴
     public bool IsJumping = false;//是否正在进行跳转
     public int JumpToFloor = -1;
     public int TopicId = 0;
     public int CurrentPage = 0;
     public int PageSize = 10;
-    public GlobalService GlobalService = GlobalService.Instance;
+
+    // 主题浏览位置记忆:用于"进入本页的子页面(编辑器、用户资料等)后返回同一主题"时恢复分页。
+    // 本页是 NavigationCacheMode=Disabled(每次导航都会重建),故用静态表跨实例传递。
+    // 按主题 Id 分别记忆(而不是只记"最近一次"),因此 A → B → 返回 A 也能回到 A 的页码;
+    // 容量有上限,长时间使用不会无限增长,超限时淘汰最久未使用的条目。
+    private const int MaxRememberedPositions = 30;
+    private static readonly List<(int TopicId, int Page)> RecentPositions = [];
+
+    /// <summary>记录某主题离开时的页码(命中即前移,维持"最近使用"顺序)。</summary>
+    private static void RememberPosition(int topicId, int page)
+    {
+        if (topicId <= 0) return;
+
+        RecentPositions.RemoveAll(p => p.TopicId == topicId);
+        RecentPositions.Insert(0, (topicId, page));
+        if (RecentPositions.Count > MaxRememberedPositions)
+            RecentPositions.RemoveRange(MaxRememberedPositions, RecentPositions.Count - MaxRememberedPositions);
+    }
+
+    /// <summary>取出某主题上次离开时的页码(命中即前移,维持"最近使用"顺序)。</summary>
+    private static bool TryGetRememberedPosition(int topicId, out int page)
+    {
+        var index = RecentPositions.FindIndex(p => p.TopicId == topicId);
+        if (index < 0)
+        {
+            page = 0;
+            return false;
+        }
+
+        var entry = RecentPositions[index];
+        if (index > 0)
+        {
+            RecentPositions.RemoveAt(index);
+            RecentPositions.Insert(0, entry);
+        }
+
+        page = entry.Page;
+        return true;
+    }
+
     public ApiService ApiService = App.Current.GetService<ApiService>();
     public TopicPage()
     {
         InitializeComponent();
         LoadSet();
         LoadFavorites();
-        Unloaded += Topic_Unloaded;
-    }
 
-    private void Topic_Unloaded(object sender, RoutedEventArgs e)
-    {
-        Pager?.SelectedIndexChanged -= Pager_SelectedIndexChanged;
-        GlobalMediaPlayer.Instance.Pause();
+        //金额变化时刷新到账预览;赠米金额只放行数字,BeforeTextChanging 直接拒绝非法输入
+        WealthAmount.TextChanged += (_, _) => UpdateWealthPreview();
+        WealthAmount.BeforeTextChanging += (_, args) =>
+        {
+            if (args.NewText.Length > 0 && !args.NewText.All(char.IsDigit))
+                args.Cancel = true;
+        };
+
+        // 发送成功后刷新：回帖只影响列表，编辑主题还会改标题和正文
+        ComposeOverlay.Sent += async (_, _) =>
+        {
+            await LoadTopicInfo();
+            await LoadReply();
+        };
     }
 
     protected override void OnNavigatedFrom(NavigationEventArgs e)
     {
+        // 记录离开时的浏览位置,供返回同一主题时恢复分页(例如进入编辑器后未发送就返回)。
+        RememberPosition(TopicId, CurrentPage);
+
         //释放资源
         base.OnNavigatedFrom(e);
         Replies.Clear();
@@ -78,28 +128,26 @@ public sealed partial class TopicPage : Page
         VotePanel?.IsOpen = false;
         VotePanel?.Target = null;
         VotePanel?.Content = null;
-        VotePanel?.IsOpen = false;
-        VotePanel?.Target = null;
-        VotePanel?.Content = null;
         if (ProfileViewer != null)
         {
             ProfileViewer.IsOpen = false;
             ProfileViewer.Target = null;
             ProfileViewer.Content = null;
         }
+        GlobalMediaPlayer.Instance.Pause();
     }
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
 
-        var args = GlobalService.ShouldReplaceNavigationArgs ?
-            (TopicNavigationInfo?)GlobalService.NavigationAnchor :
-            e.TryGetParameter<TopicNavigationInfo>();
-        if (!GlobalService.ShouldReplaceNavigationArgs)
+        var args = e.TryGetParameter<TopicNavigationInfo>();
+        if (args == null)
         {
-            GlobalService.NavigationAnchor = e.TryGetParameter<TopicNavigationInfo>();
+            // 缺少导航参数(例如被错误地直接导航到本页):给出提示,而不是留一个空白页
+            Tip.Show(InfoType.Error, "缺少主题参数,无法打开该主题");
+            return;
         }
-        if (args == null) return;
+
         TopicId = args.TopicId;
         if (args.GoToLatest || args.IsJumpingMode)
         {
@@ -107,11 +155,34 @@ public sealed partial class TopicPage : Page
             await LoadTopicInfo();
             if (args.GoToLatest)
             {
-                Pager.SelectedPageIndex = Pager.NumberOfPages - 1;
+                // 回复数为 0 时 NumberOfPages 可能为 0,这里退化成加载第 0 页,避免索引越界
+                var lastPage = System.Math.Max(Pager.NumberOfPages - 1, 0);
+                if (lastPage > 0)
+                    Pager.SelectedPageIndex = lastPage;
+                else
+                    await LoadReply();
                 return;
             }
             IsJumping = true;
             await Tp(args.TargetFloor);
+            return;
+        }
+
+        // 若本次是"返回同一主题"(进入编辑器未发送就返回、看完用户资料返回等),
+        // 恢复到离开时的分页位置,而不是回到第 1 页。
+        // 位置按主题记忆,因此 A → B → 返回 A 也能恢复到 A 的页码(命中的条目会被移到表头)。
+        if (e.NavigationMode == NavigationMode.Back
+            && TryGetRememberedPosition(args.TopicId, out var rememberedPage)
+            && rememberedPage > 0)
+        {
+            // 需要先由 LoadTopicInfo 设置 Pager.NumberOfPages 才能定位页码
+            await LoadTopicInfo();
+            // 主题回复数可能已变化,越界时夹取到有效范围
+            var target = System.Math.Clamp(rememberedPage, 0, System.Math.Max(Pager.NumberOfPages - 1, 0));
+            if (target > 0)
+                Pager.SelectedPageIndex = target; // 触发 Pager_SelectedIndexChanged,由它完成 LoadReply
+            else
+                await LoadReply();
             return;
         }
 
@@ -137,7 +208,7 @@ public sealed partial class TopicPage : Page
             var favoritesList = SerializationHelper.TryDeserialize<List<Favorites>>(favoritesJson);
             if (favoritesList == null)
             {
-                Flower.Play(FlowStatus.Fail, "解析收藏夹缓存出错");
+                Tip.Show(InfoType.Error, "解析收藏夹缓存出错");
                 return;
             }
             foreach (var favorites in favoritesList)
@@ -149,7 +220,7 @@ public sealed partial class TopicPage : Page
         }
         catch(Exception ex)
         {
-            Flower.Play(FlowStatus.Fail,ex.Message);
+            Tip.Show(InfoType.Error,ex.Message);
         }
         
     }
@@ -266,6 +337,11 @@ public sealed partial class TopicPage : Page
         TopicInfo.Time = data.Time;
         TopicInfo.HitCount = data.HitCount;
         TopicInfo.ReplyCount = data.ReplyCount;
+        TopicInfo.IsVote = data.IsVote;
+        TopicInfo.IsAnonymous = data.IsAnonymous;
+        TopicInfo.IsMe = data.IsMe;
+        TopicInfo.LockReason = data.LockReason;
+
         var isFavoriteResult = await isFavoriteTask;
         if (isFavoriteResult.IsNotValid)
         {
@@ -277,11 +353,7 @@ public sealed partial class TopicPage : Page
         }
         Pager.NumberOfPages = (TopicInfo.ReplyCount / 10) + 1;
         PagerFix();
-        IsVote = TopicInfo.IsVote;
-        if (IsVote)
-        {
-            StartVote.Visibility = Visibility.Visible;
-        }
+        
     }
 
 
@@ -309,7 +381,7 @@ public sealed partial class TopicPage : Page
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
         {
             //报错
-            Flower.Play(FlowStatus.Fail, $"加载用户头像失败：{userInfoResult.Message}");
+            Tip.Show(InfoType.Error, $"加载用户头像失败：{userInfoResult.Message}");
         }
 
         var userInfoList = userInfoResult.Data;
@@ -392,7 +464,7 @@ public sealed partial class TopicPage : Page
                 await Tp(floor);
             },
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)
@@ -425,10 +497,10 @@ public sealed partial class TopicPage : Page
         }
     }
 
-    private async void MdViewer_LinkClicked(object sender, CommunityToolkit.WinUI.Controls.LinkClickedEventArgs e)
+    private async void MdViewer_LinkClicked(object sender, Controls.MarkdownTextBlock.Common.Events.LinkClickedEventArgs e)
     {
         e.Handled = true;
-        var url = e.Uri.ToString();
+        var url = e.Url;
         if (string.IsNullOrWhiteSpace(url)) return;
 
         var context = new LinkContext
@@ -441,22 +513,47 @@ public sealed partial class TopicPage : Page
                 await Tp(floor);
             },
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         await LinkNavigationService.HandleLinkAsync(url, context);
     }
 
+    /// <summary>
+    ///     Markdown 图片点击:与 UBB 图片点击(见 <see cref="UbbTextBlock_MediaClicked"/>)保持一致 ——
+    ///     把整段内容里的图片一起交给预览器做画廊,并以被点击的这张为当前项。
+    /// </summary>
+    private void MdViewer_ImageClicked(object sender, Controls.MarkdownTextBlock.Common.Events.ImageClickedEventArgs e)
+    {
+        e.Handled = true;
+        if (string.IsNullOrWhiteSpace(e.Source)) return;
+
+        // 用控件自己维护的图片序列(已做 ~/ 展开等归一化),这样 IndexOf 一定找得到被点击的那张
+        var gallery = sender is Controls.MarkdownTextBlock.MarkdownTextBlock md
+            ? md.GetImageUrls().ToList()
+            : null;
+
+        LinkNavigationService.ShowImageViewer(e.Source, gallery);
+    }
+
+
     
+    /// <summary>
+    ///     回复：从底部滑出浮层（不再导航到 SketchPage）。
+    ///     背景图走 XAML 绑定（<c>BackgroundImageSource</c>），这里只交代发送模式和目标。
+    /// </summary>
     private void writereply_Click(object sender, RoutedEventArgs e)
     {
-        var param = new SketchNavigationInfo
+        if(TopicInfo.LockReason != null)
         {
-            EditorMode = EditorMode.ReplyToTopic,
-            TopicId = TopicId,
-            HintText = TopicInfo.Title,
-        };
-        Frame.Navigate(typeof(SketchPage), param);
+            Tip.Show(InfoType.Information, "该主题已被锁定，无法回复");
+            return;
+        }
+        ComposeOverlay.Mode = EditorMode.ReplyToTopic;
+        ComposeOverlay.TopicId = TopicId;
+        ComposeOverlay.HintText = string.Empty; // 普通回复用默认文案，别留着上次引用的「引用某某」
+
+        ComposeOverlay.Show();
     }
 
     #region 赠米(财富转账)
@@ -469,24 +566,24 @@ public sealed partial class TopicPage : Page
         //不能向自己赠米:用 AppSettings 中的当前用户 id 校验
         if (reply.UserId.HasValue && reply.UserId.Value == AppSettings.Current.UserId)
         {
-            Flower.Play(FlowStatus.Warning, "不能给自己赠米");
+            Tip.Show(InfoType.Warning, "不能给自己赠米");
             return;
         }
         //已删除/匿名的楼层无法确定真实收款人,禁止赠米
         if (reply.IsDeleted)
         {
-            Flower.Play(FlowStatus.Warning, "该楼层已被删除，无法赠米");
+            Tip.Show(InfoType.Warning, "该楼层已被删除，无法赠米");
             return;
         }
         if (reply.IsAnonymous || string.IsNullOrEmpty(reply.UserName))
         {
-            Flower.Play(FlowStatus.Warning, "不能给匿名用户赠米");
+            Tip.Show(InfoType.Warning, "不能给匿名用户赠米");
             return;
         }
 
         //重置弹窗输入并预填收款人
         WealthReceiver.Text = reply.UserName;
-        WealthAmount.Value = 0;
+        WealthAmount.Text = "";
         WealthReason.Text = "";
         WealthError.Text = "";
         UpdateWealthPreview();
@@ -502,17 +599,15 @@ public sealed partial class TopicPage : Page
         }
     }
 
-    private void WealthAmount_ValueChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
-    {
-        UpdateWealthPreview();
-    }
+    /// <summary>赠米金额:文本已由 BeforeTextChanging 保证只含数字,解析失败(空框)按 0 处理。</summary>
+    private int WealthAmountValue => int.TryParse(WealthAmount.Text, out var value) ? value : 0;
 
     /// <summary>
     /// 按"手续费 = max(金额*10%, 10)"实时计算并显示实际到账。
     /// </summary>
     private void UpdateWealthPreview()
     {
-        var wealth = (int)System.Math.Round(WealthAmount.Value);
+        var wealth = WealthAmountValue;
         if (wealth < 10)
         {
             WealthPreview.Text = "";
@@ -545,19 +640,26 @@ public sealed partial class TopicPage : Page
         }
 
         //校验金额
-        var wealth = (int)System.Math.Round(WealthAmount.Value);
+        var wealth = WealthAmountValue;
         if (wealth < 10)
         {
             WealthError.Text = "转账金额不能小于 10";
             return;
         }
 
+
+        //检查理由
         var reason = WealthReason.Text.Trim();
+        if (string.IsNullOrEmpty(reason))
+        {
+            WealthError.Text = "请输入转账理由";
+            return;
+        }
+
         WealthError.Text = "";
         WealthTransferOk.IsEnabled = false;
         try
         {
-            //使用强类型请求体
             var post = new WealthTransferMessage
             {
                 UserNames = userNames,
@@ -576,11 +678,11 @@ public sealed partial class TopicPage : Page
             try
             {
                 var userList = SerializationHelper.TryDeserialize<List<string>>(res.Content) ?? [];
-                Flower.Play(FlowStatus.Success, $"赠米成功：{string.Join("、", userList)}");
+                Tip.Show(InfoType.Success, $"赠米成功：{string.Join("、", userList)}");
             }
             catch (Exception ex)
             {
-                Flower.Play(FlowStatus.Success, $"解析收款人列表失败：{ex.Message}");
+                Tip.Show(InfoType.Success, $"解析收款人列表失败：{ex.Message}");
             }
             finally
             {
@@ -625,17 +727,17 @@ public sealed partial class TopicPage : Page
         //匿名、已删除、自己的楼层不可风评
         if (reply.IsDeleted)
         {
-            Flower.Play(FlowStatus.Warning, "该楼层已被删除，无法风评");
+            Tip.Show(InfoType.Warning, "该楼层已被删除，无法风评");
             return;
         }
         if (reply.IsAnonymous)
         {
-            Flower.Play(FlowStatus.Warning, "不能给匿名用户风评");
+            Tip.Show(InfoType.Warning, "不能给匿名用户风评");
             return;
         }
         if (reply.UserId.HasValue && reply.UserId.Value == AppSettings.Current.UserId)
         {
-            Flower.Play(FlowStatus.Warning, "不能给自己风评");
+            Tip.Show(InfoType.Warning, "不能给自己风评");
             return;
         }
 
@@ -649,6 +751,9 @@ public sealed partial class TopicPage : Page
 
         //默认选中"正面";若与当前选择相同则不触发 SelectionChanged,需显式加载
         _isSettingRatingType = true;
+        // IsSelected 决定下划线的位置,SelectedItem 是逻辑选中项,两者一起改才不会出现
+        // "下划线停在负面、风评理由却按正面加载"的错位
+        RatingTypeBar.Items[0].IsSelected = true;
         RatingTypeBar.SelectedItem = RatingTypeBar.Items[0];
         _isSettingRatingType = false;
         if (RatingTypeBar.SelectedItem == RatingTypeBar.Items[0])
@@ -813,7 +918,7 @@ public sealed partial class TopicPage : Page
                 return;
             }
 
-            Flower.Play(FlowStatus.Success, $"风评成功：{_selectedReason}");
+            Tip.Show(InfoType.Success, $"风评成功：{_selectedReason}");
             RatingDialog.Hide();
         }
         catch (Exception ex)
@@ -848,14 +953,14 @@ public sealed partial class TopicPage : Page
             case "0":
                 await LoadTopicInfo();
                 await LoadReply();
-                Flower.Play(FlowStatus.Success, "刷新成功");
+                Tip.Show(InfoType.Success, "刷新成功");
                 break;
             case "1":
                 var shareUrl = $"{TopicInfo.Title} https://www.cc98.org/topic/{TopicId}";
                 var dataPackage = new DataPackage();
                 dataPackage.SetText(shareUrl);
                 Clipboard.SetContent(dataPackage);
-                Flower.Play(FlowStatus.Success, "已复制帖子链接");
+                Tip.Show(InfoType.Success, "已复制帖子链接");
                 break;
             case "2":
                 //无需响应
@@ -865,12 +970,12 @@ public sealed partial class TopicPage : Page
                 var res = await ApiService.Delete(endpoint);
                 if (res == null || !res.IsSuccess)
                 {
-                    Flower.Play(FlowStatus.Fail, $"取消收藏失败:{res?.Message}");
+                    Tip.Show(InfoType.Error, $"取消收藏失败:{res?.Message}");
                 }
                 else
                 {
                     TopicInfo.IsFavorite = false;
-                    Flower.Play(FlowStatus.Success, "已取消收藏");
+                    Tip.Show(InfoType.Success, "已取消收藏");
                 }
                 break;
             case "4":
@@ -891,11 +996,11 @@ public sealed partial class TopicPage : Page
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, result.Message);
+            Tip.Show(InfoType.Error, result.Message);
             return;
         }
         await LoadTopicInfo();
-        Flower.Play(FlowStatus.Success, "已收藏");
+        Tip.Show(InfoType.Success, "已收藏");
     }
 
 
@@ -930,17 +1035,22 @@ public sealed partial class TopicPage : Page
                 await ShowWealthTransferAsync(reply);
                 break;
             case "RATE":
+                if (TopicInfo.LockReason != null)
+                {
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法进行风评操作");
+                    return;
+                }
                 await ShowRatingAsync(reply);
                 break;
             case "UBB":
                 pack = new DataPackage();
                 pack.SetText(reply.Content);
                 Clipboard.SetContent(pack);
-                Flower.Play(FlowStatus.Success, "已复制为UBB代码");
+                Tip.Show(InfoType.Success, "已复制为UBB代码");
                 break;
             case "MD":
                 pack = new DataPackage();
-                if (reply.ContentType == (int)ContentType.Ubb)
+                if (reply.ContentType == (int)MarkupContentType.Ubb)
                 {
                     pack.SetText(UbbToMarkdown.Convert(reply.Content, true));
                 }
@@ -949,12 +1059,17 @@ public sealed partial class TopicPage : Page
                     pack.SetText(reply.Content);
                 }
                 Clipboard.SetContent(pack);
-                Flower.Play(FlowStatus.Success, "已复制为Markdown文本");
+                Tip.Show(InfoType.Success, "已复制为Markdown文本");
                 break;
             case "QUOTE":
                 if (reply.IsDeleted)
                 {
-                    Flower.Play(FlowStatus.Info, "无法回复被删除的帖子");
+                    Tip.Show(InfoType.Information, "无法回复被删除的帖子");
+                    return;
+                }
+                if (TopicInfo.LockReason != null)
+                {
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法回复");
                     return;
                 }
                 if (reply.Content != null)
@@ -963,36 +1078,81 @@ public sealed partial class TopicPage : Page
                     var page = 1 + floor / 10;
                     var location = floor % 10;
                     var header = $"[b]以下是引用{floor}楼：用户{reply.UserName}在{reply.Time}的发言：[url=/topic/{TopicId}/{page}#{location}]>>查看原帖<<[/url][/b]\r\n";
-                    var param = new SketchNavigationInfo
-                    {
-                        EditorMode = EditorMode.ReplyToPost,
-                        TopicId = TopicId,
-                        QuoteHeader = $"[quote]{header}{reply.Content}[/quote]",
-                        ParentId = reply.Id,
-                        HintText = $"引用{reply.UserName}的回复",
-                        Floor = floor
-                    };
-                    Frame.Navigate(typeof(SketchPage), param);
+                    var quote = $"[quote]{header}{reply.Content}[/quote]";
+
+                    // 引用回复 = ReplyToPost：标题栏显示被引用的人，正文预填引用块（一律 UBB）
+                    ComposeOverlay.Mode = EditorMode.ReplyToPost;
+                    ComposeOverlay.TopicId = TopicId;
+                    ComposeOverlay.ParentId = reply.Id;
+                    ComposeOverlay.InitialTitle = string.Empty;
+                    ComposeOverlay.HintText = $"引用{reply.UserName}的回复";
+                    ComposeOverlay.PrefillQuote(quote);
+                    ComposeOverlay.Show();
                 }
                 break;
             case "EDIT":
-                //使用括号放置param变量名重复
+                if (TopicInfo.LockReason != null)
                 {
-                    var param = new SketchNavigationInfo
-                    {
-                        EditorMode = reply.Floor == 1 ? EditorMode.EditMyTopic : EditorMode.EditMyPost,
-                        TopicId = TopicId,
-                        BaseText = reply.Content,
-                        PostId = reply.Id,
-                        HintText = TopicInfo.Title,
-                        Floor = reply.Floor,
-                        ContentType = reply.ContentType
-                    };
-                    Frame.Navigate(typeof(SketchPage), param);
+                    Tip.Show(InfoType.Information, "该主题已被锁定，无法编辑");
+                    return;
                 }
+                OpenEditorForEdit(reply);
                 break;
         }
     }
+
+    /// <summary>
+    ///     打开编辑器编辑某一楼。<c>Floor == 1</c> 就是主题本身（标题可改），其余都是回复。
+    /// </summary>
+    private void OpenEditorForEdit(Reply reply)
+    {
+        var editingTopic = reply.Floor == 1;
+
+        ComposeOverlay.Mode = editingTopic ? EditorMode.EditMyTopic : EditorMode.EditMyPost;
+        ComposeOverlay.TopicId = TopicId;
+        ComposeOverlay.PostId = reply.Id;
+        // 主题标题两种编辑模式都要带：编辑回复时它只是不能改，但必须原样回传
+        ComposeOverlay.InitialTitle = TopicInfo.Title;
+        ComposeOverlay.Prefill(reply.Content ?? string.Empty, reply.ContentType, reply.IsAnonymous);
+        ComposeOverlay.Show();
+    }
+
+    /// <summary>
+    ///     主题头部菜单里的「编辑主题」。首楼不一定在当前页（翻到后面几页时就没有），
+    ///     缺了就单独去取第 1 页拿回来。
+    /// </summary>
+    private async void EditTopic_Click(object sender, RoutedEventArgs e)
+    {
+
+        if (TopicInfo.LockReason != null)
+        {
+            Tip.Show(InfoType.Information, "该主题已被锁定，无法编辑");
+            return;
+        }
+        var first = Replies.FirstOrDefault(x => x.Floor == 1);
+
+        if (first == null)
+        {
+            var url = ApiEndpoints.Topic.ReplyList(TopicId, 0);
+            var result = await ApiService.Fetch<List<Reply>>(url);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Tip.Show(InfoType.Error, $"找不到首楼：{result.Message}");
+                return;
+            }
+
+            first = result.Data.FirstOrDefault(x => x.Floor == 1);
+        }
+
+        if (first == null)
+        {
+            Tip.Show(InfoType.Error, "找不到首楼，无法编辑");
+            return;
+        }
+
+        OpenEditorForEdit(first);
+    }
+
     private void PagerFix()
     {
         Pager.NextButtonVisibility = Pager.NumberOfPages == 1 ?
@@ -1018,7 +1178,7 @@ public sealed partial class TopicPage : Page
             if (!result.IsSuccess)
             {
                 //
-                Flower.Play(FlowStatus.Fail, "操作失败");
+                Tip.Show(InfoType.Error, "操作失败");
                 return;
             }
             var newStateUrl = ApiEndpoints.Post.ReactionState(postId);
@@ -1026,7 +1186,7 @@ public sealed partial class TopicPage : Page
             if (!newStateResult.IsSuccess || newStateResult.Data == null)
             {
                 //
-                Flower.Play(FlowStatus.Fail, "获取赞踩数据失败");
+                Tip.Show(InfoType.Error, "获取赞踩数据失败");
                 return;
             }
             var newState = newStateResult.Data;
@@ -1050,9 +1210,11 @@ public sealed partial class TopicPage : Page
         if (p?.Tag is not string tag) return;
         try
         {
-            var bitmap = await ImageHelper.LoadWebImageAsync(tag);
+            // 走弱引用缓存+低分辨率:虚拟化列表每次容器 Loaded 都会触发本方法,
+            // 无缓存路径会反复下载并全尺寸解码同一张头像,产生大量大对象分配
+            var bitmap = await SmartImageLoader.GetInstance(lowRes: true).LoadImage(tag);
             // 加载期间 TeachingTip 可能已关闭,不再向已卸载控件赋值
-            if (p.IsLoaded) p.ProfilePicture = bitmap;
+            if (p.IsLoaded && bitmap != null) p.ProfilePicture = bitmap;
         }
         catch (Exception ex)
         {
@@ -1073,7 +1235,7 @@ public sealed partial class TopicPage : Page
 
     private async Task InitializeVote()
     {
-        if (IsVote)
+        if (TopicInfo.IsVote)
         {
 
             var voteUrl = ApiEndpoints.Topic.Vote(TopicId);
@@ -1081,6 +1243,8 @@ public sealed partial class TopicPage : Page
             if (!voteResult.IsSuccess || voteResult.Data == null)
             {
                 //
+                Debug.WriteLine(voteResult.Message);
+                Tip.Show(InfoType.Error, "加载投票信息失败");
                 return;
             }
             var data = voteResult.Data;
@@ -1155,17 +1319,17 @@ public sealed partial class TopicPage : Page
             var r = await SendVoteResult(TopicId, list);
             if (r == "1")
             {
-                Flower.Play(FlowStatus.Success, "投票完成");
+                Tip.Show(InfoType.Success, "投票完成");
                 await InitializeVote();
             }
             else
             {
-                Flower.Play(FlowStatus.Fail, "投票失败");
+                Tip.Show(InfoType.Error, "投票失败");
             }
         }
         else
         {
-            Flower.Play(FlowStatus.Info, "选择至少一项");
+            Tip.Show(InfoType.Information, "选择至少一项");
         }
     }
     //TODO:需要改成返回一个bool值，表示是否成功。现在的字符串返回值不够语义化。
@@ -1254,4 +1418,6 @@ public sealed partial class TopicPage : Page
         // 显示附加的 Flyout
         FlyoutBase.ShowAttachedFlyout(button);
     }
+
+    
 }

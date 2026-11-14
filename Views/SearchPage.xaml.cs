@@ -21,6 +21,7 @@ using System.Threading.Tasks;
 using System.Web;
 using Windows.Storage;
 using static Microsoft.Extensions.Logging.EventSource.LoggingEventSource;
+using CC98.Controls;
 
 namespace CC98.Views;
 
@@ -166,7 +167,7 @@ public sealed partial class SearchPage : Page
                 break;
             case SearchSuggestionType.UserId:
                 if (int.TryParse(s.Parameter, out var uid))
-                    Frame.Navigate(typeof(ProfilePage), new ProfileNavigationInfo { UserId = uid });
+                    Frame.Navigate(typeof(ProfilePage), new ProfileNavigationInfo {IsMe = uid == AppSettings.Current.UserId, UserId = uid });
                 break;
             case SearchSuggestionType.Board:
                 if (int.TryParse(s.Parameter, out var bid))
@@ -198,7 +199,7 @@ public sealed partial class SearchPage : Page
 
         if (!result.IsSuccess || result.Data == null)
         {
-            Flower.Play(FlowStatus.Fail, $"搜索失败:{result.Message}");
+            Tip.Show(InfoType.Error, $"搜索失败:{result.Message}");
             ShowEmptyState();
             return;
         }
@@ -211,7 +212,7 @@ public sealed partial class SearchPage : Page
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
         {
             //报错
-            Flower.Play(FlowStatus.Fail, $"加载用户头像失败：{userInfoResult.Message}");
+            Tip.Show(InfoType.Error, $"加载用户头像失败：{userInfoResult.Message}");
         }
 
         var userInfoList = userInfoResult.Data;
@@ -272,7 +273,7 @@ public sealed partial class SearchPage : Page
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
         {
             //报错
-            Flower.Play(FlowStatus.Fail, $"加载用户头像失败：{userInfoResult.Message}");
+            Tip.Show(InfoType.Error, $"加载用户头像失败：{userInfoResult.Message}");
         }
 
         var userInfoList = userInfoResult.Data;
@@ -349,7 +350,7 @@ public sealed partial class SearchPage : Page
         var result = await ApiService.Fetch<UserInfo>(url);
         if (!result.IsSuccess || result.Data == null || result.Data.Id == 0)
         {
-            Flower.Play(FlowStatus.Fail, $"未找到用户:{name}");
+            Tip.Show(InfoType.Error, $"未找到用户:{name}");
             return;
         }
         var user = result.Data;
@@ -554,6 +555,9 @@ public sealed partial class SearchPage : Page
             Header = $"主题 #{topicId}",
             IsClosable = true
         };
+        // 每个 tab 自带一个嵌套 Frame。注意 MainWindow 的后退栈修剪只作用于 ContentFrame,
+        // 这里的内嵌后退栈不修剪 —— 不修剪是安全的:本页是 NavigationCacheMode=Disabled,
+        // 离开搜索页时整棵树(含所有 tab 与它们的 Frame)一起丢弃;且首次导航不产生后退记录。
         var frame = new Frame();
         frame.Navigate(typeof(TopicPage), new TopicNavigationInfo { TopicId = topicId });
         tab.Content = frame;

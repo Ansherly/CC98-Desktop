@@ -9,7 +9,9 @@ namespace CC98.Controls.Primitives;
 public sealed partial class GlobalMediaPlayer : IDisposable
 {
     private static readonly Lazy<GlobalMediaPlayer> Lazy = new(() => new());
-
+    private object? _owner; // 记录当前拥有者，避免多个控件同时使用同一个播放器
+    public object? CurrentOwner => _owner;
+    public bool IsCurrentOwner(object owner) => ReferenceEquals(_owner, owner);
     private readonly MediaPlayer _player;
 
     private GlobalMediaPlayer()
@@ -19,6 +21,11 @@ public sealed partial class GlobalMediaPlayer : IDisposable
             AutoPlay = false,
             IsLoopingEnabled = false
         };
+
+        //禁用 MediaPlayer 内建的 SMTC 自动管理(CommandManager):
+        //它会在 MediaOpened 时用媒体源里的(空)信息覆盖 SmtcController 手动上报的封面与歌名,
+        //表现为"第一次播放信息被清掉,暂停再播才显示"。SMTC 全权交给 SmtcController 手动上报。
+        _player.CommandManager.IsEnabled = false;
 
         //直接把底层事件转发出去，订阅者可以像之前那样使用相同的处理函数签名
         _player.MediaOpened += (s, e) => MediaOpened?.Invoke(s, e);
@@ -35,6 +42,13 @@ public sealed partial class GlobalMediaPlayer : IDisposable
     public MediaPlaybackSession PlaybackSession => _player.PlaybackSession;
 
     public bool IsPlaying { get; private set; }
+
+    /// <summary>音量，0.0 ~ 1.0。所有播放器实例共享同一个底层 MediaPlayer，因此也是一个全局音量。</summary>
+    public double Volume
+    {
+        get => _player.Volume;
+        set => _player.Volume = Math.Clamp(value, 0, 1);
+    }
 
     public void Dispose()
     {
@@ -58,9 +72,24 @@ public sealed partial class GlobalMediaPlayer : IDisposable
     // 如果 UI需要监听 PlaybackSession 的 PositionChanged
     public event TypedEventHandler<MediaPlaybackSession, object> PlaybackSessionPositionChanged;
 
-    public void SetSource(MediaSource source)
+    public event EventHandler<object> OwnerChanged;
+
+    // 当前媒体源:MediaSource 实现了 IDisposable,显式关闭可立即释放其持有的内存流
+    private MediaSource? _currentSource;
+
+    public void SetSource(MediaSource source,object owner)
     {
+        var ownerChanged=!IsCurrentOwner(owner);
+        // 先换源再释放旧 MediaSource:旧源持有整个文件的内存流,仅靠 GC 回收时机不可控
+        var old = _currentSource;
+        _currentSource = source;
         _player.Source = source;
+        _owner = owner;
+        old?.Dispose();
+        if(ownerChanged)
+        {
+            OwnerChanged?.Invoke(this, owner);
+        }
     }
 
     public void Play()
@@ -84,5 +113,23 @@ public sealed partial class GlobalMediaPlayer : IDisposable
     public void Seek(TimeSpan position)
     {
         _player.PlaybackSession?.Position = position;
+    }
+
+    /// <summary>owner 卸载或释放时归还播放器。非当前 owner 调用则不生效。</summary>
+    /// 此方法解决_owner持有控件引用的内存泄漏问题
+    public void ReleaseOwnership(object owner)
+    {
+        if (!IsCurrentOwner(owner)) return;
+
+        _owner = null;
+        // 源一并丢弃：owner 侧 _isInitialized 已复位，下次播放必然重新 LoadMedia，
+        // 留着旧 MediaSource 只是白占一份内存流
+        //保留资源的引用
+        var old = _currentSource;
+        //释放变量引用，断开连接
+        _currentSource = null;
+        _player.Source = null;
+        //最后再释放旧资源
+        old?.Dispose();
     }
 }

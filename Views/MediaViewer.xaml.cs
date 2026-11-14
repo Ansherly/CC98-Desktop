@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using CC98.Controls.Picture;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using CC98.Kernel.Authorize;
 using CC98.Objects;
@@ -107,11 +107,11 @@ public sealed partial class MediaViewer : Window
         var r=await Downloader.CopyImageToClipboardAsync(CurrentUrl);
         if (r)
         {
-            Flower.Play(FlowStatus.Success, "已复制图片到剪贴板");
+            Tip.Show(InfoType.Success, "已复制图片到剪贴板");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, "复制失败");
+            Tip.Show(InfoType.Error, "复制失败");
         }
     }
 
@@ -148,9 +148,9 @@ public sealed partial class MediaViewer : Window
     }
     private void ShowTip(string title,string subTitle)
     {
-        Tip.Title = title;
-        Tip.Subtitle = subTitle;
-        Tip.IsOpen = true;
+        HelpTip.Title = title;
+        HelpTip.Subtitle = subTitle;
+        HelpTip.IsOpen = true;
     }
 
 }

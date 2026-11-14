@@ -12,6 +12,13 @@
  
     <PublishProfile>win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
+    <!--
+      交换链挂到 SwapChainPanel 已经改成裸指针 + vtable 调用(见 Controls\VideoPlayer\Interop.cs),
+      不再依赖内置 COM;但 WinUI 控件子类仍然要它:Content 赋值走 AOT 优化路径会用内置 COM。
+      另外手写 [ComImport] 接口的 As<T>() 在 AOT 下会抛
+      “COM Interop requires ComWrapper instance registered for marshalling”,别再往那条路上走。
+    -->
+    <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
 	  <WindowsSdkPackageVersion>10.0.26100.81</WindowsSdkPackageVersion>
@@ -132,6 +139,7 @@
     <None Remove="CC98 Desktop_1.0.5.0_x64_Debug.cer" />
     <None Remove="CC98 Desktop_1.0.5预览体验（x64）.zip" />
     <None Remove="CC98 Desktop_1.0.6.0_x64_Debug.cer" />
+    <None Remove="Controls\CodeBlock\CodeBlock.xaml" />
     <None Remove="Controls\FileCard\FileCard.xaml" />
     <None Remove="Controls\StatusIndicator.xaml" />
     <None Remove="Discover.xaml" />
@@ -176,30 +184,54 @@
     <ProjectCapability Include="Msix" />
   </ItemGroup>
   <ItemGroup>
+	<PackageReference Include="AngleSharp" Version="1.10.0" />
 	<PackageReference Include="ColorCode.WinUI" Version="2.0.15" />
-	<PackageReference Include="CommunityToolkit.Labs.WinUI.Controls.MarkdownTextBlock" Version="0.1.260203-build.2518" />
 	<PackageReference Include="CommunityToolkit.Labs.WinUI.Controls.Shimmer" Version="0.1.260415-build.2574" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.Ribbon" Version="0.1.250811-build.10" />
     <PackageReference Include="CommunityToolkit.Labs.WinUI.TokenView" Version="0.1.250828-build.2223" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <!-- TipPopup 的上浮/淡出动画 -->
+    <PackageReference Include="CommunityToolkit.WinUI.Animations" Version="8.3.260402-preview2" />
+    <!-- SketchPage 的 <controls:ColorPicker> 还依赖这个包；ComposeEditor 已经改用自带的 ColorPicker -->
     <PackageReference Include="CommunityToolkit.WinUI.Controls.ColorPicker" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Primitives" Version="8.2.251219" />
+    <PackageReference Include="CommunityToolkit.WinUI.Controls.Segmented" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.SettingsControls" Version="8.2.251219" />
     <PackageReference Include="CommunityToolkit.WinUI.Controls.Sizers" Version="8.2.251219" />
     <PackageReference Include="CSharpMath.SkiaSharp" Version="1.0.0-pre.1" />
-    <PackageReference Include="DevWinUI" Version="10.0.0" />
-    <PackageReference Include="Duende.IdentityModel.OidcClient" Version="7.1.0" />
-    <PackageReference Include="FluentIcons.WinUI" Version="2.2.331" />
-    <PackageReference Include="HtmlAgilityPack" Version="1.12.4" />
+    <PackageReference Include="DevWinUI" Version="10.9.1" />
+    <PackageReference Include="Duende.IdentityModel.OidcClient" Version="7.1.1" />
+    <PackageReference Include="FluentIcons.WinUI" Version="2.2.345" />
+    <PackageReference Include="HtmlAgilityPack" Version="1.13.1" />
     <PackageReference Include="JetBrains.Annotations" Version="2026.2.0" />
-    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.9" />
-    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.7.0" />
-    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.2.0" />
-    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2270" />
-    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.2.0" />
-    <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.148.0" />
+    <PackageReference Include="Markdig" Version="1.6.0" />
+    <PackageReference Include="Microsoft.Extensions.Caching.Memory" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
+    <PackageReference Include="Microsoft.Extensions.Http.Resilience" Version="10.11.0" />
+    <PackageReference Include="Microsoft.Windows.CsWinRT" Version="2.3.1" />
+    <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.28000.2957" />
+    <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.6.5" />
+    <PackageReference Include="SkiaSharp.Views.WinUI" Version="4.154.0" />
+    <!-- 视频播放器(Media Foundation)自建 D3D11 设备与 DXGI 合成交换链;OpenTK / OpenGL 已随 mpv 移除 -->
+    <PackageReference Include="Silk.NET.Direct3D11" Version="2.21.0" />
+  </ItemGroup>
+  <!--
+    精简 AI/ML 载荷：WASDK 2.6 的元包会连带 Widgets / AI / ML / Search 四个子组件，
+    其中 onnxruntime + DirectML + Microsoft.Windows.AI.MachineLearning（以及同族的
+    Imaging/Text/Video/Workloads/NPUDetect）在输出目录里实测约 46 MB，而本项目
+    从未调用任何本地推理 API（源码零命中）。
+    它们原本只是元包的传递依赖，而 NuGet 对“传递依赖上的 Update/ExcludeAssets”不生效，
+    所以这里把它们提成直接引用（Include）再加 ExcludeAssets=all：既钉死版本，又能让
+    它们的 props/targets/lib/runtime 全部不进入构建，WASDK 自包含载荷枚举
+    （@(WindowsAppSdkComponentPackages)）也就不会把它们铺进输出和 MSIX。
+  -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.WindowsAppSDK.Widgets" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.AI" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.ML" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.WindowsAppSDK.Search" Version="2.6.5" ExcludeAssets="all" />
+    <PackageReference Include="Microsoft.Windows.AI.MachineLearning" Version="2.4.89" ExcludeAssets="all" />
   </ItemGroup>
   <ItemGroup>
     <Page Update="Views\HistoryPage.xaml">
@@ -347,6 +379,11 @@
   <ItemGroup>
     <Folder Include="Controls\StatusIndicator\" />
   </ItemGroup>
+  <ItemGroup>
+    <Page Update="Controls\CodeBlock\CodeBlock.xaml">
+      <Generator>MSBuild:Compile</Generator>
+    </Page>
+  </ItemGroup>
   <PropertyGroup Label="Globals">
     <WebView2DispatchAdapterNamespace>CC98</WebView2DispatchAdapterNamespace>
   </PropertyGroup>
@@ -380,7 +417,7 @@
 	<PublishTrimmed>True</PublishTrimmed>
 	<TrimMode>full</TrimMode>
     <ApplicationIcon>Assets\cc98.ico</ApplicationIcon>
-    <AllowUnsafeBlocks>False</AllowUnsafeBlocks>
+    <AllowUnsafeBlocks>True</AllowUnsafeBlocks>
     <SignAssembly>False</SignAssembly>
     <SupportedOSPlatformVersion>10.0.22000.0</SupportedOSPlatformVersion>
     

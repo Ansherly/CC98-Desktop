@@ -26,7 +26,6 @@ public class Downloader
             var apiService = App.Current.GetService<ApiService>();
             var imageBytes = await apiService.GetBytesAsync(imageUrl);
             if(imageBytes == null) return false;
-            using var stream = new MemoryStream(imageBytes);
             var randomAccessStream = new InMemoryRandomAccessStream();
             await randomAccessStream.WriteAsync(imageBytes.AsBuffer());
             randomAccessStream.Seek(0);
@@ -76,16 +75,63 @@ public class Downloader
             // 创建文件
             var file = await downloadsFolder.CreateFileAsync(fileName, CreationCollisionOption.ReplaceExisting);
             var apiService = App.Current.GetService<ApiService>();
-            var imageBytes = await apiService.GetBytesAsync(sourceUrl);
-            if (imageBytes == null) return null;
+            // 流式写盘:之前把整个附件读成 byte[] 再写入,大附件时内存峰值 = 文件大小
             await using var stream = await file.OpenStreamForWriteAsync();
-            await stream.WriteAsync(imageBytes);
+            if (!await apiService.CopyToStreamAsync(sourceUrl, stream)) return null;
             return file.Path;
         }
         catch (Exception ex)
         {
             Debug.WriteLine($"下载图片失败: {ex.Message}");
             return null;
+        }
+    }
+
+    /// <summary>
+    ///     下载文件到应用缓存目录(内部缓存用,例如用户头像)。
+    ///     与 <see cref="DownloadFileAsync" /> 的三点关键差异:
+    ///       1. 文件名由 URL 决定且固定,重复下载直接覆盖 —— 不会像下载功能那样每次生成 _1/_2 副本
+    ///          (缓存目录里堆出多份头像的根因就在这里);
+    ///       2. 先写 .tmp 再改名替换,中途失败既不留半个文件,也不会破坏已有的有效缓存;
+    ///       3. 先取到内容再建文件,取不到直接返回 null,不会留下 0 字节却"看起来像缓存"的文件。
+    /// </summary>
+    /// <returns>成功返回缓存文件完整路径;失败返回 null,调用方应保留原有缓存。</returns>
+    public static async Task<string?> DownloadCacheFileAsync(string sourceUrl, string folderPath, string? fileName = null)
+    {
+        StorageFile? tempFile = null;
+        var moved = false;
+
+        try
+        {
+            var folder = await StorageFolder.GetFolderFromPathAsync(folderPath);
+            var name = string.IsNullOrEmpty(fileName) ? ExtractFileNameFromUrl(sourceUrl) : fileName;
+            var apiService = App.Current.GetService<ApiService>();
+            var bytes = await apiService.GetBytesAsync(sourceUrl);
+            if (bytes is null || bytes.Length == 0)
+            {
+                Debug.WriteLine("缓存下载失败: 未取到内容");
+                return null;
+            }
+
+            tempFile = await folder.CreateFileAsync($"{name}.tmp", CreationCollisionOption.ReplaceExisting);
+            await FileIO.WriteBytesAsync(tempFile, bytes);
+            await tempFile.MoveAsync(folder, name, NameCollisionOption.ReplaceExisting);
+            moved = true;
+
+            return Path.Combine(folder.Path, name);
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"缓存下载失败: {ex.Message}");
+            return null;
+        }
+        finally
+        {
+            if (!moved && tempFile is not null)
+            {
+                try { await tempFile.DeleteAsync(StorageDeleteOption.PermanentDelete); }
+                catch { /* 清理临时文件失败不影响结果 */ }
+            }
         }
     }
 

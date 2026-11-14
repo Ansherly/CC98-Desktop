@@ -1,0 +1,547 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl x:Class="CC98.Controls.ComposeEditor"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:tip="using:CC98.Controls"
+             xmlns:controls="using:CommunityToolkit.WinUI.Controls"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:ic="using:FluentIcons.WinUI"
+             xmlns:md="using:CC98.Controls.MarkdownTextBlock"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:obj="using:CC98.Objects"
+             xmlns:cc="using:CC98.Controls"
+             xmlns:ubb="using:CC98.Controls.UbbTextBlock"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <!--  只有编辑区的两块"纸"分主题，其余一律跟随主题资源  -->
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="ComposePaneBrush"
+                                     Color="White" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="ComposePaneBrush"
+                                     Color="#2D2D2D" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
+
+            <!--  工具条按钮：HyperlinkButton（无 chrome，只有悬停底色），34×34 图标居中  -->
+            <Style x:Key="ToolButtonStyle"
+                   BasedOn="{StaticResource DefaultHyperlinkButtonStyle}"
+                   TargetType="HyperlinkButton">
+                <Setter Property="Width"
+                        Value="34" />
+                <Setter Property="Height"
+                        Value="34" />
+                <Setter Property="Padding"
+                        Value="0" />
+                <Setter Property="CornerRadius"
+                        Value="4" />
+                <Setter Property="VerticalAlignment"
+                        Value="Center" />
+                <Setter Property="HorizontalContentAlignment"
+                        Value="Center" />
+                <Setter Property="VerticalContentAlignment"
+                        Value="Center" />
+                <Setter Property="Foreground"
+                        Value="{ThemeResource TextFillColorPrimaryBrush}" />
+            </Style>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!--  ① 状态栏：左边是标题与字数，右边是 UBB/MD、匿名  -->
+        <Grid Grid.Row="0"
+              MinHeight="54"
+              Padding="16,10,16,10"
+              ColumnSpacing="14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock Grid.Column="0"
+                       x:Name="TitleText"
+                       FontSize="15"
+                       VerticalAlignment="Center"
+                       FontFamily="{StaticResource HarmonySansBold}"
+                       Text="回复主题" />
+
+            <controls:Segmented x:Name="LangSegmented"
+                                Grid.Column="1"
+                                VerticalAlignment="Center"
+                                SelectionChanged="LangSegmented_SelectionChanged">
+                <controls:SegmentedItem Content="UBB"
+                                        IsSelected="True"
+                                        Tag="ubb" />
+                <controls:SegmentedItem Content="MD"
+                                        Tag="md" />
+            </controls:Segmented>
+
+            <CheckBox x:Name="AnonCheck"
+                      Grid.Column="2"
+                      VerticalAlignment="Center"
+                      Content="匿名" />
+        </Grid>
+
+        <!--  ①.5 标题行：只有编辑帖子/主题（可以改标题）时才出现  -->
+        <Grid x:Name="TitleRow"
+              Grid.Row="1"
+              Padding="16,0,16,10"
+              ColumnSpacing="10"
+              Visibility="Collapsed">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <TextBlock VerticalAlignment="Center"
+                       FontSize="12"
+                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                       Text="标题" />
+
+            <Border Grid.Column="1"
+                    BorderBrush="{ThemeResource AcrylicCardBrush}"
+                    BorderThickness="1"
+                    CornerRadius="4">
+                <cc:FancyTextBox x:Name="TitleBox"
+                         PlaceholderText="给帖子起个标题"
+                         TextWrapping="NoWrap" />
+            </Border>
+        </Grid>
+
+        <!--  ② 工具条：图标全部来自 FluentIcons，与 SketchPage 用的是同一套  -->
+        <Grid Grid.Row="2"
+              Padding="8,4"
+              BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+              BorderThickness="0,1,0,1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <StackPanel Grid.Column="0"
+                        Orientation="Horizontal"
+                        Spacing="0">
+
+                <!--  字体  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="bold"
+                                 ToolTipService.ToolTip="粗体">
+                    <Viewbox Width="16"
+                             Height="16">
+                        <SymbolIcon Symbol="Bold" />
+                    </Viewbox>
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="italic"
+                                 ToolTipService.ToolTip="斜体">
+                    <Viewbox Width="16"
+                             Height="16">
+                        <SymbolIcon Symbol="Italic" />
+                    </Viewbox>
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="underline"
+                                 ToolTipService.ToolTip="下划线">
+                    <Viewbox Width="16"
+                             Height="16">
+                        <SymbolIcon Symbol="Underline" />
+                    </Viewbox>
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="strike"
+                                 ToolTipService.ToolTip="删除线">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="TextStrikethrough" />
+                </HyperlinkButton>
+
+                <Border Width="1"
+                        Height="20"
+                        Margin="6,0"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                <!--  段落  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="align-left"
+                                 ToolTipService.ToolTip="左对齐">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="TextAlignLeft" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="align-center"
+                                 ToolTipService.ToolTip="居中">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="TextAlignCenter" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="align-right"
+                                 ToolTipService.ToolTip="右对齐">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="TextAlignRight" />
+                </HyperlinkButton>
+
+                <Border Width="1"
+                        Height="20"
+                        Margin="6,0"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                <!--  块级：引用 / 代码 / 链接  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="quote"
+                                 ToolTipService.ToolTip="引用">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="CommentQuote" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="code"
+                                 ToolTipService.ToolTip="代码">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="Code" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="link"
+                                 ToolTipService.ToolTip="链接">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="Link" />
+                </HyperlinkButton>
+
+                <Border Width="1"
+                        Height="20"
+                        Margin="6,0"
+                        Background="{ThemeResource DividerStrokeColorDefaultBrush}" />
+
+                <!--  插入：图片 / 视频 / 音频 / 文档 / 哔哩 / 分割线  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="img"
+                                 ToolTipService.ToolTip="图片">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="Image" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="video"
+                                 ToolTipService.ToolTip="视频">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="MoviesAndTv" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="audio"
+                                 ToolTipService.ToolTip="音频">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="MusicNote2" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="upload"
+                                 ToolTipService.ToolTip="文档">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="Document" />
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="bili"
+                                 ToolTipService.ToolTip="哔哩哔哩视频">
+                    <!--  哔哩图标用 Assets 里的 SVG（自带品牌粉，不跟随主题色）  -->
+                    <Image Width="18"
+                           Height="18"
+                           Stretch="Uniform">
+                        <Image.Source>
+                            <SvgImageSource UriSource="ms-appx:///Assets/bilibili-color.svg" />
+                        </Image.Source>
+                    </Image>
+                </HyperlinkButton>
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Format_Click"
+                                 Tag="line"
+                                 ToolTipService.ToolTip="分割线">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="LineDashes" />
+                </HyperlinkButton>
+
+                <!--  颜色：弹层里放取色器（用 Flyout 而不是 ContentDialog，浮层之上再叠模态层体验差）  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Color_Click"
+                                 ToolTipService.ToolTip="颜色">
+                    <ic:SymbolIcon FontSize="16"
+                                   Symbol="Color" />
+                    <FlyoutBase.AttachedFlyout>
+                        <Flyout x:Name="ColorFlyout"
+                                Placement="BottomEdgeAlignedLeft">
+                            <StackPanel Spacing="10">
+                                <ColorPicker x:Name="ColorPickerBox"
+                                             IsAlphaEnabled="False"
+                                             IsAlphaSliderVisible="False"
+                                             IsColorChannelTextInputVisible="True"
+                                             IsColorSliderVisible="True"
+                                             IsColorSpectrumVisible="True" />
+                                <Button HorizontalAlignment="Right"
+                                        Click="InsertColor_Click"
+                                        Content="插入"
+                                        Style="{StaticResource AccentButtonStyle}" />
+                            </StackPanel>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
+                </HyperlinkButton>
+
+                <!--  表情：包选择沿用 SketchPage 的 Segmented  -->
+                <HyperlinkButton Style="{StaticResource ToolButtonStyle}"
+                                 Click="Emoji_Click"
+                                 ToolTipService.ToolTip="表情">
+                    <FontIcon Glyph="&#xED58;"
+                              FontSize="16" />
+                    <FlyoutBase.AttachedFlyout>
+                        <Flyout>
+                            <StackPanel MinWidth="320"
+                                        Spacing="10">
+                                <controls:Segmented x:Name="EmojiTypeSegmented"
+                                                    HorizontalAlignment="Center"
+                                                    SelectionChanged="EmojiType_SelectionChanged">
+                                    <controls:SegmentedItem Content="CC98"
+                                                            IsSelected="True"
+                                                            Tag="CC98" />
+                                    <controls:SegmentedItem Content="AC娘"
+                                                            Tag="ac-white" />
+                                    <controls:SegmentedItem Content="贴吧"
+                                                            Tag="tb" />
+                                    <controls:SegmentedItem Content="雀魂"
+                                                            Tag="ms" />
+                                    <controls:SegmentedItem Content="经典"
+                                                            Tag="em" />
+                                </controls:Segmented>
+
+                                <!-- 表情格子：图标来自 Assets/Emoji/<类型>，ItemsSource 在代码里给
+                                             （SketchPage 用 XAML 绑定滚动时会崩，这里保持同样的做法）-->
+                                <GridView x:Name="EmojiGrid"
+                                          Height="184"
+                                          MaxWidth="340"
+                                          HorizontalAlignment="Stretch"
+                                          BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                          BorderThickness="1"
+                                          IsItemClickEnabled="True"
+                                          ItemClick="EmojiGrid_ItemClick">
+                                    <GridView.ItemTemplate>
+                                        <DataTemplate x:DataType="obj:Emoji">
+                                            <Border CornerRadius="2">
+                                                <Image Width="30"
+                                                       Height="30"
+                                                       Source="{x:Bind EmojiPath}"
+                                                       ToolTipService.ToolTip="{x:Bind EmojiName}" />
+                                            </Border>
+                                        </DataTemplate>
+                                    </GridView.ItemTemplate>
+                                </GridView>
+                            </StackPanel>
+                        </Flyout>
+                    </FlyoutBase.AttachedFlyout>
+                </HyperlinkButton>
+            </StackPanel>
+
+            <!--  编辑 / 分屏 / 预览  -->
+            <controls:Segmented x:Name="ModeSegmented"
+                                Grid.Column="2"
+                                VerticalAlignment="Center"
+                                SelectionChanged="ModeSegmented_SelectionChanged">
+                <controls:SegmentedItem Content="编辑"
+                                        Tag="edit" />
+                <controls:SegmentedItem Content="分屏"
+                                        IsSelected="True"
+                                        Tag="split" />
+                <controls:SegmentedItem Content="预览"
+                                        Tag="preview" />
+            </controls:Segmented>
+        </Grid>
+
+        <!--
+            ③ 编辑区：中间那列放 GridSplitter，两栏宽度可以拖。
+            这里不铺底色，让面板的亚克力透出来
+        -->
+        <Grid x:Name="BodyGrid"
+              Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition x:Name="EditColumn"
+                                  Width="*"
+                                  MinWidth="260" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition x:Name="PreviewColumn"
+                                  Width="*"
+                                  MinWidth="260" />
+            </Grid.ColumnDefinitions>
+
+            <!--  左：源码编辑  -->
+            <Border x:Name="EditPane"
+                    Grid.Column="0"
+                    Background="{ThemeResource ComposePaneBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="0,0,1,0"
+                    CornerRadius="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0"
+                          Height="32"
+                          Padding="12,0"
+                          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                          BorderThickness="0,0,0,1">
+                        <TextBlock x:Name="PaneLabelText"
+                                   VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="UBB 源码" />
+                        <TextBlock x:Name="CharCountText"
+                                   FontSize="12"
+                                   HorizontalAlignment="Right"
+                                   VerticalAlignment="Center"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="0 字" />
+                    </Grid>
+
+                    <TextBox x:Name="EditorBox"
+                             Grid.Row="1"
+                             Padding="14,12"
+                             FontFamily="{StaticResource HarmonySans}"
+                             AcceptsReturn="True"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             IsSpellCheckEnabled="False"
+                             Paste="EditorBox_Paste"
+                             PlaceholderText="在这里输入 UBB 内容…"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"
+                             TextChanged="EditorBox_TextChanged"
+                             TextWrapping="Wrap">
+                        <TextBox.Resources>
+                            <SolidColorBrush x:Key="TextControlBackground"
+                                             Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundPointerOver"
+                                             Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBackgroundFocused"
+                                             Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrush"
+                                             Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushPointerOver"
+                                             Color="Transparent" />
+                            <SolidColorBrush x:Key="TextControlBorderBrushFocused"
+                                             Color="Transparent" />
+                        </TextBox.Resources>
+                    </TextBox>
+                </Grid>
+            </Border>
+
+            <!--  中：分栏分隔条  -->
+            <controls:GridSplitter x:Name="BodySplitter"
+                                   Grid.Column="1"
+                                   Background="Transparent"
+                                   ResizeBehavior="PreviousAndNext"
+                                   ResizeDirection="Columns" />
+
+            <!--  右：预览  -->
+            <Border x:Name="PreviewPane"
+                    Grid.Column="2"
+                    Background="{ThemeResource ComposePaneBrush}"
+                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                    BorderThickness="1,0,0,0"
+                    CornerRadius="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Grid.Row="0"
+                          Height="32"
+                          Padding="12,0"
+                          BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                          BorderThickness="0,0,0,1">
+                        <TextBlock VerticalAlignment="Center"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                   Text="预览" />
+                    </Grid>
+
+                    <!--  预览：空内容时显示占位，有内容才把渲染控件放出来  -->
+                    <Grid Grid.Row="1">
+                        <ScrollViewer x:Name="PreviewScroller"
+                                      Padding="14,12"
+                                      HorizontalScrollMode="Disabled"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      VerticalScrollBarVisibility="Auto"
+                                      Visibility="Collapsed">
+                            <Grid>
+                                <ubb:UbbTextBlock x:Name="UbbViewer"
+                                                  Background="Transparent"
+                                                  BoldFontFamily="{StaticResource HarmonySansBold}"
+                                                  CodeBackground="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                  ImageMaxWidth="300"
+                                                  QuoteBackground="{ThemeResource ControlAltFillColorSecondaryBrush}"
+                                                  QuoteBorder="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                                <md:MarkdownTextBlock x:Name="MdViewer"
+                                                      BoldFontFamily="{StaticResource HarmonySansBold}"
+                                                      Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                      ImageMaxWidth="300"
+                                                      QuoteBackground="{ThemeResource MarkdownBackgroundBrush}"
+                                                      QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"
+                                                      Visibility="Collapsed" />
+                            </Grid>
+                        </ScrollViewer>
+
+                        <StackPanel x:Name="PreviewEmpty"
+                                    HorizontalAlignment="Center"
+                                    VerticalAlignment="Center"
+                                    Spacing="10">
+                            <ic:SymbolIcon HorizontalAlignment="Center"
+                                           FontSize="26"
+                                           Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                           Symbol="Eye" />
+                            <TextBlock HorizontalAlignment="Center"
+                                       FontSize="13.5"
+                                       FontWeight="SemiBold"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       Text="预览区域" />
+                            <TextBlock HorizontalAlignment="Center"
+                                       FontSize="12.5"
+                                       Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                       Text="输入内容后，这里会显示排版效果。"
+                                       TextAlignment="Center"
+                                       TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Grid>
+                </Grid>
+            </Border>
+        </Grid>
+
+        <!--
+            上传/插入的临时提示（下方浮出，与 SketchPage 用同一个控件）。
+            不接收命中测试，免得挡住工具栏和编辑区
+        -->
+        <tip:TipPopup x:Name="Tip"
+                               Grid.RowSpan="4"
+                               IsHitTestVisible="False" />
+    </Grid>
+</UserControl>

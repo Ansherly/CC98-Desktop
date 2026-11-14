@@ -5,11 +5,13 @@ using CC98.Services.Extensions;
 using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Navigation;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -30,32 +32,35 @@ public sealed partial class MessagePage
     {
         InitializeComponent();
     }
-    protected override void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
+    protected override async void OnNavigatedTo(Microsoft.UI.Xaml.Navigation.NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-
-        if (GlobalService.ShouldReplaceNavigationArgs)
-        {
-            if (GlobalService.NavigationAnchor is int targetIndex)
-            {
-                NaviBar.SelectedItem = NaviBar.Items[targetIndex];
-            }
-            else
-            {
-                NaviBar.SelectedItem = NaviBar.Items[0];
-            }
-            return;
-        }
-        NaviBar.SelectedItem = NaviBar.Items[0];
+        await ReloadNoticesAsync();
     }
+
 
     private async void NaviBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
-        //记住本次选项，用于返回时直接选中
         var bar = NaviBar.SelectedItem;
-        var selected = NaviBar.Items.IndexOf(bar);
-        GlobalService.Instance.NavigationAnchor = selected;
+        if (bar?.Tag is "Chat")
+        {
+            // "私信"标签是跳转入口:选中即进入聊天页,本页不加载列表。
+            Frame.Navigate(typeof(ChatPage));
+            return;
+        }
+
+        await ReloadNoticesAsync();
+    }
+
+    /// <summary>
+    /// 按当前选中的标签设置通知类型并重新加载列表。
+    /// 缓存实例上会残留上次的集合与分页游标,故加载前必须清空。
+    /// </summary>
+    private async Task ReloadNoticesAsync()
+    {
+        var bar = NaviBar.SelectedItem;
         if (bar?.Tag is not string tag) return;
+
         switch (tag)
         {
             case "System":
@@ -71,9 +76,9 @@ public sealed partial class MessagePage
                 MsgCount.Text = $"{GlobalService.AtCount}条未读信息";
                 break;
             case "Chat":
-                Frame.Navigate(typeof(ChatPage));
-                return;
+                return; // 跳转入口,不在此加载
         }
+
         Increment.Clear();
         Notices.Clear();
         await GetNotice();
@@ -96,14 +101,13 @@ public sealed partial class MessagePage
         if (!result.IsSuccess || result.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载通知失败");
-            //await App.Logger.WriteAsync("NoticeMsg", "加载通知失败", result.Message);
+            Tip.Show(InfoType.Error, "加载通知失败");
             return false;
         }
 
         var data = result.Data;
         Increment.HasMore = data.Count == Increment.PageSize;
-        if (!Increment.HasMore) Flower.Play(FlowStatus.Info, "没有更多通知了");
+        if (!Increment.HasMore) Tip.Show(InfoType.Information, "没有更多通知了");
         if (noticeType == NoticeType.Reply || noticeType == NoticeType.At)
         {
             var topicIds = data.Where(n => n.TopicId.HasValue).Select(n => n.TopicId!.Value).Distinct().ToList();
@@ -125,7 +129,6 @@ public sealed partial class MessagePage
         return true;
     }
 
-
     private async Task<List<BasicTopicInfo>> GetBasicTopicInfo(List<int> topicIds)
     {
         var param = string.Join("&", topicIds.Select(id => $"id={id}"));
@@ -134,8 +137,7 @@ public sealed partial class MessagePage
         if (!result.IsSuccess || result.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "获取帖子基本信息失败");
-            //await App.Logger.WriteAsync("NoticeMsg", "获取帖子基本信息失败", result.Message);
+            Tip.Show(InfoType.Error, "获取帖子基本信息失败");
             return [];
         }
 
@@ -156,7 +158,7 @@ public sealed partial class MessagePage
         if (n.PostBasicInfo.IsDeleted)
         {
             // 已删除的帖子不再跳转
-            Flower.Play(FlowStatus.Info, "该帖子已被删除");
+            Tip.Show(InfoType.Information, "该帖子已被删除");
             return;
         }
         var param = new TopicNavigationInfo

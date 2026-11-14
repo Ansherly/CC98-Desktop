@@ -18,6 +18,7 @@ using CC98.Services.Extensions;
 using CC98.Services.Helpers;
 using Microsoft.UI.Xaml.Navigation;
 using System.Linq;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -42,9 +43,44 @@ public sealed partial class IndexPage
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+        //首次进入时先展示加载环,避免瀑布流渲染前出现空白
+        ShowLoadingIndicator();
         var url = ApiEndpoints.Forum.Index;
         _ = IndexDataService.Instance.RefreshFromApiAsync(url);
-        await LoadFromCacheAsync();
+        try
+        {
+            await LoadFromCacheAsync();
+        }
+        finally
+        {
+            //数据未就绪或加载失败时也要收起加载环,不能让它一直转
+            HideLoadingIndicator();
+        }
+
+        if (!Sections.Any())
+        {
+            Tip.Show(InfoType.Error, "首页加载失败,请点击刷新重试");
+        }
+    }
+
+    /// <summary>
+    ///     显示加载指示器。首次进入或手动刷新时,在瀑布流内容渲染完成前展示,避免空白期。
+    /// </summary>
+    private void ShowLoadingIndicator()
+    {
+        LoadingRing.IsActive = true;
+        LoadingOverlay.Visibility = Visibility.Visible;
+    }
+
+    /// <summary>
+    ///     隐藏加载指示器。先强制完成一次布局,确保瀑布流内容已经真正生成并绘制,再移除加载环,
+    ///     避免"加载环已消失但内容还没画出来"的短暂空白。
+    /// </summary>
+    private void HideLoadingIndicator()
+    {
+        RootGrid.UpdateLayout();
+        LoadingRing.IsActive = false;
+        LoadingOverlay.Visibility = Visibility.Collapsed;
     }
 
     private async Task LoadFromCacheAsync()
@@ -135,12 +171,21 @@ public sealed partial class IndexPage
         switch (tag)
         {
             case "refresh":
-                var url = ApiEndpoints.Forum.Index;
-                var success = await IndexDataService.Instance.RefreshFromApiAsync(url);
-                if (success)
-                    await LoadFromCacheAsync();
-                else
-                    Flower.Play(FlowStatus.Fail, "刷新首页失败");
+                ShowLoadingIndicator();
+                try
+                {
+                    var url = ApiEndpoints.Forum.Index;
+                    var success = await IndexDataService.Instance.RefreshFromApiAsync(url);
+                    if (success)
+                        await LoadFromCacheAsync();
+                    else
+                        Tip.Show(InfoType.Error, "刷新首页失败");
+                }
+                finally
+                {
+                    HideLoadingIndicator();
+                }
+
                 break;
             case "search":
                 Frame.Navigate(typeof(SearchPage));
@@ -152,7 +197,7 @@ public sealed partial class IndexPage
                 //网页端OpenID未注册权限，不支持抽卡
                 if (AppSettings.Current.ActiveMode == (int)ActiveMode.Password)
                 {
-                    Flower.Play(FlowStatus.Info, "当前登录方式不支持抽卡");
+                    Tip.Show(InfoType.Information, "当前登录方式不支持抽卡");
                     return;
                 }
 

@@ -98,6 +98,11 @@ public sealed partial class AppSettings : INotifyPropertyChanged
         get => GetValue<int>(nameof(Effect));
         set => SetValue(nameof(Effect), value);
     }
+    public double ImageMaxWidth
+    {
+        get=> GetValue<double>(nameof(ImageMaxWidth),400);
+        set=> SetValue(nameof(ImageMaxWidth), value);
+    }
     public bool IsTailVisible
     {
         get => GetValue<bool>(nameof(IsTailVisible));

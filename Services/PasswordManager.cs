@@ -24,8 +24,11 @@ public static class PasswordManager
             throw new ArgumentException("资源名不能为空");
         var vault = new PasswordVault();
 
-        // 如果凭据已存在则先删除
-        RemovePassword(username, resource);
+        // 如果凭据已存在则先删除。
+        // 注意参数顺序:RemovePassword 是 (resource, username),与 SavePassword(password, resource, username) 不同。
+        // 之前写成 RemovePassword(username, resource) 会删错键,导致同一资源重复保存时 vault.Add 抛"已存在"
+        // (表现:中途放弃授权后再次点"一键登录",浏览器根本不打开,直接弹"OpenID 拉起失败")。
+        RemovePassword(resource, username);
 
         // 创建并添加新凭据
         var cred = new PasswordCredential(resource, username, password);

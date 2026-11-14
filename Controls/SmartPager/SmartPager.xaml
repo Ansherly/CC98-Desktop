@@ -1,0 +1,106 @@
+﻿<?xml version="1.0" encoding="utf-8" ?>
+
+<UserControl x:Class="CC98.Controls.SmartPager"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:ic="using:FluentIcons.WinUI"
+             xmlns:cc="using:CC98.Controls"
+             mc:Ignorable="d">
+
+    <UserControl.Resources>
+        <Style x:Key="TextBoxBoxBlankStyle"
+               TargetType="TextBox">
+            <Setter Property="Background"
+                    Value="Transparent" />
+            <Setter Property="BorderThickness"
+                    Value="0" />
+            <Setter Property="CornerRadius"
+                    Value="0" />
+        </Style>
+    </UserControl.Resources>
+
+    <!--  对话框与翻页条都需要成为本控件的子元素,故外面套一层 Grid  -->
+    <Grid>
+        <StackPanel Padding="8,4"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Center"
+                    Orientation="Horizontal"
+                    Spacing="12">
+
+            <HyperlinkButton x:Name="FirstButton"
+                             Padding="7"
+                             Click="FirstButton_Click"
+                             ToolTipService.ToolTip="第一页">
+                <ic:SymbolIcon FontSize="14"
+                               Foreground="{StaticResource SoftPurple}"
+                               Symbol="Previous" />
+            </HyperlinkButton>
+
+            <HyperlinkButton x:Name="PreviousButton"
+                             Padding="7"
+                             Click="PreviousButton_Click"
+                             ToolTipService.ToolTip="上一页">
+                <ic:SymbolIcon FontSize="14"
+                               Foreground="{StaticResource SoftPurple}"
+                               Symbol="ChevronLeft" />
+            </HyperlinkButton>
+
+            <HyperlinkButton x:Name="PageButton"
+                             Click="PageButton_Click"
+                             Padding="7"
+                             MinWidth="110"
+                             Content="1/1"
+                             Foreground="{StaticResource SoftPurple}"
+                             ToolTipService.ToolTip="跳转到指定页" />
+
+            <HyperlinkButton x:Name="NextButton"
+                             Padding="7"
+                             Click="NextButton_Click"
+                             ToolTipService.ToolTip="下一页">
+                <ic:SymbolIcon FontSize="14"
+                               Foreground="{StaticResource SoftPurple}"
+                               Symbol="ChevronRight" />
+            </HyperlinkButton>
+
+            <HyperlinkButton x:Name="LastButton"
+                             Padding="7"
+                             Click="LastButton_Click"
+                             ToolTipService.ToolTip="最后一页">
+                <ic:SymbolIcon FontSize="14"
+                               Foreground="{StaticResource SoftPurple}"
+                               Symbol="Next" />
+            </HyperlinkButton>
+        </StackPanel>
+
+        <!--
+            跳页对话框:入参是 1-based 的"目的地",只在点击中间页码时打开。
+            下划线用独立的 Border 画(而不是 TextBox 的边框),这样输入框聚焦时
+            不会多出一条强调色下划线。
+        -->
+        <ContentDialog x:Name="DestinationDialog"
+                       Title="输入目的地"
+                       CloseButtonText="取消"
+                       DefaultButton="Primary"
+                       PrimaryButtonClick="DestinationDialog_PrimaryButtonClick"
+                       PrimaryButtonText="Go">
+            <Grid ColumnSpacing="6">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <cc:FancyTextBox x:Name="DestinationBox"
+                                 Grid.Column="0"
+                                 BeforeTextChanging="DestinationBox_BeforeTextChanging" />
+
+                <TextBlock x:Name="DestinationTotal"
+                           Grid.Column="1"
+                           Margin="0,0,0,6"
+                           VerticalAlignment="Bottom"
+                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+            </Grid>
+        </ContentDialog>
+    </Grid>
+</UserControl>

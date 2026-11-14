@@ -11,6 +11,8 @@ using Microsoft.UI.Xaml.Data;
 using Microsoft.UI.Xaml.Input;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.Windows.AppNotifications;
+using Microsoft.Windows.AppNotifications.Builder;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -61,15 +63,34 @@ namespace CC98.Views
                 var authorizeUrl = loginState.StartUrl;
                 PasswordManager.SavePassword(loginState.State, "OpenIdState");
                 PasswordManager.SavePassword(loginState.CodeVerifier, "OpenIdCodeVerifier");
-                await Launcher.LaunchUriAsync(new Uri(authorizeUrl));
+                bool launched = await Launcher.LaunchUriAsync(new Uri(authorizeUrl));
+                if (!launched)
+                {
+                    // 没有默认浏览器 / 被策略拦截:留在登录页让用户重试,不要退出
+                    AppNotification notification = new AppNotificationBuilder()
+                        .AddText("无法打开浏览器")
+                        .AddText("请检查默认浏览器设置后重试")
+                        .BuildNotification();
+                    AppNotificationManager.Default.Show(notification);
+                    return; // finally 里会恢复按钮
+                }
 
-                await Task.Delay(200);
-                App.Current.Exit();
+                // 浏览器已接管认证。本进程必须退掉:否则 cc98://callback 会拉起第二个进程,
+                // 变成"登录窗口 + 主窗口"两个进程并存。
+                // 但不要在这里直接写 Task.Delay + App.Current.Exit():
+                // Launcher 的 COM 调用可能还在收尾,此时拆掉 UI 调度器会抛 CoreMessagingXP 的
+                // stowed exception(事件日志 0xc000027b),表现为进程崩溃。
+                // 统一交给 App 做"延后 + 兜异常"的安全退出。
+                App.Current.QuitAfterBrowserLogin();
             }
             catch (Exception ex)
             {
                 // 网络不可达/超时/协议错误:避免异常逃逸出 async void 导致进程崩溃,恢复按钮供重试
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = $"OpenID 登录失败: {ex.Message}" });
+                AppNotification notification = new AppNotificationBuilder()
+                .AddText("OpenID拉起失败")
+                .AddText(ex.Message)
+                .BuildNotification();
+                AppNotificationManager.Default.Show(notification);
                 Debug.WriteLine($"OpenID 登录失败: {ex.Message}"); 
             }
             finally

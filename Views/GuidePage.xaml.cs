@@ -32,7 +32,7 @@ namespace CC98.Views
 
         private void RootGrid_Loaded(object sender, RoutedEventArgs e)
         {
-            TipText.Text = GuideText;
+            TipText.MarkdownText = GuideText;
         }
 
         private void Back_Click(object sender, RoutedEventArgs e)

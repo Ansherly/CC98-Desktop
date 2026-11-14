@@ -1,22 +1,30 @@
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8" ?>
 
-<Page
-    x:Class="CC98.Views.MessagePage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d"
-    xmlns:obj="using:CC98.Objects"
-    xmlns:empty="using:CC98.Controls.EmptyState"
-    xmlns:infoFlower="using:CC98.Controls.InfoFlower"
-    Background="{ThemeResource DesktopAcrylicTransparentBrush}">
+<Page x:Class="CC98.Views.MessagePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:controls="using:CC98.Controls"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      mc:Ignorable="d"
+      xmlns:obj="using:CC98.Objects"
+      xmlns:services="using:CC98.Services"
+      xmlns:empty="using:CC98.Controls"
+      NavigationCacheMode="Disabled"
+      Background="{ThemeResource DesktopAcrylicTransparentBrush}">
 
     <Page.Resources>
-        <DataTemplate x:Key="SystemNoticeTemplate" x:DataType="obj:Notice">
-            <HyperlinkButton HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" CornerRadius="0"
-                         x:Name="NoticeCard" Click="NoticeCard_Click" DataContext="{x:Bind}">
-                <Grid Padding="3" RowSpacing="8">
+        <services:BooltoVisibilityConverter x:Key="BoolToVisibility" />
+        <DataTemplate x:Key="SystemNoticeTemplate"
+                      x:DataType="obj:Notice">
+            <HyperlinkButton HorizontalContentAlignment="Stretch"
+                             HorizontalAlignment="Stretch"
+                             CornerRadius="0"
+                             x:Name="NoticeCard"
+                             Click="NoticeCard_Click"
+                             DataContext="{x:Bind}">
+                <Grid Padding="3"
+                      RowSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -25,19 +33,52 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="{x:Bind Title}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2" FontWeight="Bold" />
-                    <TextBlock Text="{x:Bind Time}" FontSize="12" Grid.Column="1" Grid.Row="0"
-                           HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" MaxLines="2" FontSize="12" Grid.Column="0"
-                           Grid.ColumnSpan="2" Grid.Row="1"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind Title}"
+                               Grid.Column="0"
+                               Grid.Row="0"
+                               Grid.RowSpan="2"
+                               FontWeight="Bold" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="4"
+                                Grid.Column="1"
+                                Grid.Row="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE73E;"
+                                  FontSize="12"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                  Visibility="{x:Bind IsRead, Converter={StaticResource BoolToVisibility}}">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="已读" />
+                            </ToolTipService.ToolTip>
+                        </FontIcon>
+                        <TextBlock Text="{x:Bind Time}"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind Content}"
+                               TextWrapping="Wrap"
+                               MaxLines="2"
+                               FontSize="12"
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2"
+                               Grid.Row="1"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Grid>
             </HyperlinkButton>
         </DataTemplate>
-        <DataTemplate x:Key="ReplyOrAtNoticeTemplate" x:DataType="obj:Notice">
-            <HyperlinkButton HorizontalContentAlignment="Stretch" HorizontalAlignment="Stretch" CornerRadius="0" BorderThickness="0,0.5,0,0.5" BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
-                         x:Name="NoticeCard" Click="NoticeCard_Click" DataContext="{x:Bind}">
-                <Grid Padding="3" RowSpacing="8">
+        <DataTemplate x:Key="ReplyOrAtNoticeTemplate"
+                      x:DataType="obj:Notice">
+            <HyperlinkButton HorizontalContentAlignment="Stretch"
+                             HorizontalAlignment="Stretch"
+                             CornerRadius="0"
+                             BorderThickness="0,0.5,0,0.5"
+                             BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                             x:Name="NoticeCard"
+                             Click="NoticeCard_Click"
+                             DataContext="{x:Bind}">
+                <Grid Padding="3"
+                      RowSpacing="8">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
@@ -46,42 +87,93 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <TextBlock Text="{x:Bind PostBasicInfo.UserName}" Grid.Column="0" Grid.Row="0" Grid.RowSpan="2"
-                           FontWeight="Bold" />
-                    <TextBlock Text="{x:Bind Time}" FontSize="12" Grid.Column="1" Grid.Row="0"
-                           HorizontalAlignment="Right" Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
-                    <TextBlock Text="{x:Bind Content}" TextWrapping="Wrap" MaxLines="2" FontSize="12" Grid.Column="0"
-                           Grid.ColumnSpan="2" Grid.Row="1"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    <TextBlock Text="{x:Bind PostBasicInfo.UserName}"
+                               Grid.Column="0"
+                               Grid.Row="0"
+                               Grid.RowSpan="2"
+                               FontWeight="Bold" />
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="4"
+                                Grid.Column="1"
+                                Grid.Row="0"
+                                HorizontalAlignment="Right"
+                                VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE73E;"
+                                  FontSize="12"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"
+                                  Visibility="{x:Bind IsRead, Converter={StaticResource BoolToVisibility}}">
+                            <ToolTipService.ToolTip>
+                                <ToolTip Content="已读" />
+                            </ToolTipService.ToolTip>
+                        </FontIcon>
+                        <TextBlock Text="{x:Bind Time}"
+                                   FontSize="12"
+                                   Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
+                    </StackPanel>
+                    <TextBlock Text="{x:Bind Content}"
+                               TextWrapping="Wrap"
+                               MaxLines="2"
+                               FontSize="12"
+                               Grid.Column="0"
+                               Grid.ColumnSpan="2"
+                               Grid.Row="1"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Grid>
             </HyperlinkButton>
         </DataTemplate>
-        <obj:NoticeTemplateSelector x:Key="Selector" SystemTemplate="{StaticResource SystemNoticeTemplate}"
-                                ReplyOrAtTemplate="{StaticResource ReplyOrAtNoticeTemplate}" />
+        <obj:NoticeTemplateSelector x:Key="Selector"
+                                    SystemTemplate="{StaticResource SystemNoticeTemplate}"
+                                    ReplyOrAtTemplate="{StaticResource ReplyOrAtNoticeTemplate}" />
     </Page.Resources>
     <Grid Padding="15,5,15,15">
         <Grid.RowDefinitions>
-            <RowDefinition Height="*" MinHeight="60" />
+            <RowDefinition Height="*"
+                           MinHeight="60" />
             <RowDefinition Height="12*" />
         </Grid.RowDefinitions>
-        <SelectorBar Grid.Row="0" HorizontalAlignment="Left" SelectionChanged="NaviBar_SelectionChanged"
+        <SelectorBar Grid.Row="0"
+                     HorizontalAlignment="Left"
+                     SelectionChanged="NaviBar_SelectionChanged"
                      x:Name="NaviBar">
-            <SelectorBarItem Text="回复" Tag="Reply"/>
-            <SelectorBarItem Text="@我的" Tag="At" />
-            <SelectorBarItem Text="系统通知" x:Name="SystemNotice" Tag="System" />
-            <SelectorBarItem Text="私信" x:Name="ChatMsg" Tag="Chat" />
+            <SelectorBarItem Text="回复"
+                             Tag="Reply"
+                             IsSelected="True" />
+            <SelectorBarItem Text="@我的"
+                             Tag="At" />
+            <SelectorBarItem Text="系统通知"
+                             x:Name="SystemNotice"
+                             Tag="System" />
+            <SelectorBarItem Text="私信"
+                             x:Name="ChatMsg"
+                             Tag="Chat" />
         </SelectorBar>
-        <TextBlock x:Name="MsgCount" Grid.Row="0" HorizontalAlignment="Right" VerticalAlignment="Center"
-                   Margin="0,0,3,0" Foreground="{ThemeResource TextFillColorSecondaryBrush}" Text="0条未读信息" />
-        <Grid Grid.Row="1" CornerRadius="6" BorderBrush="{ThemeResource AcrylicCardBrush}"
+        <TextBlock x:Name="MsgCount"
+                   Grid.Row="0"
+                   HorizontalAlignment="Right"
+                   VerticalAlignment="Center"
+                   Margin="0,0,3,0"
+                   Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                   Text="0条未读信息" />
+        <Grid Grid.Row="1"
+              CornerRadius="6"
+              BorderBrush="{ThemeResource AcrylicCardBrush}"
               BorderThickness="1">
             <ScrollViewer x:Name="NoticeViewer">
-                <ItemsRepeater x:Name="NoticeRepeater" ItemsSource="{x:Bind Notices}"
-                   ItemTemplate="{StaticResource Selector}" ElementPrepared="NoticeRepeater_ElementPrepared" />
+                <ItemsRepeater x:Name="NoticeRepeater"
+                               ItemsSource="{x:Bind Notices}"
+                               ItemTemplate="{StaticResource Selector}"
+                               ElementPrepared="NoticeRepeater_ElementPrepared" />
             </ScrollViewer>
-            <empty:EmptyStateControl x:Name="MessageEmptyState" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                     Visibility="Collapsed" IconGlyph="&#xEC4F;" Title="暂无消息" Subtitle="暂无通知消息" />
-            <infoFlower:InfoFlower x:Name="Flower" HorizontalAlignment="Center" VerticalAlignment="Bottom" />
+            <empty:EmptyStateControl x:Name="MessageEmptyState"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Visibility="Collapsed"
+                                     IconGlyph="&#xEC4F;"
+                                     Title="暂无消息"
+                                     Subtitle="暂无通知消息" />
+            <controls:TipPopup x:Name="Tip"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Bottom" />
         </Grid>
     </Grid>
 </Page>

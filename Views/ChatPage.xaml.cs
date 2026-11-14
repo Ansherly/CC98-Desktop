@@ -21,6 +21,7 @@ using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -100,7 +101,7 @@ public sealed partial class ChatPage : Page
             var item = ChatInfoList[existingIndex];
             UserList.SelectedIndex = existingIndex;
             UserList.ScrollIntoView(item,ScrollIntoViewAlignment.Leading); // 让该项滚入左侧列表可视区域
-            Flower.Play(FlowStatus.Success, $"找到用户:{item.Name}");
+            Tip.Show(InfoType.Success, $"找到用户:{item.Name}");
             return;
         }
         try
@@ -109,7 +110,7 @@ public sealed partial class ChatPage : Page
             var result = await ApiService.Fetch<UserInfo>(url);
             if (!result.IsSuccess || result.Data == null || result.Data.Id == 0)
             {
-                Flower.Play(FlowStatus.Fail, $"未找到用户:{userName}");
+                Tip.Show(InfoType.Error, $"未找到用户:{userName}");
                 Debug.WriteLine($"未找到用户:{userName}");
                 return;
             }
@@ -117,7 +118,7 @@ public sealed partial class ChatPage : Page
             var user = result.Data;
             if (user.Id == AppSettings.Current.UserId)
             {
-                Flower.Play(FlowStatus.Info, "不能和自己聊天");
+                Tip.Show(InfoType.Information, "不能和自己聊天哦~");
                 return;
             }
             var info = new ChatInfo
@@ -129,12 +130,12 @@ public sealed partial class ChatPage : Page
             // 复用 StartChat:加入列表(已存在则选中现有项)并触发消息加载
             TargetUserInfo = info;
             StartChat();
-            Flower.Play(FlowStatus.Success, $"找到用户:{user.Name}");
+            Tip.Show(InfoType.Success, $"找到用户:{user.Name}");
         }
         catch (Exception ex)
         {
             System.Diagnostics.Debug.WriteLine($"搜索用户失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "搜索失败，请重试");
+            Tip.Show(InfoType.Error, "搜索失败，请重试");
         }
     }
 
@@ -214,7 +215,7 @@ public sealed partial class ChatPage : Page
         if (!messageResult.IsSuccess || messageResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "获取聊天记录失败");
+            Tip.Show(InfoType.Error, "获取聊天记录失败");
             return false;
         }
             
@@ -337,13 +338,13 @@ public sealed partial class ChatPage : Page
             }
                 
             else
-                Flower.Play(FlowStatus.Fail, "发送回复失败");
+                Tip.Show(InfoType.Error, "发送回复失败");
         }
         catch (Exception ex)
         {
             // 避免 async void 未捕获异常崩溃,并确保按钮恢复
             System.Diagnostics.Debug.WriteLine($"发送失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "发送失败，请重试");
+            Tip.Show(InfoType.Error, "发送失败，请重试");
         }
         finally
         {
@@ -452,7 +453,7 @@ public sealed partial class ChatPage : Page
         if (!result.Success)
         {
             if (!string.IsNullOrEmpty(result.Error))
-                Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
             return; // 取消或失败都不插入
         }
 
@@ -461,7 +462,7 @@ public sealed partial class ChatPage : Page
         ReplyBody.Text = ReplyBody.Text.Insert(selStart, tagText);
         ReplyBody.SelectionStart = selStart + tagText.Length;
         ReplyBody.Focus(FocusState.Programmatic);
-        Flower.Play(FlowStatus.Success, "上传成功");
+        Tip.Show(InfoType.Success, "上传成功");
     }
 
 
@@ -478,7 +479,7 @@ public sealed partial class ChatPage : Page
             CurrentTopicId = null,
             JumpToFloor = null,
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)
@@ -497,6 +498,19 @@ public sealed partial class ChatPage : Page
                 // UBB 文件/音视频:显式下载
                 await LinkNavigationService.DownloadFileAsync(e.Source, context);
                 break;
+        }
+    }
+
+    private void UserButton_Click(object sender, RoutedEventArgs e)
+    {
+        if(sender is HyperlinkButton userButton&&userButton.Tag is int userId)
+        {
+            var param = new ProfileNavigationInfo
+            {
+                IsMe = false,//聊天列表不会有自己
+                UserId = userId
+            };
+            Frame.Navigate(typeof(ProfilePage), param);
         }
     }
 }

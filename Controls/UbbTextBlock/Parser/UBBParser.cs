@@ -11,7 +11,6 @@ namespace CC98.Controls.UbbTextBlock.Parser;
 /// </summary>
 public class UbbParser(IEnumerable<Token> tokens)
 {
-    private readonly List<UbbNode> _allNodes = [];
     private readonly List<Token> _tokens = [.. tokens];
     private int _index;
 
@@ -132,38 +131,40 @@ public class UbbParser(IEnumerable<Token> tokens)
         var attrCount = 0;
 
         // 3. 解析属性循环
+        //    分隔符决定了属性槽位的性质：
+        //      '=' 之后 → 主属性（键名由标签类型决定，如 [url=...] 的 href、[img=1] 的 value）
+        //      ',' 之后 → 键值对属性（键名写在属性里，如 [audio,title=歌,author=某人]）
         while (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Eof)
         {
-            var t = Consume();
+            var separator = Consume();
 
-            if (t.Type == TokenType.Equal || t.Type == TokenType.Comma)
-            {
-                // 关键修复点：如果在等号/逗号后紧跟的是另一个 '['，说明格式非法
-                if (Peek().Type == TokenType.LeftBracket) return FallbackToText(startIndex);
-
-                if (Peek().Type == TokenType.AttrValue)
-                {
-                    var valToken = Consume();
-
-                    // 关键修复点：如果 Scanner 错误地将 '[' 包含在 AttrValue 中，这里进行二次检查
-                    if (valToken.Value.Contains('[')) return FallbackToText(startIndex);
-
-                    var key = attrCount == 0 ? GetAttributeName(type) : $"value{attrCount}";
-                    attributes[key] = valToken.Value;
-                    attrCount++;
-                }
-                else
-                {
-                    // 如果有 = 但后面不是合法的属性值（也不是闭合括号），回退
-                    if (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Comma)
-                        return FallbackToText(startIndex);
-                }
-            }
-            else
-            {
+            if (separator.Type != TokenType.Equal && separator.Type != TokenType.Comma)
                 // 标签内部出现了意料之外的 Token 类型
                 return FallbackToText(startIndex);
+
+            // 关键修复点：如果在等号/逗号后紧跟的是另一个 '['，说明格式非法
+            if (Peek().Type == TokenType.LeftBracket) return FallbackToText(startIndex);
+
+            if (Peek().Type != TokenType.AttrValue)
+            {
+                // 有分隔符但后面不是合法的属性值（也不是闭合括号/下一个分隔符），回退
+                if (Peek().Type != TokenType.RightBracket && Peek().Type != TokenType.Comma)
+                    return FallbackToText(startIndex);
+                continue;
             }
+
+            var valToken = Consume();
+
+            // 关键修复点：如果 Scanner 错误地将 '[' 包含在 AttrValue 中，这里进行二次检查
+            if (valToken.Value.Contains('[')) return FallbackToText(startIndex);
+
+            if (separator.Type == TokenType.Equal)
+                // 主属性：整体作为值，键名按标签类型映射
+                attributes[GetAttributeName(type)] = valToken.Value.Trim();
+            else
+                AddKeyValueAttribute(attributes, valToken.Value, type, attrCount);
+
+            attrCount++;
         }
 
         if (type == UbbNodeType.Emoji) attributes["code"] = name;
@@ -191,6 +192,29 @@ public class UbbParser(IEnumerable<Token> tokens)
             UbbNodeType.Emoji => "code",
             _ => "value"
         };
+    }
+
+    /// <summary>
+    ///     把一个键值对槽位（<c>,</c> 之后的 <c>键=值</c> 文本）拆开写入属性字典。
+    /// </summary>
+    /// <remarks>
+    ///     只在**第一个** <c>=</c> 处切分，键与值各自去除首尾空白。因此键值对的书写顺序无关紧要，
+    ///     值内部也可以含 <c>=</c> 和英文逗号（逗号是否切分由词法层的 <c>IsCommaBoundary</c> 判定）。
+    ///     没有键名时退回旧的 <c>value{n}</c> 命名，保持向后兼容。
+    /// </remarks>
+    private void AddKeyValueAttribute(Dictionary<string, string> attributes, string raw, UbbNodeType type,
+        int attrCount)
+    {
+        var eq = raw.IndexOf('=');
+        var key = eq > 0 ? raw[..eq].Trim() : "";
+
+        if (key.Length == 0)
+        {
+            attributes[attrCount == 0 ? GetAttributeName(type) : $"value{attrCount}"] = raw.Trim();
+            return;
+        }
+
+        attributes[key] = raw[(eq + 1)..].Trim();
     }
 
     private void ParseVerbatimContent(TagNode parent)
@@ -234,17 +258,65 @@ public class UbbParser(IEnumerable<Token> tokens)
                PeekOffset(3)?.Type == TokenType.RightBracket;
     }
 
-    private LatexNode ParseLatex()
+    private UbbNode ParseLatex()
     {
         //这里只有$形式的Latex会调用到
         //[math]是TagNode而不是LatexNode,尽管它们的Type属性相同
         //用CollectText获得公式块的Latex,用Latex属性获得行内公式的Latex
-        var token = Consume();
-        var isBlock = token.Type == TokenType.DoubleDollar;
+        var open = Consume();
+        var isBlock = open.Type == TokenType.DoubleDollar;
+        var contentStart = _index;
+
+        //块级$$只要求存在闭合定界符；行内单$则参照Pandoc的规则严格判定，
+        //避免把"5$"、"$ 和 $"这类普通美元符号误认为公式：
+        //开定界符前不能是数字、后必须紧跟非空白字符；
+        //闭定界符前不能是空白字符（公式非空且不以空白结尾）、后不能紧跟数字。
+        if (isBlock)
+            return ParseBlockLatex(open, contentStart);
+
+        if (Peek().Type != TokenType.Text || Peek().Value.Length == 0 ||
+            char.IsWhiteSpace(Peek().Value[0]) ||
+            IsTextAtOffset(-2, t => t.Length > 0 && char.IsDigit(t[^1])))
+            return new TextNode(open.Value);
+
+        var latex = Consume().Value;
+
+        if (Peek().Type != TokenType.Dollar || latex.Length == 0 ||
+            char.IsWhiteSpace(latex[^1]) ||
+            IsTextAtOffset(1, t => t.Length > 0 && char.IsDigit(t[0])))
+        {
+            //无法构成合法公式：回退已消费的内容，让后续文本按原样解析
+            _index = contentStart;
+            return new TextNode(open.Value);
+        }
+
+        Consume();
+        return new LatexNode(latex, isBlock);
+    }
+
+    private UbbNode ParseBlockLatex(Token open, int contentStart)
+    {
         var latex = "";
         if (Peek().Type == TokenType.Text) latex = Consume().Value;
-        if (Peek().Type == token.Type) Consume();
-        return new(latex, isBlock);
+
+        if (Peek().Type != TokenType.DoubleDollar || latex.Length == 0)
+        {
+            _index = contentStart;
+            return new TextNode(open.Value);
+        }
+
+        Consume();
+        return new LatexNode(latex, true);
+    }
+
+    /// <summary>
+    ///     检查相对于当前<see cref="_index" />偏移<paramref name="offset" />处的Text词元，
+    ///     并对其内容执行<paramref name="predicate" />（词元不存在或不是Text时返回false）。
+    /// </summary>
+    private bool IsTextAtOffset(int offset, Func<string, bool> predicate)
+    {
+        var token = PeekOffset(offset);
+        return token is { Type: TokenType.Text } && predicate(token.Value);
     }
 
     private bool IsKnownType(UbbNodeType type)

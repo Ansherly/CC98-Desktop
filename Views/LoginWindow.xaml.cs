@@ -1,4 +1,4 @@
-﻿using CC98.Kernel;
+using CC98.Kernel;
 using CC98.Kernel.Authorize;
 using CC98.Objects;
 using CC98.Services;
@@ -75,10 +75,12 @@ public sealed partial class LoginWindow : Window
         if (area == null) return;
         AppWindow.Move(new((area.Value.Width - AppWindow.Size.Width) / 2,(area.Value.Height - AppWindow.Size.Height) / 2));
 
-        WeakReferenceMessenger.Default.Register<InfoFlowerMessage>(this, (r, message) =>
+        WeakReferenceMessenger.Default.Register<TipMessage>(this, (r, message) =>
         {
-            this.DispatcherQueue.TryEnqueue(() => Flower.Play(message.FlowStatus, message.Message));
+            this.DispatcherQueue.TryEnqueue(() => Tip.Show(message.Type, message.Message));
         });
+        //关闭时注销 Messenger 注册,避免在 WeakReferenceMessenger 中残留死条目
+        Closed += (_, _) => WeakReferenceMessenger.Default.UnregisterAll(this);
     }
 
     private void RootGrid_Loaded(object sender, RoutedEventArgs e)

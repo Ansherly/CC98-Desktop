@@ -114,9 +114,11 @@ public class Increment(int pageSize = 10, int currentPage = 0, bool hasMore = fa
     //强制加载下一页
     public async Task LoadNextPage(Func<Task<bool>> load)
     {
+        // 注意:必须先判条件再置防重入标志 —— 提前 return 时不会走 finally,
+        // 否则 _loading 会永久停在 true,该分页器此后再也无法增量加载。
         if (_loading) return;
+        if (!HasMore) return;
         _loading = true;
-        if(!HasMore) return;
         CurrentPage++;
         try
         {
@@ -132,15 +134,50 @@ public class Increment(int pageSize = 10, int currentPage = 0, bool hasMore = fa
 
     public async Task LoadLastPage(Func<Task<bool>> load)
     {
+        // 同上:条件判断务必在置位之前
         if (_loading) return;
-        _loading = true;
         if (CurrentPage <= 0) return;
+        _loading = true;
         CurrentPage--;
         try
         {
             var success = await load();
             //如果没有成功，则回退页码，等待下一次尝试
             if (!success) CurrentPage++;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    /// <summary>
+    ///     跳转到指定页(0-based)并加载。翻页是"整页替换"语义。
+    ///     与 <see cref="LoadNextPage" /> / <see cref="LoadLastPage" /> 的区别:
+    ///       1. 目标页由调用方给定,不依赖 <see cref="HasMore" /> —— 分页组件可以跳回已经
+    ///          加载过的页,那时 HasMore 可能早就被置为 false 了;
+    ///       2. 目标页恰好等于当前页时也照常加载(即"重新载入当前页")。
+    /// </summary>
+    /// <returns>
+    ///     true 表示加载成功;false 表示被防重入挡下、页码非法,或加载失败(此时页码已回退,
+    ///     调用方应把分页组件同步回 <see cref="CurrentPage" />)。
+    /// </returns>
+    public async Task<bool> LoadPage(int targetIndex, Func<Task<bool>> load)
+    {
+        // 条件判断务必在置位之前:提前 return 时不会走 finally,
+        // 否则 _loading 会永久停在 true,该分页器此后再也无法加载。
+        if (_loading) return false;
+        if (targetIndex < 0) return false;
+
+        var previousPage = CurrentPage;
+        _loading = true;
+        CurrentPage = targetIndex;
+        try
+        {
+            var success = await load();
+            // 失败则回退页码,让 CurrentPage 始终与"当前展示的内容"一致
+            if (!success) CurrentPage = previousPage;
+            return success;
         }
         finally
         {

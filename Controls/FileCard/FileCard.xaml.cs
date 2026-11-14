@@ -9,7 +9,7 @@ using Symbol = FluentIcons.Common.Symbol;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace CC98.Controls.FileCard;
+namespace CC98.Controls;
 
 public sealed partial class FileCard : UserControl
 {
@@ -52,10 +52,7 @@ public sealed partial class FileCard : UserControl
 
     private void LoadFile()
     {
-        var extension = Path.GetExtension(Src)?.ToUpper() ?? "未知类型";
-        extension = extension.Replace(".", "");
         var fileName = ExtractFileNameFromUrl(Src);
-        ExtensionNameBox.Text = extension;
         FileNameBox.Text = fileName;
         TypeIcon.Symbol = GetFileTypeIcon(fileName);
     }
@@ -90,7 +87,7 @@ public sealed partial class FileCard : UserControl
         try
         {
             var uri = new Uri(url);
-            var fileName = Path.GetFileNameWithoutExtension(uri.LocalPath);
+            var fileName = Path.GetFileName(uri.LocalPath);
    
             // 如果文件名无效，生成默认文件名
             if (string.IsNullOrEmpty(fileName)) fileName = $"CC{DateTime.Now:MMdd_HHmm}";

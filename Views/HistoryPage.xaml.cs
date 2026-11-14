@@ -22,6 +22,7 @@ using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
 using static CC98.Kernel.ApiEndpoints;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -69,10 +70,10 @@ public sealed partial class HistoryPage : Page
             //
             if (historyTopicResult.StatusCode == (int)HttpStatusCode.Forbidden)
             {
-                Flower.Play(FlowStatus.Fail, "请求频率过快");
+                Tip.Show(InfoType.Error, "请求频率过快");
                 return false;
             }
-            Flower.Play(FlowStatus.Fail, "获取历史记录失败");
+            Tip.Show(InfoType.Error, "获取历史记录失败");
             return false;
         }
         // 接口约定:返回 PageSize+1 条表示还有更多。先按原始数量判定,再截断多余的第 PageSize+1 条
@@ -109,11 +110,11 @@ public sealed partial class HistoryPage : Page
         {
             IsRecordEnabled = !IsRecordEnabled;
             EnableRecordButton.Content = IsRecordEnabled ? "关闭浏览记录" : "开启浏览记录";
-            Flower.Play(FlowStatus.Success, IsRecordEnabled ? "已开启浏览记录" : "已关闭浏览记录");
+            Tip.Show(InfoType.Success, IsRecordEnabled ? "已开启浏览记录" : "已关闭浏览记录");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, IsRecordEnabled ? "关闭浏览记录失败" : "开启浏览记录失败");
+            Tip.Show(InfoType.Error, IsRecordEnabled ? "关闭浏览记录失败" : "开启浏览记录失败");
         }
         EnableRecordButton.IsEnabled = true;
     }

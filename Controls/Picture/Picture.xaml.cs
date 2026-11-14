@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -8,7 +8,7 @@ using Microsoft.UI.Xaml.Media.Imaging;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace CC98.Controls.Picture;
+namespace CC98.Controls;
 
 /// <summary>
 /// 图片成功解码并渲染后的事件参数,携带图片像素尺寸(用于视口适配等)。
@@ -30,7 +30,10 @@ public sealed partial class Picture : UserControl
     public Picture()
     {
         InitializeComponent();
-        // 图片解码完成时转发事件,让调用方(如预览器)能拿到像素尺寸做视口适配
+        // 图片解码完成时转发事件,让调用方(如预览器)能拿到像素尺寸做视口适配。
+        // 注意:SvgImageSource 与 BitmapImage 虽同属 ImageSource,但没有公开"矢量自然尺寸"的属性
+        // (RasterizePixelWidth/Height 为 0 时表示按自然尺寸光栅化,取不到具体值),
+        // 因此这里只对位图报尺寸;SVG 的加载完成仍会正常收掉占位动画,只是不抛出带尺寸的事件。
         Viewer.ImageOpened += (_, _) =>
         {
             if (Viewer.Source is BitmapImage bmp)
@@ -39,7 +42,7 @@ public sealed partial class Picture : UserControl
     }
 
     /// <summary>
-    /// 图片成功解码并渲染后触发,携带像素尺寸。
+    /// 图片成功解码并渲染后触发,携带像素尺寸。SVG 等无固定像素尺寸的源不会触发。
     /// </summary>
     public event EventHandler<PictureImageOpenedEventArgs>? ImageOpened;
 
@@ -56,10 +59,11 @@ public sealed partial class Picture : UserControl
         {
             var src = Src;
             var callback = LoadImageCallback;
-            var bitmap = await callback.LoadImage(src);
+            // 加载器返回 ImageSource(位图或 SVG 矢量图),直接交给 Image 控件渲染
+            var source = await callback.LoadImage(src);
             // 仅当 Src 未再次变化时才应用结果,避免慢请求覆盖新图
             if (generation != _loadGeneration) return;
-            Viewer.Source = bitmap;
+            Viewer.Source = source;
         }
         catch
         {

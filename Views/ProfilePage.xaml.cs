@@ -22,6 +22,7 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using System.Xml.Linq;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -80,12 +81,12 @@ public sealed partial class ProfilePage : Page
             if (element.ValueKind == JsonValueKind.Number)
             {
                 var wealth = element.GetRawText();
-                Flower.Play(FlowStatus.Success, $"签到成功，获得财富值: {wealth}");
+                Tip.Show(InfoType.Success, $"签到成功，获得财富值: {wealth}");
             }
             //理论上不会出现非数字的情况
             else
             {
-                Flower.Play(FlowStatus.Success, "签到成功");
+                Tip.Show(InfoType.Success, "签到成功");
             }
             return;
         }
@@ -125,23 +126,17 @@ public sealed partial class ProfilePage : Page
         UserProfile.Wealth = data.Wealth;
         UserProfile.RegisterTime = data.RegisterTime;
         UserProfile.IsFollowing = data.IsFollowing;
-        if (IsMe && AppSettings.Current.UserId == 0)
-        {
-            AppSettings.Current.UserId = data.Id;
-            AppSettings.Current.PortraitUrl = data.PortraitUrl;
-        }
-        UserProfile.IsOthers = !IsMe;
+        UserProfile.IsMe = IsMe;
         try
         {
-            var source = await Services.Helpers.ImageHelper.LoadWebImageAsync(UserProfile.PortraitUrl);
-            MyProfile.ProfilePicture = source;
+            // 走弱引用缓存加载:重复进入资料页不再重新下载/解码同一张头像
+            var source = await CC98.Controls.Primitives.SmartImageLoader.GetInstance(lowRes: false).LoadImage(UserProfile.PortraitUrl);
+            if (source != null) MyProfile.ProfilePicture = source;
         }
         catch (Exception ex)
         {
-            Flower.Play(FlowStatus.Fail, $"加载主页失败: {ex.Message}"); 
+            Tip.Show(InfoType.Error, $"加载主页失败: {ex.Message}"); 
         }
-        InfoContent.DataContext = UserProfile;
-        SignBoard.DataContext = UserProfile;
     }
     private async Task<bool> LoadRecentTopic()
     {
@@ -149,7 +144,7 @@ public sealed partial class ProfilePage : Page
         var recentTopicResult = await ApiService.Fetch<List<SimpleTopicInfo>>(recentTopicUrl);
         if (!recentTopicResult.IsSuccess || recentTopicResult.Data == null)
         {
-            Flower.Play(FlowStatus.Fail, recentTopicResult.Message);
+            Tip.Show(InfoType.Error, recentTopicResult.Message);
             return false;
         }
         var data = recentTopicResult.Data;
@@ -163,12 +158,10 @@ public sealed partial class ProfilePage : Page
 
     private void STileButton_Click(object sender, RoutedEventArgs e)
     {
-        var h = sender as HyperlinkButton;
-        if (h?.DataContext is SimpleTopicInfo s)
-        {
-            var param = new TopicNavigationInfo { TopicId = s.Id };
-            Frame.Navigate(typeof(TopicPage), param);
-        }
+
+        if (sender is not HyperlinkButton button || button.Tag is not int topicId) return;
+        var param = new TopicNavigationInfo { TopicId = topicId };
+        Frame.Navigate(typeof(TopicPage), param);
     }
 
 
@@ -180,7 +173,6 @@ public sealed partial class ProfilePage : Page
         if (!IsMe) return;
         var h = sender as HyperlinkButton;
         if (h?.Tag is not string tag) return;
-        GlobalService.Instance.NavigationAnchor = tag;
         Frame.Navigate(typeof(FollowPage), tag);
     }
 
@@ -203,7 +195,7 @@ public sealed partial class ProfilePage : Page
         if (result.IsSuccess)
         {
             UserProfile.IsFollowing = !UserProfile.IsFollowing;
-            Flower.Play(FlowStatus.Success, isFollowing ? "已取消关注" : "已关注");
+            Tip.Show(InfoType.Success, isFollowing ? "已取消关注" : "已关注");
         }
         Follow.IsEnabled = true;
     }
@@ -221,7 +213,7 @@ public sealed partial class ProfilePage : Page
             CurrentTopicId = null,
             JumpToFloor = null,
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)

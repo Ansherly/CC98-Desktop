@@ -22,6 +22,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Windows.Foundation;
 using Windows.Foundation.Collections;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -57,7 +58,7 @@ namespace CC98.Views
                 AppSettings.Current.IsVpnEnabled = false;
                 isUserOperated = false;
                 EnableVpn.IsChecked = false;
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = MirrorService.FriendlyStatus(status) });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = MirrorService.FriendlyStatus(status) });
                 return;
             }
             
@@ -88,7 +89,7 @@ namespace CC98.Views
                 if (res == null || res.IsError)
                 {
                     //
-                    WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = res?.ErrorDescription?? res?.Error ?? "登录失败" });
+                    WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = res?.ErrorDescription?? res?.Error ?? "登录失败" });
                     VisualStateManager.GoToState(this, "Fail", true);
                     return;
                 }
@@ -100,7 +101,7 @@ namespace CC98.Views
             }
             catch (Exception ex)
             {
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = ex.Message });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = ex.Message });
                 VisualStateManager.GoToState(this, "Fail", true);
                 //记录异常
             }
@@ -112,6 +113,8 @@ namespace CC98.Views
                 App.Current.AppMainWindow = new MainWindow();
                 App.Current.AppMainWindow.Activate();
                 App.Current.LoginWindow.Close();
+                //释放对已关闭登录窗口的引用
+                App.Current.LoginWindow = null;
             }
             catch(Exception ex)
             {
@@ -131,7 +134,7 @@ namespace CC98.Views
         {
             var mirrorService = App.Current.GetService<MirrorService>();
             var status = await mirrorService.CheckNetworkAsync(AppSettings.Current.IsVpnEnabled);
-            WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Info, Message = MirrorService.FriendlyStatus(status) });
+            WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Information, Message = MirrorService.FriendlyStatus(status) });
         }
         
         private async void EnableVpn_Checked(object sender, RoutedEventArgs e)
@@ -151,7 +154,7 @@ namespace CC98.Views
             var password = VPNPassword.Password;
             if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
             {
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "用户名和密码不可为空" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "用户名和密码不可为空" });
                 return;
             }
             var result = await LoginVpnAsync(userName, password);
@@ -163,11 +166,11 @@ namespace CC98.Views
                 isUserOperated = false;
                 EnableVpn.IsChecked = true;
                 VPNConfigDialog.Hide();
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Success, Message = "已保存凭据并启用VPN" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Success, Message = "已保存凭据并启用VPN" });
             }
             else
             {
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "登录失败" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "登录失败" });
             }
         }
         private void VPNConfigCancel_Click(object sender, RoutedEventArgs e)
@@ -255,7 +258,7 @@ namespace CC98.Views
             {
                 // 网络异常:避免异常逃逸出 async void 调用链导致进程崩溃
                 Debug.WriteLine($"VPN确认失败: {ex.Message}");
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN确认失败，请重试" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN确认失败，请重试" });
                 AppSettings.Current.IsVpnEnabled = false;
                 return false;
             }
@@ -263,14 +266,14 @@ namespace CC98.Views
             {
                 //可以肯定此时账户密码均正确
                 //需要重试
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN确认顶号失败，请重试" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN确认顶号失败，请重试" });
                 AppSettings.Current.IsVpnEnabled = false;
 
                 return false;
             }
             else
             {
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Success, Message = "VPN连接成功" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Success, Message = "VPN连接成功" });
                 return true;
             }
         }
@@ -298,7 +301,7 @@ namespace CC98.Views
                 }
                 catch (Exception ex)
                 {
-                    WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Warning, Message = ex.Message });
+                    WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Warning, Message = ex.Message });
                 }
                 //等待用户登录VPN
             }
@@ -314,7 +317,7 @@ namespace CC98.Views
                     AppSettings.Current.IsVpnEnabled = true;
                     isUserOperated = false;
                     EnableVpn.IsChecked = true;
-                    WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Success, Message = "VPN连接成功" });
+                    WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Success, Message = "VPN连接成功" });
                 }
                 else if (networkStatus == NetworkStatus.VpnCookieExpired)
                 {
@@ -326,7 +329,7 @@ namespace CC98.Views
                     AppSettings.Current.IsVpnEnabled = false;
                     isUserOperated = false;
                     EnableVpn.IsChecked = false;
-                    WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = $"VPN连接失败{networkStatus}" });
+                    WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = $"VPN连接失败{networkStatus}" });
                 }
             }
 
@@ -339,7 +342,7 @@ namespace CC98.Views
             var password = PasswordManager.RetrievePassword("VpnPassWord");
             if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
             {
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN凭据不完整，请重新配置" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN凭据不完整，请重新配置" });
                 return;
             }
             var vpnService = App.Current.GetService<IVpnService>();
@@ -355,7 +358,7 @@ namespace CC98.Views
                 AppSettings.Current.IsVpnEnabled = false;
                 isUserOperated = false;
                 EnableVpn.IsChecked = false;
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN连接失败，请检查网络后重试" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN连接失败，请检查网络后重试" });
                 return;
             }
             if (res == null)
@@ -364,7 +367,7 @@ namespace CC98.Views
                 AppSettings.Current.IsVpnEnabled = false;
                 isUserOperated = false;
                 EnableVpn.IsChecked = false;
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN连接失败，请检查网络后重试" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN连接失败，请检查网络后重试" });
                 return;
             }
 
@@ -374,7 +377,7 @@ namespace CC98.Views
                 AppSettings.Current.IsVpnEnabled = true;
                 isUserOperated = false;
                 EnableVpn.IsChecked = true;
-                WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Success, Message = "VPN连接成功" });
+                WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Success, Message = "VPN连接成功" });
                 return;
             }
             if (res.Status == VpnLoginStatus.NeedConfirm)
@@ -392,7 +395,7 @@ namespace CC98.Views
             AppSettings.Current.IsVpnEnabled = false;
             isUserOperated = false;
             EnableVpn.IsChecked = false;
-            WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Fail, Message = "VPN套餐过期或密码已错误，请重新登录" });
+            WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Error, Message = "VPN套餐过期或密码已错误，请重新登录" });
         }
 
         private void EnableVpn_Unchecked(object sender, RoutedEventArgs e)
@@ -403,7 +406,7 @@ namespace CC98.Views
                 return;
             }
             AppSettings.Current.IsVpnEnabled = false;
-            WeakReferenceMessenger.Default.Send(new InfoFlowerMessage { FlowStatus = FlowStatus.Info, Message = "WebVPN已禁用" });
+            WeakReferenceMessenger.Default.Send(new TipMessage { Type = InfoType.Information, Message = "WebVPN已禁用" });
         }
 
         private void RootGrid_Loaded(object sender, RoutedEventArgs e)

@@ -1,7 +1,7 @@
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
-namespace CC98.Controls.EmptyState;
+namespace CC98.Controls;
 
 /// <summary>
 /// 统一风格的列表空状态占位:图标 + 主提示 + 副提示。

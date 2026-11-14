@@ -1,15 +1,19 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 
 namespace CC98.Objects;
 
+/// <summary>
+/// MyRecord字段有更新。
+/// </summary>
 public class VoteInfo
 {
-    public List<int> MyRecord { get; set; } = [];
+    public List<int>? MyRecord { get; set; } = [];
     public List<VoteItem> VoteItems { get; set; } = [];
     public bool CanVote { get; set; }
     public bool IsAvailable { get; set; }
     public int MaxVoteCount { get; set; }
-    public int ExpiredTime { get; set; }
+    public DateTime ExpiredTime { get; set; }
     public int VoteUserCount { get; set; }
 }
 

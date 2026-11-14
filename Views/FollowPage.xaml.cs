@@ -6,6 +6,7 @@ using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -13,6 +14,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using Windows.Storage;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -25,10 +27,13 @@ namespace CC98.Views;
 public sealed partial class FollowPage : Page
 {
     public ObservableCollection<Friend> Friends = [];
-    public GlobalService GlobalService = GlobalService.Instance;
     public Increment Increment = new();
     public string Type = "follower";
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
+    // 离开本页时的滚动位置(本页是 NavigationCacheMode=Required,返回时要放回原位)
+    private double _savedScrollOffset;
+
     public FollowPage()
     {
         InitializeComponent();
@@ -38,28 +43,60 @@ public sealed partial class FollowPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        if (GlobalService.ShouldReplaceNavigationArgs)
+
+        // 本页设置了 NavigationCacheMode="Required",页面实例会被缓存:
+        // 返回时 Type 与已加载的列表都还在,直接沿用即可,不要重新加载。
+        if (e.NavigationMode == NavigationMode.Back)
         {
-            if (GlobalService.NavigationAnchor is string targetType)
-                Type = targetType;
-        }
-        else
-        {
-            Type = e.TryGetParameter<string>() ?? "follower";
+            // 缓存实例重新挂载时滚动位置可能被重置,这里显式放回离开时的位置
+            RestoreScrollOffset();
+            return;
         }
 
+        // 前进进入:按导航参数重新设定类型(同一种页面会由不同入口用不同参数打开)。
+        _savedScrollOffset = 0;
+        Type = e.TryGetParameter<string>() ?? "follower";
+        FriendType.Text = Type == "follower" ? "粉丝" : "关注";
 
-        if (Type == "follower")
-            FriendType.Text = "粉丝";
-        else
-            FriendType.Text = "关注";
+        // 复用缓存实例时必须先清空,否则 LoadFriend 会往旧集合里追加、并从非 0 页开始取数据。
+        Increment.Clear();
+        Friends.Clear();
 
         await LoadFriend();
+    }
+
+    protected override void OnNavigatedFrom(NavigationEventArgs e)
+    {
+        base.OnNavigatedFrom(e);
+        // 记录离开时的滚动位置,供返回本页时恢复(与 DiscoverPage 的处理一致)
+        _savedScrollOffset = ContentScrollViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    ///     恢复离开本页前的滚动位置。需等重新挂载后的布局完成,否则设置的偏移会被钳制为 0;
+    ///     若框架本身就保留了偏移,这里等价于原地不动。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            ContentScrollViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
     }
 
 
     private async Task<bool> LoadFriend()
     {
+        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
+        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
+        if (Friends.Count >= MaxFriendsKept)
+        {
+            Increment.HasMore = false;
+            return true;
+        }
+
         //获取好友ID列表
         var friendListUrl = ApiEndpoints.User.FreiendList(Type, Increment.StartIndex);
         var friendIdsResult = await ApiService.Fetch<List<int>>(friendListUrl);
@@ -67,14 +104,14 @@ public sealed partial class FollowPage : Page
         if (!friendIdsResult.IsSuccess || friendIdsResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载好友Id列表失败");
+            Tip.Show(InfoType.Error, "加载好友Id列表失败");
             //await App.Logger.WriteAsync("Follow", "加载好友Id列表失败", friendIdsResult.Message);
             return false;
         }
 
         var ids = friendIdsResult.Data;
         Increment.HasMore = ids.Count == Increment.PageSize;
-        if (!Increment.HasMore) Flower.Play(FlowStatus.Info, "已全部加载");
+        if (!Increment.HasMore) Tip.Show(InfoType.Information, "已全部加载");
         var param = string.Join("&", ids.Select(id => $"id={id}"));
         var userInfoUrl = ApiEndpoints.User.UserInfoList(param);
 
@@ -83,7 +120,7 @@ public sealed partial class FollowPage : Page
         if (!friendsResult.IsSuccess || friendsResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "加载好友信息失败");
+            Tip.Show(InfoType.Error, "加载好友信息失败");
             //await App.Logger.WriteAsync("NoticeMsg", "加载好友信息失败", friendsResult.Message);
             return false;
         }
@@ -96,6 +133,9 @@ public sealed partial class FollowPage : Page
         FollowEmptyState.Visibility = Friends.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
         return true;
     }
+
+    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
+    private const int MaxFriendsKept = 300;
 
     private void TileContent_Click(object sender, RoutedEventArgs e)
     {
@@ -115,11 +155,11 @@ public sealed partial class FollowPage : Page
         if(result.IsSuccess)
         {
             Friends.Remove(friend);
-            Flower.Play(FlowStatus.Success, $"已取关用户:{friend.Name}");
+            Tip.Show(InfoType.Success, $"已取关用户:{friend.Name}");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, "取消关注失败");
+            Tip.Show(InfoType.Error, "取消关注失败");
         }
     }
 

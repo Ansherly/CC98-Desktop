@@ -1,4 +1,4 @@
-﻿namespace CC98.Objects;
+namespace CC98.Objects;
 
 /// <summary>
 ///     动态页面的内容类型
@@ -6,7 +6,8 @@
 public enum FocusContentType
 {
     Followee = 0,
-    FavoriteUpdate = 1
+    FavoriteUpdate = 1,
+    FavoriteBoard = 2
 }
 
 /// <summary>
@@ -47,17 +48,6 @@ public enum NoticeType
     At = 3
 }
 
-/// <summary>
-///     UI事件的分类
-/// </summary>
-public enum FlowStatus
-{
-    Warning = 0,
-    Success = 1,
-    Fail = 2,
-    Info = 3
-}
-
 public enum SearchType
 {
     Topic,
@@ -66,10 +56,16 @@ public enum SearchType
     Guide //使用指南
 }
 
-public enum ContentType
+public enum MarkupContentType
 {
     Ubb = 0,
     Markdown = 1
+}
+//区分帖子类型，普通帖子和学术通知
+public enum TopicType 
+{
+    Normal = 0,
+    AcademicNotice = 1
 }
 
 

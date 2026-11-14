@@ -10,6 +10,7 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
 using Card = CC98.Objects.Card;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -87,7 +88,7 @@ public sealed partial class GamePage
         if (!drawResult.IsSuccess || drawResult.Data == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, drawResult.Message);
+            Tip.Show(InfoType.Error, drawResult.Message);
             return;
         }
 
@@ -192,18 +193,18 @@ public sealed partial class GamePage
                     if (!result.IsSuccess)
                     {
                         //
-                        Flower.Play("\uEA39", "分解失败");
+                        Tip.Show(InfoType.Error, "分解失败");
                         return;
                     }
 
                     RefreshStat();
-                    Flower.Play("\uE930", "分解成功");
+                    Tip.Show(InfoType.Success, "分解成功");
                 }
 
                 break;
             case "ref-stat":
                 RefreshStat();
-                Flower.Play("\uE930", "正在刷新数据");
+                Tip.Show(InfoType.Information, "正在刷新数据");
                 break;
         }
     }

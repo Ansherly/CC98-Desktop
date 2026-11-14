@@ -1,13 +1,15 @@
 using System;
 using System.Diagnostics;
 using Windows.Foundation;
+using CSharpMath.Atom;
 using CSharpMath.SkiaSharp;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using SkiaSharp;
 using SkiaSharp.Views.Windows;
 
-namespace CC98.Controls.LatexBlock;
+namespace CC98.Controls;
 
 /// <summary>
 /// 使用 CSharpMath + SkiaSharp 渲染 LaTeX 公式的控件。
@@ -18,10 +20,6 @@ public sealed partial class LatexBlock : UserControl
     private readonly MathPainter _painter = new();
     private float _contentHeight;
     private float _contentWidth;
-    private string _latex = "";
-
-    /// <summary>行间距(相对行高的比例)。</summary>
-    private float _lineSpacing = 0.2f;
 
     /// <summary>每行公式额外预留的底部空白比例。</summary>
     private const float BottomSlackRatio = 0.2f;
@@ -49,6 +47,17 @@ public sealed partial class LatexBlock : UserControl
 
         _canvas.PaintSurface += OnPaintSurface;
         OnFontSizeChanged(); // 同步 _painter 字号
+        // 显式同步一次排版样式,不依赖 MathPainter 自身的 LineStyle 默认值
+        ApplyLineStyle();
+
+        // 公式颜色的主题自适应。
+        // MathPainter.TextColor 的默认值是纯黑 (#FF000000),深色背景下完全看不见,
+        // 因此这里跟随「显式 Foreground > 控件实际主题」解析,并在两种变化时同步:
+        //   · Foreground 被重新赋值(例如 XAML 里的 {ThemeResource ...} 随主题重算);
+        //   · 实际主题变化(应用通过 RootGrid.RequestedTheme 做元素级主题切换)。
+        RegisterPropertyChangedCallback(ForegroundProperty, (_, _) => UpdateTextColor());
+        ActualThemeChanged += (_, _) => UpdateTextColor();
+        UpdateTextColor();
     }
 
     private void OnFontSizeChanged()
@@ -57,37 +66,133 @@ public sealed partial class LatexBlock : UserControl
         InvalidateMeasure();
     }
 
-    /// <summary>行间距。</summary>
+    /// <summary>
+    ///     解析公式应当使用的颜色。
+    ///     优先使用本地设置的 Foreground;未设置时按控件的【实际主题】取默认前景色。
+    ///     这里刻意不用 Application.Current.Resources["TextFillColorPrimaryBrush"] 查表:
+    ///     其索引器只反映【应用级】主题,而本应用是用 RootGrid.RequestedTheme 做元素级
+    ///     主题切换的,查表结果会与实际生效的主题不一致;ActualTheme 才是元素级生效值。
+    /// </summary>
+    private SKColor ResolveTextColor()
+    {
+        // 只采纳【本地设置】的 Foreground(XAML 属性或代码直接赋值),它一定是使用者的真实意图;
+        // 用 ReadLocalValue 而不是直接读 Foreground,是为了避免被框架/样式提供的默认值"劫持"
+        // (那种值往往是固定色,反而会把深色主题的判断盖掉)。
+        if (ReadLocalValue(ForegroundProperty) is SolidColorBrush solid)
+            return new SKColor(solid.Color.R, solid.Color.G, solid.Color.B, solid.Color.A);
+
+        return ActualTheme == ElementTheme.Light
+            ? new SKColor(0x00, 0x00, 0x00)    // 浅色主题:黑
+            : new SKColor(0xFF, 0xFF, 0xFF);   // 深色主题:白
+    }
+
+    /// <summary>
+    ///     把解析出的颜色同步给 MathPainter 并重绘。
+    ///     颜色不参与测量,因此只 Invalidate 画布,不触发 InvalidateMeasure。
+    /// </summary>
+    private void UpdateTextColor()
+    {
+        var color = ResolveTextColor();
+        if (_painter.TextColor == color) return;
+
+        _painter.TextColor = color;
+        _canvas.Invalidate();
+    }
+
+    #region 依赖属性
+
+    /// <summary>行间距(相对行高的比例)。</summary>
+    public static readonly DependencyProperty LineSpacingProperty =
+        DependencyProperty.Register(
+            nameof(LineSpacing),
+            typeof(double),
+            typeof(LatexBlock),
+            new(0.2, OnRenderPropertyChanged));
+
+    /// <summary>
+    ///     是否按独立公式(Display)排版。
+    ///     行内公式应设为 false —— 对应 LaTeX 的「文本样式」:分式更紧凑、
+    ///     求和/积分的上下限移到右侧,不会把所在行的行高撑开。
+    /// </summary>
+    public static readonly DependencyProperty DisplayStyleProperty =
+        DependencyProperty.Register(
+            nameof(DisplayStyle),
+            typeof(bool),
+            typeof(LatexBlock),
+            new(true, OnRenderPropertyChanged));
+
+    /// <summary>LaTeX 公式(可含换行,每行独立公式)。</summary>
+    public static readonly DependencyProperty LaTeXProperty =
+        DependencyProperty.Register(
+            nameof(LaTeX),
+            typeof(string),
+            typeof(LatexBlock),
+            new(string.Empty, OnRenderPropertyChanged));
+
+    /// <summary>是否显示调试边框/空状态提示。</summary>
+    public static readonly DependencyProperty ShowDebugBoundsProperty =
+        DependencyProperty.Register(
+            nameof(ShowDebugBounds),
+            typeof(bool),
+            typeof(LatexBlock),
+            new(false));
+
+    /// <summary>行间距(相对行高的比例)。</summary>
     public double LineSpacing
     {
-        get => _lineSpacing;
-        set
-        {
-            _lineSpacing = (float)value;
-            InvalidateMeasure();
-        }
+        get => (double)GetValue(LineSpacingProperty);
+        set => SetValue(LineSpacingProperty, value);
+    }
+
+    /// <summary>是否按独立公式排版,详见 <see cref="DisplayStyleProperty" />。</summary>
+    public bool DisplayStyle
+    {
+        get => (bool)GetValue(DisplayStyleProperty);
+        set => SetValue(DisplayStyleProperty, value);
     }
 
     /// <summary>LaTeX 公式(可含换行,每行独立公式)。</summary>
     public string LaTeX
     {
-        get => _latex;
-        set
-        {
-            _latex = value;
-            InvalidateMeasure();
-        }
+        get => (string?)GetValue(LaTeXProperty) ?? string.Empty;
+        set => SetValue(LaTeXProperty, value);
     }
 
     /// <summary>是否显示调试边框/空状态提示。</summary>
-    public bool ShowDebugBounds { get; set; } = false;
+    public bool ShowDebugBounds
+    {
+        get => (bool)GetValue(ShowDebugBoundsProperty);
+        set => SetValue(ShowDebugBoundsProperty, value);
+    }
+
+    /// <summary>
+    ///     LaTeX / LineSpacing / DisplayStyle 三者都会改变测量结果,统一重新测量。
+    ///     颜色不走这里:它不参与布局,由 UpdateTextColor 只重绘画布。
+    /// </summary>
+    private static void OnRenderPropertyChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is not LatexBlock block) return;
+
+        // 排版样式必须在 Measure 之前同步给 MathPainter
+        if (e.Property == DisplayStyleProperty) block.ApplyLineStyle();
+
+        block.InvalidateMeasure();
+    }
+
+    /// <summary>把 DisplayStyle 同步到 MathPainter 的排版样式。</summary>
+    private void ApplyLineStyle()
+    {
+        _painter.LineStyle = DisplayStyle ? LineStyle.Display : LineStyle.Text;
+    }
+
+    #endregion
 
     /// <summary>调试信息。</summary>
     public string DebugInfo
     {
         get
         {
-            var lineCount = _latex?.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length ?? 0;
+            var lineCount = LaTeX.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries).Length;
             return $"内容: {_contentWidth:F1}x{_contentHeight:F1}, " +
                    $"控件: {ActualWidth:F1}x{ActualHeight:F1}, " +
                    $"画布: {_canvas.ActualWidth:F1}x{_canvas.ActualHeight:F1}, " +
@@ -97,7 +202,7 @@ public sealed partial class LatexBlock : UserControl
 
     protected override Size MeasureOverride(Size availableSize)
     {
-        if (string.IsNullOrEmpty(_latex))
+        if (string.IsNullOrEmpty(LaTeX))
         {
             _contentWidth = 0;
             _contentHeight = 0;
@@ -110,7 +215,7 @@ public sealed partial class LatexBlock : UserControl
         {
             // 公式不需要换行,用足够大的宽度测量
             const float measureWidth = 2000f;
-            var lines = _latex.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            var lines = LaTeX.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
 
             _contentWidth = 0;
             _contentHeight = 0;
@@ -126,7 +231,7 @@ public sealed partial class LatexBlock : UserControl
                 // 行块 = 公式高 + 底部余量;行间距只在行间额外加,避免单行虚高
                 var lineStep = rect.Height * (1f + BottomSlackRatio);
                 _contentHeight += lineStep;
-                if (i < lines.Length - 1) _contentHeight += rect.Height * _lineSpacing;
+                if (i < lines.Length - 1) _contentHeight += rect.Height * (float)LineSpacing;
             }
 
         if (_contentWidth <= 0) _contentWidth = 20;
@@ -154,13 +259,6 @@ public sealed partial class LatexBlock : UserControl
         return finalSize;
     }
 
-    /// <summary>计算单行公式的占位高度(公式高度 + 底部余量 + 行间距)。</summary>
-    private float MeasureLineStep(float lineHeight) =>
-        lineHeight * (1f + BottomSlackRatio) + lineHeight * _lineSpacing;
-
-    /// <summary>计算单行公式相对行块顶部的绘制偏移。</summary>
-    private float DrawBaselineOffset(float lineHeight) => lineHeight * (1f + BottomSlackRatio);
-
     private void OnPaintSurface(object sender, SKPaintSurfaceEventArgs e)
     {
         var canvas = e.Surface.Canvas;
@@ -169,18 +267,22 @@ public sealed partial class LatexBlock : UserControl
         var canvasWidth = (float)_canvas.ActualWidth;
         var canvasHeight = (float)_canvas.ActualHeight;
 
-        if (string.IsNullOrEmpty(_latex) || _contentWidth <= 0 || _contentHeight <= 0 || canvasWidth <= 0 || canvasHeight <= 0)
+        if (string.IsNullOrEmpty(LaTeX) || _contentWidth <= 0 || _contentHeight <= 0 || canvasWidth <= 0 || canvasHeight <= 0)
         {
-            if (ShowDebugBounds && string.IsNullOrEmpty(_latex))
+            if (ShowDebugBounds && string.IsNullOrEmpty(LaTeX))
             {
-                canvas.DrawText(SKTextBlob.Create("无公式", new SKFont()), 10f, 30f, new SKPaint { Color = SKColors.Gray, IsAntialias = true });
+                // SKTextBlob/SKFont/SKPaint 是 SkiaSharp 原生资源包装,用完必须释放
+                using var font = new SKFont();
+                using var blob = SKTextBlob.Create("无公式", font);
+                using var paint = new SKPaint { Color = SKColors.Gray, IsAntialias = true };
+                canvas.DrawText(blob, 10f, 30f, paint);
             }
             return;
         }
 
         try
         {
-            var lines = _latex.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
+            var lines = LaTeX.Split(['\r', '\n'], StringSplitOptions.RemoveEmptyEntries);
             var currentY = (float)Padding.Top;
 
             for (var i = 0; i < lines.Length; i++)
@@ -214,7 +316,7 @@ public sealed partial class LatexBlock : UserControl
                 _painter.Draw(canvas, new(x, baseline));
 
                 currentY += rect.Height * (1f + BottomSlackRatio);
-                if (i < lines.Length - 1) currentY += rect.Height * _lineSpacing;
+                if (i < lines.Length - 1) currentY += rect.Height * (float)LineSpacing;
             }
         }
         catch (Exception ex)

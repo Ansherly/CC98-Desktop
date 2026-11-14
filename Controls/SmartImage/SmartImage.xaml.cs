@@ -7,7 +7,7 @@ using Microsoft.UI.Xaml.Media;
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
 
-namespace CC98.Controls.SmartImage;
+namespace CC98.Controls;
 
 public sealed partial class SmartImage : UserControl
 {
@@ -45,9 +45,9 @@ public sealed partial class SmartImage : UserControl
         set => SetValue(SourceProperty, value);
     }
 
-    public ImageSource ImageSource
+    public ImageSource? ImageSource
     {
-        get => (ImageSource)GetValue(ImageSourceProperty);
+        get => GetValue(ImageSourceProperty) as ImageSource;
         set => SetValue(ImageSourceProperty, value);
     }
 
@@ -88,7 +88,8 @@ public sealed partial class SmartImage : UserControl
             switch (Source)
             {
                 case string url when UrlEx.IsWebUrl(url):
-                    var webBitmap = await ImageHelper.LoadWebImageAsync(url);
+                    // 走弱引用缓存加载,同一 URL 不再反复下载+解码
+                    var webBitmap = await CC98.Controls.Primitives.SmartImageLoader.GetInstance(lowRes: false).LoadImage(url);
                     if (generation != _loadGeneration) return;
                     InnerImage.Source = webBitmap;
                     ImageSource = webBitmap;
@@ -102,7 +103,7 @@ public sealed partial class SmartImage : UserControl
                     break;
 
                 case Uri uri when uri.IsWebUri:
-                    var uriWebBitmap = await ImageHelper.LoadWebImageAsync(uri.ToString());
+                    var uriWebBitmap = await CC98.Controls.Primitives.SmartImageLoader.GetInstance(lowRes: false).LoadImage(uri.ToString());
                     if (generation != _loadGeneration) return;
                     InnerImage.Source = uriWebBitmap;
                     ImageSource = uriWebBitmap;

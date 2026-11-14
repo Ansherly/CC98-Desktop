@@ -11,6 +11,7 @@ using CC98.Objects;
 using CC98.Services;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls;
 using CC98.Controls.Primitives;
 using CC98.Controls.UbbTextBlock.Common.Events;
 using DevWinUI;
@@ -20,6 +21,7 @@ using Microsoft.UI.Xaml.Navigation;
 using System.Web;
 using System.Linq;
 using System.Net.WebSockets;
+using Microsoft.UI.Xaml.Controls.Primitives;
 
 namespace CC98.Views;
 
@@ -31,10 +33,7 @@ public sealed partial class BoardPage
     public ObservableCollection<SimpleTopicInfo> Topics = [];
     public ObservableCollection<SearchTopicInfo> searchResultTopics= [];
     
-    public ApiService ApiService = App.Current.GetService<ApiService>();
-
-    //是否精华帖
-    public bool IsBest { get; } = false;
+    private ApiService ApiService = App.Current.GetService<ApiService>();
 
     public int BoardId { get; set; } = 0;
     private string searchKeyword = string.Empty;
@@ -54,22 +53,65 @@ public sealed partial class BoardPage
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
+
         var args = e.TryGetParameter<int>();
+
+        // 本页不再使用 NavigationCacheMode=Required:每次进入都是新实例,
+        // 不需要"沿用上次状态"的分支,一律按本次传入的版面完全重置。
         BoardId = args;
         BoardSymbol.Symbol = BoardIconHelper.GetSymbol(BoardId, "");
+
+        // 换版面:代次自增以作废在途请求的结果,并允许新的加载会话立即开始
+        // (否则旧版面在途的响应会把数据追加到新版面的列表里)。
+        _boardGeneration++;
+        _isLoading = false;
+
+        // 搜索面板是"版面级"状态,必须随版面一起复位,
+        // 否则从新版面打开搜索面板会看到上一个版面的搜索结果。
+        searchKeyword = string.Empty;
+        BoardSearchBox.Text = string.Empty;
+        searchIncrement.Clear();
+        searchResultTopics.Clear();
+        SearchProgressRing.IsActive = false;
+        SearchView.IsPaneOpen = false;
+
+        // 程序化复位选中项同样会触发 TypeSelectorBar_SelectionChanged,这里抑制它,
+        // 统一由下面的 RefreshAsync 加载一次,避免重复加载。
+        _suppressTypeChange = true;
+        // IsSelected 决定下划线的位置,SelectedItem 是逻辑选中项 —— 两者一起改才不会错位
+        TypeSelectorBar.Items[0].IsSelected = true;
+        TypeSelectorBar.SelectedItem = TypeSelectorBar.Items[0];
+        _suppressTypeChange = false;
+
+        FilterType = BoardTopicFilterType.Latest;
+        Increment.Clear();
+        Topics.Clear();
+
+        // 换版面后回到第一页(抑制事件,真正的加载交给下面的 RefreshAsync)
+        _syncingPager = true;
+        Pager.SelectedPageIndex = 0;
+        Pager.NumberOfPages = 1;
+        _syncingPager = false;
+
         // 版面信息与主题列表互不依赖,并行加载
-        await Task.WhenAll(GetData(), LoadTopics());
+        await RefreshAsync();
     }
 
 
 
-    private async Task GetData()
+    /// <summary>
+    ///     版面数据加载。
+    /// </summary>
+    /// <param name="generation">发起时的版面代次;响应回来时若版面已切换则丢弃结果。</param>
+    private async Task GetData(int generation)
     {
         var boardDataUrl = ApiEndpoints.Board.BoardInfo(BoardId);
         var boardDataResult = await ApiService.Fetch<BoardData>(boardDataUrl);
+        if (generation != _boardGeneration) return; // 版面已切换,丢弃过期响应
+
         if (!boardDataResult.IsSuccess || boardDataResult.Data == null)
         {
-            Flower.Play(FlowStatus.Fail, boardDataResult.Message);
+            Tip.Show(InfoType.Error, boardDataResult.Message);
             return;
         }
 
@@ -81,41 +123,44 @@ public sealed partial class BoardPage
         BoardData.BoardMasters = data.BoardMasters;
         BoardData.TopicCount = data.TopicCount;
         BoardData.TodayCount = data.TodayCount;
+
+        // 分页组件按"总条数 / 每页条数"向上取整,至少 1 页
+        Pager.NumberOfPages = Math.Max((data.TopicCount + Increment.PageSize - 1) / Increment.PageSize, 1);
     }
 
-    private async Task<bool> LoadTopics()
+    /// <summary>
+    ///     主题列表加载(每页一组)。
+    /// </summary>
+    /// <param name="generation">发起时的版面代次;响应回来时若版面已切换则丢弃结果。</param>
+    private async Task<bool> LoadTopics(int generation)
     {
         var topicUrl = ApiEndpoints.Board.TopicList((int)FilterType, BoardId, Increment.StartIndex);
 
         if (FilterType == BoardTopicFilterType.Best)
         {
             var result = await ApiService.Fetch<BoardBest>(topicUrl);
+            if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
             if (result.IsNotValid)
             {
-                Flower.Play(FlowStatus.Fail, result.Message);
+                Tip.Show(InfoType.Error, result.Message);
                 return false;
             }
-            var bests = result.Data?.Topics;
-            Increment.HasMore = bests.Count == Increment.PageSize;
-            Topics.AddRange(bests);
-            BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+
+            ReplaceTopics(result.Data?.Topics ?? []);
             return true;
         }
 
         var topicResult = await ApiService.Fetch<List<SimpleTopicInfo>>(topicUrl);
+        if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期响应
         if (topicResult.IsNotValid)
         {
-            Flower.Play(FlowStatus.Fail, topicResult.Message);
+                Tip.Show(InfoType.Error, topicResult.Message);
             return false;
         }
 
-        var data = topicResult.Data;
-        Increment.HasMore = data.Count == Increment.PageSize;
-        Topics.AddRange(data);
-        BoardEmptyState.Visibility = Topics.Count == 0 ? Microsoft.UI.Xaml.Visibility.Visible : Microsoft.UI.Xaml.Visibility.Collapsed;
+        ReplaceTopics(topicResult.Data);
         return true;
     }
-
 
     private void TileContent_Click(object sender, RoutedEventArgs e)
     {
@@ -124,18 +169,48 @@ public sealed partial class BoardPage
         var param = new TopicNavigationInfo { TopicId = t.Id };
         Frame.Navigate(typeof(TopicPage), param);
     }
-
-
-
-
-    private async void TopicRepeater_ElementPrepared(ItemsRepeater sender, ItemsRepeaterElementPreparedEventArgs args)
+    /// <summary>
+    ///     分页组件请求翻页。代次在请求发起时取,响应回来时若已换版面则丢弃。
+    /// </summary>
+    private async void Pager_SelectedIndexChanged(object? sender, int pageIndex)
     {
-        await Increment.LoadMore(args.Index, LoadTopics);
+        // 加载失败回退时我们也会去改 Pager.SelectedPageIndex,这里避免那次同步再次触发加载
+        if (_syncingPager) return;
+
+        await LoadPageAsync(_boardGeneration, pageIndex);
+    }
+
+    /// <summary>
+    ///     加载指定页(0-based)并整体替换主题列表。
+    /// </summary>
+    private async Task LoadPageAsync(int generation, int pageIndex)
+    {
+        var success = await Increment.LoadPage(pageIndex, () => LoadTopics(generation));
+
+        // 加载失败时 Increment 已把页码回退,这里把分页组件同步回"实际展示的那一页"
+        if (!success && generation == _boardGeneration && Pager.SelectedPageIndex != Increment.CurrentPage)
+        {
+            _syncingPager = true;
+            Pager.SelectedPageIndex = Increment.CurrentPage;
+            _syncingPager = false;
+        }
+    }
+
+    /// <summary>
+    ///     用新的一页整体替换列表。
+    ///     翻页是替换而不是追加:集合大小恒定为一页,不会像无限下拉那样把几百条堆进集合,
+    ///     每次翻页的实现/回收规模也因此可预期。
+    /// </summary>
+    private void ReplaceTopics(IReadOnlyList<SimpleTopicInfo> page)
+    {
+        Topics.Clear();
+        Topics.AddRange(page);
     }
 
     private async void BoardAction_Click(object sender, RoutedEventArgs e)
     {
-        var button = sender as AppBarButton;
+        //触发源可能是 HyperlinkButton(顶部操作钮)或 MenuFlyoutItem(更多操作菜单),统一按 Tag 分发
+        var button = sender as FrameworkElement;
         if (button == null) return;
         if (button.Tag is not string tag) return;
         switch (tag)
@@ -147,13 +222,13 @@ public sealed partial class BoardPage
                 Increment.Clear();
                 Topics.Clear();
                 await RefreshAsync();
-                Flower.Play(FlowStatus.Success, "刷新成功");
+                Tip.Show(InfoType.Success, "刷新成功");
                 break;
             case "pin":
                 await Pin();
                 break;
             case "draft":
-                Flower.Play(FlowStatus.Info, "暂不支持发主题");
+                Tip.Show(InfoType.Information, "暂不支持发主题");
                 break;
             case "vote":
                 var param2 = new SketchNavigationInfo
@@ -179,7 +254,7 @@ public sealed partial class BoardPage
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, result.Message);
+            Tip.Show(InfoType.Error, result.Message);
             //await App.Logger.WriteAsync("Board", "关注版面失败", result.Message);
             return;
         }
@@ -192,11 +267,13 @@ public sealed partial class BoardPage
             Tag = BoardId.ToString()
         };
         Messenger.Instance.AddNavigationItem(i);
-        Flower.Play(FlowStatus.Success, "已关注");
+        Tip.Show(InfoType.Success, "已关注");
     }
 
     private async void TypeSelectorBar_SelectionChanged(SelectorBar sender, SelectorBarSelectionChangedEventArgs args)
     {
+        // 程序化复位(OnNavigatedTo 中换版面/重新进入)不触发加载
+        if (_suppressTypeChange) return;
         // 防重入:加载期间忽略重复触发,避免"重复加载两次帖子"的问题
         if (_isLoading) return;
         var item = sender as SelectorBar;
@@ -216,20 +293,32 @@ public sealed partial class BoardPage
     // 版面数据加载防重入标志
     private bool _isLoading;
 
+    // 版面代次:每次"换版面"自增,用于判断在途请求的响应是否已经过期
+    private int _boardGeneration;
+
+    // 程序化复位筛选标签时置位,用于抑制 TypeSelectorBar_SelectionChanged 触发的加载
+    private bool _suppressTypeChange;
+
+    // 把分页组件同步回实际页码时置位,避免那次同步又触发一次翻页加载
+    private bool _syncingPager;
+
     /// <summary>
-    /// 版面信息与主题列表并行加载,并防止并发触发。
+    /// 版面信息与主题列表并行加载,并防止同一版面内的并发触发。
     /// </summary>
     private async Task RefreshAsync()
     {
         if (_isLoading) return;
+
+        var generation = _boardGeneration;
         _isLoading = true;
         try
         {
-            await Task.WhenAll(GetData(), LoadTopics());
+            await Task.WhenAll(GetData(generation), LoadTopics(generation));
         }
         finally
         {
-            _isLoading = false;
+            // 只有"当前代次"的会话才有资格复位标志,避免旧会话提前清掉新会话的加载状态
+            if (generation == _boardGeneration) _isLoading = false;
         }
     }
 
@@ -244,7 +333,7 @@ public sealed partial class BoardPage
             CurrentTopicId = null,
             JumpToFloor = null,
             ImageList = null,
-            Flower = Flower
+            Notify = Tip.Show
         };
 
         switch (e.MediaType)
@@ -277,28 +366,37 @@ public sealed partial class BoardPage
     }
     private async Task<bool> Search()
     {
+        var generation = _boardGeneration;
         SearchProgressRing.IsActive = true;
         searchResultTopics.Clear();
-        var searchUrl = ApiEndpoints.Topic.SearchTopicInBoard(BoardId, HttpUtility.UrlEncode(searchKeyword), searchIncrement.StartIndex);
-        var result = await ApiService.Fetch<List<SearchTopicInfo>>(searchUrl);
-        if(!result.IsSuccess||result.Data==null)
+        try
         {
-            Flower.Play(FlowStatus.Fail, result?.Message ?? "搜索失败");
-            return false;
-        }
-        var data = result.Data;
-        searchIncrement.HasMore = data.Count == searchIncrement.PageSize;
-        foreach (var topic in data)
-        {
-            if (topic.IsAnonymous)
+            var searchUrl = ApiEndpoints.Topic.SearchTopicInBoard(BoardId, HttpUtility.UrlEncode(searchKeyword), searchIncrement.StartIndex);
+            var result = await ApiService.Fetch<List<SearchTopicInfo>>(searchUrl);
+            if (generation != _boardGeneration) return false; // 版面已切换,丢弃过期结果
+            if (!result.IsSuccess || result.Data == null)
             {
-                topic.UserName = $"匿名{topic.UserName.ToUpper()}";
+                Tip.Show(InfoType.Error, result?.Message ?? "搜索失败");
+                return false;
             }
-            topic.Keyword = searchKeyword; 
+            var data = result.Data;
+            searchIncrement.HasMore = data.Count == searchIncrement.PageSize;
+            foreach (var topic in data)
+            {
+                if (topic.IsAnonymous)
+                {
+                    topic.UserName = $"匿名{topic.UserName.ToUpper()}";
+                }
+                topic.Keyword = searchKeyword;
+            }
+            searchResultTopics.AddRange(data);
+            return true;
         }
-        searchResultTopics.AddRange(data);
-        SearchProgressRing.IsActive = false;
-        return true;
+        finally
+        {
+            // 失败路径也要收掉进度环;换过版面则交给新会话管理
+            if (generation == _boardGeneration) SearchProgressRing.IsActive = false;
+        }
     }
 
     private async void NextPageButton_Click(object sender, RoutedEventArgs e)
@@ -324,5 +422,9 @@ public sealed partial class BoardPage
         }
     }
 
-    
+    private void MoreButton_Click(object sender, RoutedEventArgs e)
+    {
+        var hyperlinkButton = sender as HyperlinkButton;
+        FlyoutBase.ShowAttachedFlyout(hyperlinkButton);
+    }
 }

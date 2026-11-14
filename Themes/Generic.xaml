@@ -1,34 +1,47 @@
-﻿<ResourceDictionary
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:smartImage="using:CC98.Controls.SmartImage"
-    xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
-    xmlns:fileCard="using:CC98.Controls.FileCard">
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                    xmlns:smartImage="using:CC98.Controls"
+                    xmlns:ubbTextBlock="using:CC98.Controls.UbbTextBlock"
+                    xmlns:fileCard="using:CC98.Controls"
+                    xmlns:fancy="using:CC98.Controls"
+                    xmlns:ic="using:FluentIcons.WinUI">
+
+    <!--
+        自定义控件的默认样式必须在 Themes/Generic.xaml 中(含其合并字典)才能被
+        DefaultStyleKey 查找命中。放在别处的 ResourceDictionary 若不合并进来,
+        控件就取不到 ControlTemplate —— OnApplyTemplate 不触发、GetTemplateChild 拿不到
+        PART_RootPanel,表现为"控件完全不显示任何内容"(而非绑定失败)。
+    -->
+    <ResourceDictionary.MergedDictionaries>
+        <ResourceDictionary Source="ms-appx:///Controls/MarkdownTextBlock/Themes/MarkdownTextBlock.xaml" />
+        <ResourceDictionary Source="ms-appx:///Controls/CodeBlock/CodeBlock.xaml" />
+    </ResourceDictionary.MergedDictionaries>
+
     <Style TargetType="smartImage:SmartImage">
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="smartImage:SmartImage">
-                    <Border
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}" />
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" />
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
 
     <Style TargetType="ubbTextBlock:UbbTextBlock">
-        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="Background"
+                Value="Transparent" />
 
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="ubbTextBlock:UbbTextBlock">
-                    <Border
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}">
 
-                        <StackPanel x:Name="PART_RootPanel" Margin="{TemplateBinding Padding}" />
+                        <StackPanel x:Name="PART_RootPanel"
+                                    Margin="{TemplateBinding Padding}" />
                     </Border>
                 </ControlTemplate>
             </Setter.Value>
@@ -40,12 +53,121 @@
         <Setter Property="Template">
             <Setter.Value>
                 <ControlTemplate TargetType="fileCard:FileCard">
-                    <Border
-                        Background="{TemplateBinding Background}"
-                        BorderBrush="{TemplateBinding BorderBrush}"
-                        BorderThickness="{TemplateBinding BorderThickness}" />
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}" />
                 </ControlTemplate>
             </Setter.Value>
         </Setter>
     </Style>
+
+    <!--
+        默认外观与原 TextBoxBorderStyle 一致(AcrylicCardBrush + 1px + 圆角4),BorderBrush 可按实例自定义;
+        内部 TextBox 无边无底色,即原 TextBoxBlankStyle 的效果
+    -->
+    <Style TargetType="fancy:FancyTextBox">
+        <Setter Property="BorderBrush"
+                Value="{ThemeResource AcrylicCardBrush}" />
+        <Setter Property="BorderThickness"
+                Value="1" />
+        <Setter Property="CornerRadius"
+                Value="4" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="fancy:FancyTextBox">
+                    <Border Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            CornerRadius="{TemplateBinding CornerRadius}"
+                            Padding="{TemplateBinding Padding}">
+                        <TextBox x:Name="PART_TextBox"
+                                 PlaceholderText="{TemplateBinding PlaceholderText}"
+                                 TextWrapping="{TemplateBinding TextWrapping}"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 CornerRadius="0" />
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!--
+        一次性上浮提示(移植自 winui-kernel 的 TipPopup):
+        外观 = Acrylic 底 + 1px 分隔线描边 + OverlayCornerRadius 圆角;
+        使用时放在页面最外层 Grid 的最后一个子元素(默认 Bottom + Center + 底部留白 120),
+        显示/隐藏动画由 TipPopup.cs 用 CommunityToolkit 的 AnimationBuilder 播放。
+    -->
+    <Style TargetType="fancy:TipPopup">
+        <Setter Property="HorizontalAlignment"
+                Value="Center" />
+        <Setter Property="VerticalAlignment"
+                Value="Bottom" />
+        <Setter Property="Margin"
+                Value="0,0,0,120" />
+        <Setter Property="IsTabStop"
+                Value="False" />
+        <Setter Property="IsHitTestVisible"
+                Value="False" />
+        <Setter Property="Visibility"
+                Value="Collapsed" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="fancy:TipPopup">
+                    <Border x:Name="PART_Root"
+                            Padding="12,8"
+                            Background="{ThemeResource AcrylicInAppFillColorDefaultBrush}"
+                            BorderBrush="{ThemeResource DividerStrokeColorDefaultBrush}"
+                            BorderThickness="1"
+                            CornerRadius="{StaticResource OverlayCornerRadius}">
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Margin="0,4,0,0"
+                                  VerticalAlignment="Center">
+                                <ic:SymbolIcon x:Name="PART_InformationIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarInformationalSeverityIconBackground}"
+                                               Symbol="Info"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_WarningIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarWarningSeverityIconBackground}"
+                                               Symbol="Warning"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_SuccessIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarSuccessSeverityIconBackground}"
+                                               Symbol="CheckmarkCircle"
+                                               Visibility="Collapsed" />
+                                <ic:SymbolIcon x:Name="PART_ErrorIcon"
+                                               FontSize="14"
+                                               Foreground="{ThemeResource InfoBarErrorSeverityIconBackground}"
+                                               Symbol="DismissCircle"
+                                               Visibility="Collapsed" />
+                                <ProgressRing x:Name="PART_LoadingRing"
+                                              Width="12"
+                                              Height="12"
+                                              MinWidth="12"
+                                              MinHeight="12"
+                                              VerticalAlignment="Center"
+                                              IsActive="False"
+                                              Visibility="Collapsed" />
+                            </Grid>
+                            <TextBlock Grid.Column="1"
+                                       MaxWidth="520"
+                                       Margin="0,2,0,0"
+                                       VerticalAlignment="Center"
+                                       FontSize="13"
+                                       Text="{TemplateBinding Text}"
+                                       TextWrapping="Wrap" />
+                        </Grid>
+                    </Border>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
 </ResourceDictionary>

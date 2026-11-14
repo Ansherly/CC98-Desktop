@@ -44,7 +44,7 @@ public partial class UserInfo : ObservableObject
 
     [ObservableProperty] public partial DateTime RegisterTime { get; set; }
 
-    [JsonIgnore] [ObservableProperty] public partial bool IsOthers { get; set; }
+    [JsonIgnore] [ObservableProperty] public partial bool IsMe { get; set; }
 
     [ObservableProperty] public partial bool IsFollowing { get; set; }
     [ObservableProperty]public partial bool BrowsingHistoryEnabled { get; set; }

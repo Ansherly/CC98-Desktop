@@ -10,10 +10,10 @@ using DevWinUI;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Navigation;
+using Microsoft.UI.Dispatching;
 using CC98.Services.Extensions;
-using CC98.Services.Helpers;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -31,6 +31,9 @@ public sealed partial class DiscoverPage : Page
     public HashSet<int> TopicIds = [];
     public ObservableCollection<TopicInfo> Topics = [];
     public ApiService ApiService = App.Current.GetService<ApiService>();
+
+    // 记录离开本页时的垂直滚动偏移,用于从主题页返回时恢复位置
+    private double _savedScrollOffset;
     public DiscoverPage()
     {
         InitializeComponent();
@@ -49,10 +52,19 @@ public sealed partial class DiscoverPage : Page
     protected override async void OnNavigatedTo(NavigationEventArgs e)
     {
         base.OnNavigatedTo(e);
-        // 页面被缓存(NavigationCacheMode=Required),每次进入都重新订阅并刷新数据,
-        // 避免 RandomTopics/Topics 无界增长(随机接口还会返回重复项)。
         SizeChanged -= Discover_SizeChanged;
         SizeChanged += Discover_SizeChanged;
+
+        // 从主题页返回时:页面实例已被缓存(NavigationCacheMode=Required),已加载的数据仍在。
+        // 此处不能清空列表——清空会让 ItemsRepeater 内容归零、滚动区域高度塌缩、偏移被钳制为 0,
+        // 且重新加载只取第一页,导致无法回到原来的滚动位置。故仅恢复滚动位置后直接返回。
+        if (e.NavigationMode == NavigationMode.Back && Topics.Count > 0)
+        {
+            RestoreScrollOffset();
+            return;
+        }
+
+        // 新进入页面时才刷新数据,避免 RandomTopics/Topics 无界增长(随机接口还会返回重复项)。
         RandomTopics.Clear();
         Topics.Clear();
         TopicIds.Clear();
@@ -64,17 +76,41 @@ public sealed partial class DiscoverPage : Page
     {
         base.OnNavigatedFrom(e);
         SizeChanged -= Discover_SizeChanged;
+        // 记录离开时的滚动位置,供返回时恢复
+        _savedScrollOffset = NewTopicViewer.VerticalOffset;
+    }
+
+    /// <summary>
+    /// 恢复离开本页前的垂直滚动位置。
+    /// 需等待重新挂载后的布局完成,否则 ExtentHeight 仍为 0,设置的偏移会被钳制为 0。
+    /// </summary>
+    private void RestoreScrollOffset()
+    {
+        if (_savedScrollOffset <= 0) return;
+
+        DispatcherQueue.TryEnqueue(DispatcherQueuePriority.Low, () =>
+        {
+            NewTopicViewer.ChangeView(null, _savedScrollOffset, null, true);
+        });
     }
 
     private async Task<bool> GetNewTopic()
     {
+        // Required 缓存页伴生命全周期:达到保留上限后停止增量加载(不要头部移除,
+        // 那会使 ItemsRepeater 索引位移,触发元素批量重新 Prepare 与加载风暴)
+        if (Topics.Count >= MaxTopicsKept)
+        {
+            Increment.HasMore = false;
+            return true;
+        }
+
         var newTopicUrl = ApiEndpoints.Topic.NewTopicList(Increment.StartIndex);
         var newTopicResult = await ApiService.Fetch<List<TopicInfo>>(newTopicUrl);
         if (!newTopicResult.IsSuccess || newTopicResult.Data == null)
         {
             //忽略加载过快报错
             if (newTopicResult.StatusCode == (int)HttpStatusCode.Forbidden) return false;
-            Flower.Play(FlowStatus.Fail, newTopicResult.Message);
+            Tip.Show(InfoType.Error, newTopicResult.Message);
             //await App.Logger.WriteAsync("Discover", "加载新帖失败", newTopicResult.Message);
             return false;
         }
@@ -87,7 +123,7 @@ public sealed partial class DiscoverPage : Page
         var userInfoResult = await ApiService.Fetch<List<BasicUserInfo>>(userInfoUrl);
         if (!userInfoResult.IsSuccess || userInfoResult.Data == null)
             //报错
-            Flower.Play(FlowStatus.Fail, "获取用户头像出错");
+            Tip.Show(InfoType.Error, "获取用户头像出错");
         var userInfoList = userInfoResult.Data;
         foreach (var topic in data)
         {
@@ -109,6 +145,8 @@ public sealed partial class DiscoverPage : Page
         return true;
     }
 
+    // Required 缓存页伴生命全周期:常驻条数上限(到达后停止增量加载)
+    private const int MaxTopicsKept = 300;
 
     private async Task GetRandomTile()
     {
@@ -147,21 +185,6 @@ public sealed partial class DiscoverPage : Page
     }
 
 
-    private void ContentCard_PointerEntered(object sender, PointerRoutedEventArgs e)
-    {
-        var h = sender as Grid;
-        var translate = h?.RenderTransform as TranslateTransform;
-        AnimationHelper.AnimateCard(translate!, 0, -5); // 向上方移动
-    }
-
-    private void ContentCard_PointerExited(object sender, PointerRoutedEventArgs e)
-    {
-        var h = sender as Grid;
-        var translate = h?.RenderTransform as TranslateTransform;
-        AnimationHelper.AnimateCard(translate!, 0, 0); // 恢复原位
-    }
-
-
     private void ContentCard_Tapped(object sender, TappedRoutedEventArgs e)
     {
         var h = sender as Grid;
@@ -169,9 +192,5 @@ public sealed partial class DiscoverPage : Page
         if (tag == null) return;
         var param = new TopicNavigationInfo { TopicId = tag.ToInt() };
         Frame.Navigate(typeof(TopicPage), param);
-    }
-
-    private void ContentCard_Loaded(object sender, RoutedEventArgs e)
-    {
     }
 }

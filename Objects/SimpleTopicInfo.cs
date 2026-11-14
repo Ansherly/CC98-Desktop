@@ -100,8 +100,6 @@ public partial class SearchTopicInfo : ObservableObject
         set=> SetProperty(ref field, value);
     }
     public string HitAndReplyCount => $"{HitCount}点击/{ReplyCount}回复";
-    [JsonIgnore]
-    public ObservableCollection<Inline> TitleInlines { get; set; } = [];
 }
 
 public class HighlightInfo

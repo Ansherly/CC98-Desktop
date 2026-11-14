@@ -61,7 +61,10 @@ public class UbbTokenizer(string input)
                 _inTag = false;
                 return new(TokenType.RightBracket, Advance().ToString(), _pos - 1);
             case ',':
-                return new(TokenType.Comma, Advance().ToString(), _pos - 1);
+                // 逗号只有在“确实构成属性边界”时才切分，否则它是属性值内部的普通字符
+                // （典型场景：title=Hello, World,author=A 里的第一个逗号）
+                if (IsCommaBoundary()) return new(TokenType.Comma, Advance().ToString(), _pos - 1);
+                return ScanTagContent();
             case '=':
                 // 关键修复：只有在 TagName 之后，等号才是属性开始的分隔符
                 if (_lastType == TokenType.TagName) return new(TokenType.Equal, Advance().ToString(), _pos - 1);
@@ -124,6 +127,8 @@ public class UbbTokenizer(string input)
         var nameStart = _pos;
         //这个长度是字符长度
         var nameLength = 0;
+        // 等效长度:字母数字算 1、汉字等东亚文字算 2,边扫描边累加,避免每个字符都从头重算一遍
+        var nameWidth = 0;
         var isValid = true;
 
         // 解析用户名
@@ -135,18 +140,16 @@ public class UbbTokenizer(string input)
             if (c == ' ') break;
 
             // 检查字符是否合法
-            var isValidChar = IsValidUsernameChar(c);
-            if (!isValidChar)
+            if (!IsValidUsernameChar(c))
             {
                 isValid = false;
                 break;
             }
 
             nameLength++;
+            nameWidth += char.IsLetterOrDigit(c) ? 1 : 2;
 
-            // 这里的长度是等效长度，每个汉字占2字节（而实际上有的字是3）
-            var length = GetUserNameLength(_input, nameStart, nameLength);
-            if (length > 10) // 总字节长度限制为10
+            if (nameWidth > 10) // 总等效长度限制为 10
             {
                 isValid = false;
                 break;
@@ -180,16 +183,56 @@ public class UbbTokenizer(string input)
         return _input[_pos++];
     }
 
-    // 修改判定逻辑：= 是否作为分隔符取决于当前上下文
+    // 修改判定逻辑：= 和 , 是否作为分隔符取决于当前上下文
     private bool IsTagDelimiter(char c)
     {
-        // ] , 和 结束符 永远是分隔符
-        if (c == ']' || c == ',' || c == '\0') return true;
+        // ] 和 结束符 永远是分隔符
+        if (c == ']' || c == '\0') return true;
+
+        // 逗号：只有确实构成属性边界时才是分隔符
+        if (c == ',') return IsCommaBoundary();
 
         // 只有在寻找 TagName 的阶段，= 才是分隔符
         if (c == '=' && (_lastType == TokenType.LeftBracket || _lastType == TokenType.Slash)) return true;
 
         return false;
+    }
+
+    /// <summary>
+    ///     判断当前位置（<see cref="_pos" /> 指向 <c>,</c>）的逗号是否真的分隔了一个「键=值」属性，
+    ///     而不是属性值内部的普通字符。
+    /// </summary>
+    /// <remarks>
+    ///     判定规则：逗号之前是标签名（位置上的第一个逗号）→ 一定是边界；
+    ///     否则要求逗号之后是「<c>键名</c> 空白* <c>=</c>」，键名允许除空白、<c>, = ] [</c> 之外的任意字符。
+    ///     例：<c>[audio,title=Hello, World,author=A]</c> 的第一个逗号后是 <c>World,author=</c>（不是 <c>键=</c>），
+    ///     故属于标题内容；第二个逗号后是 <c>author=</c>，才是真正的边界。
+    /// </remarks>
+    private bool IsCommaBoundary()
+    {
+        // 标签名与分隔符之间、以及 '[' 紧跟的逗号，永远算边界
+        if (_lastType is TokenType.TagName or TokenType.LeftBracket or TokenType.Slash) return true;
+
+        var i = _pos + 1;
+
+        // 跳过键名前的空白
+        while (i < _input.Length && char.IsWhiteSpace(_input[i])) i++;
+
+        // 扫描键名
+        var keyStart = i;
+        while (i < _input.Length && !IsAttributeKeyTerminator(_input[i])) i++;
+        if (i == keyStart) return false; // 空键名
+
+        // 跳过键名与 '=' 之间的空白
+        while (i < _input.Length && char.IsWhiteSpace(_input[i])) i++;
+
+        return i < _input.Length && _input[i] == '=';
+    }
+
+    /// <summary>判断字符是否终止一个属性键名。</summary>
+    private static bool IsAttributeKeyTerminator(char c)
+    {
+        return char.IsWhiteSpace(c) || c is ',' or '=' or ']' or '[' or '$' or '/';
     }
 
     #region 辅助方法
@@ -212,27 +255,6 @@ public class UbbTokenizer(string input)
             return true;
 
         return false;
-    }
-
-    /// <summary>
-    ///     获取用户名的字节长度（UTF-8编码）
-    /// </summary>
-    private static int GetUserNameLength(string input, int start, int length)
-    {
-        var totalLength = 0;
-        for (var i = start; i < start + length && i < input.Length; i++)
-        {
-            var c = input[i];
-
-            // 字母或数字计1
-            if (char.IsLetterOrDigit(c))
-                totalLength += 1;
-            else
-                // 汉字/日文/韩文等东亚文字计2
-                totalLength += 2;
-        }
-
-        return totalLength;
     }
 
     #endregion

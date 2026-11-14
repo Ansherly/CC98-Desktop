@@ -1,54 +1,394 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8" ?>
 
-<UserControl
-    x:Class="CC98.Controls.MusicPlayer.MusicPlayer"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    mc:Ignorable="d">
+<UserControl x:Class="CC98.Controls.MusicPlayer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d">
 
-    <Grid Width="300" Height="Auto" Padding="12" BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
-          Background="{ThemeResource CardGradient1Brush}" BorderThickness="1" CornerRadius="4"
-          ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
+    <UserControl.Resources>
+        <!--  主色取 CC98 传统链接色。用命名色而不是 #RRGGBB，悬停/按下取同族的更深命名色  -->
+        <SolidColorBrush x:Key="PlayerAccentBrush"
+                         Color="LightSeaGreen" />
+        <SolidColorBrush x:Key="PlayerAccentHoverBrush"
+                         Color="DarkCyan" />
+        <SolidColorBrush x:Key="PlayerAccentPressedBrush"
+                         Color="Teal" />
 
-        <!-- 标题 -->
-        <TextBlock x:Name="TitleTextBlock" Grid.Row="0" Text="{x:Bind Title, Mode=OneWay}" FontSize="14"
-                   FontWeight="SemiBold" Margin="0,0,0,8" TextTrimming="CharacterEllipsis" />
-        <HyperlinkButton x:Name="DownloadButton" HorizontalAlignment="Right" Click="DownloadButton_Click" Width="28"
-                         Padding="0" Height="28" ToolTipService.ToolTip="下载">
-            <FontIcon Glyph="&#xE118;" FontSize="12" Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" />
-        </HyperlinkButton>
-        <!-- 进度条 -->
-        <Slider x:Name="ProgressSlider" Grid.Row="1" Minimum="0" Maximum="100" Value="0" Margin="0,0,0,8"
-                IsEnabled="False" ValueChanged="ProgressSlider_ValueChanged" />
+        <!--  封面上的播放键圆盘：半透明黑底 + 白环  -->
+        <SolidColorBrush x:Key="PlayerChipFillBrush"
+                         Color="Black"
+                         Opacity="0.16" />
+        <SolidColorBrush x:Key="PlayerChipRingBrush"
+                         Color="White"
+                         Opacity="0.85" />
 
-        <!-- 时间显示和按钮 -->
-        <Grid Grid.Row="2" Margin="0,0,0,8">
+        <!--  音量浮层：贴到卡片圆角与描边上，去掉默认那一圈厚内边距  -->
+        <Style x:Key="PlayerFlyoutPresenterStyle"
+               BasedOn="{StaticResource DefaultFlyoutPresenterStyle}"
+               TargetType="FlyoutPresenter">
+            <Setter Property="Padding"
+                    Value="10,8" />
+            <Setter Property="MinWidth"
+                    Value="0" />
+            <Setter Property="MinHeight"
+                    Value="0" />
+            <Setter Property="CornerRadius"
+                    Value="6" />
+            <Setter Property="Background"
+                    Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+            <Setter Property="BorderBrush"
+                    Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+            <Setter Property="BorderThickness"
+                    Value="1" />
+        </Style>
 
-            <TextBlock x:Name="CurrentTimeText" Grid.Column="0" Text="0:00" HorizontalAlignment="Left"
-                       VerticalAlignment="Center" Margin="0,0,8,0" />
-            <HyperlinkButton x:Name="PlayPauseButton" HorizontalAlignment="Center" VerticalAlignment="Center"
-                             Click="PlayPauseButton_Click" Width="28" Height="28" Padding="0" Margin="0,0,8,0">
-                <FontIcon x:Name="PlayPauseIcon" Glyph="&#xE102;" FontSize="12"
-                          Foreground="{ThemeResource AccentAAFillColorDefaultBrush}" />
-            </HyperlinkButton>
-            <TextBlock x:Name="TotalTimeText" Text="0:00" HorizontalAlignment="Right" VerticalAlignment="Center"
-                       Margin="0,0,8,0" />
-        </Grid>
-        <ProgressBar x:Name="LoadingIndicator" Grid.Row="3" IsIndeterminate="True" Visibility="Collapsed" />
-        <!-- 错误信息 -->
-        <TextBlock x:Name="ErrorTextBlock"
-                   Grid.Row="3"
-                   Foreground="Red"
-                   FontSize="12"
-                   Visibility="Collapsed"
-                   TextWrapping="Wrap" />
+    </UserControl.Resources>
+
+    <!--  外层 Grid 负责撑满帖子内容列，内层卡片限宽 480  -->
+    <Grid HorizontalAlignment="Stretch">
+        <!--
+            下内边距比上内边距小：进度条轨道在滑块自己的布局盒里是偏下的，
+            盒底还有一段看不见的空白，补掉以后视觉上「海报上沿到卡片」与「轨道下沿到卡片」才是同一个值
+        -->
+        <Border MaxWidth="480"
+                Padding="16,16,16,10"
+                HorizontalAlignment="Stretch"
+                Background="{ThemeResource CardBackgroundFillColorDefaultBrush}"
+                BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                BorderThickness="1"
+                CornerRadius="6"
+                ToolTipService.ToolTip="{x:Bind Title, Mode=OneWay}">
+
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!--  ① 海报 + 曲目信息 + 两个图标按钮  -->
+                <Grid Grid.Row="0"
+                      ColumnSpacing="16">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="52" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Grid.Column="0"
+                            Width="52"
+                            Height="52"
+                            CornerRadius="6"
+                            Background="{StaticResource PlayerAccentBrush}">
+                        <Grid>
+                            <!--
+                                海报：Poster 没给地址、或给了但取不到图，都回退到这张内置图。
+                                只用这一个 Image —— 换图只改它的 Source，不必叠两层
+                            -->
+                            <Image x:Name="PosterImage"
+                                   Stretch="UniformToFill"
+                                   Source="ms-appx:///Assets/audio_cover.png"
+                                   ImageFailed="PosterImage_ImageFailed" />
+
+                            <!--
+                                播放键贴在封面上：整个封面都是热区，
+                                圆盘暂停时居中、播放时沿 45° 斜向下位移并缩小
+                            -->
+                            <Button x:Name="PlayPauseButton"
+                                    Width="52"
+                                    Height="52"
+                                    Padding="0"
+                                    BorderThickness="0"
+                                    Click="PlayPauseButton_Click"
+                                    ToolTipService.ToolTip="播放">
+                                <Button.Resources>
+                                    <SolidColorBrush x:Key="ButtonBackground"
+                                                     Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPointerOver"
+                                                     Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBackgroundPressed"
+                                                     Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBorderBrush"
+                                                     Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPointerOver"
+                                                     Color="Transparent" />
+                                    <SolidColorBrush x:Key="ButtonBorderBrushPressed"
+                                                     Color="Transparent" />
+                                </Button.Resources>
+
+                                <Border x:Name="PlayChip"
+                                        Width="24"
+                                        Height="24"
+                                        HorizontalAlignment="Center"
+                                        VerticalAlignment="Center"
+                                        Background="{StaticResource PlayerChipFillBrush}"
+                                        BorderBrush="{StaticResource PlayerChipRingBrush}"
+                                        BorderThickness="1.5"
+                                        CornerRadius="12">
+                                    <Border.RenderTransform>
+                                        <TranslateTransform x:Name="PlayChipTransform" />
+                                    </Border.RenderTransform>
+                                    <FontIcon x:Name="PlayPauseIcon"
+                                              Glyph="&#xE768;"
+                                              FontSize="12"
+                                              Foreground="White" />
+                                </Border>
+                            </Button>
+                        </Grid>
+                    </Border>
+
+                    <StackPanel Grid.Column="1"
+                                VerticalAlignment="Center"
+                                Spacing="5">
+                        <TextBlock x:Name="TitleTextBlock"
+                                   MaxWidth="296"
+                                   Text="{x:Bind Title, Mode=OneWay}"
+                                   FontSize="17"
+                                   FontFamily="{StaticResource HarmonySansBold}"
+                                   TextTrimming="CharacterEllipsis"
+                                   TextWrapping="NoWrap" />
+
+                        <!--
+                            作者 + 播放中的三格律动（动画在代码里按 ScaleTransform 直接挂，避免资源字典的
+                            TargetName 解析不到）
+                        -->
+                        <StackPanel Orientation="Horizontal"
+                                    Spacing="6">
+                            <TextBlock x:Name="AuthorTextBlock"
+                                       MaxWidth="296"
+                                       Text="{x:Bind Author, Mode=OneWay}"
+                                       FontSize="13"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                       TextTrimming="CharacterEllipsis"
+                                       TextWrapping="NoWrap" />
+
+                            <StackPanel x:Name="Equalizer"
+                                        Height="12"
+                                        Orientation="Horizontal"
+                                        Spacing="2"
+                                        VerticalAlignment="Center"
+                                        Visibility="Collapsed">
+                                <Rectangle x:Name="EqBar1"
+                                           Width="3"
+                                           Height="6"
+                                           VerticalAlignment="Bottom"
+                                           RadiusX="1.5"
+                                           RadiusY="1.5"
+                                           Fill="{StaticResource PlayerAccentBrush}"
+                                           RenderTransformOrigin="0.5,1">
+                                    <Rectangle.RenderTransform>
+                                        <ScaleTransform x:Name="EqScale1"
+                                                        ScaleY="0.35" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle x:Name="EqBar2"
+                                           Width="3"
+                                           Height="12"
+                                           VerticalAlignment="Bottom"
+                                           RadiusX="1.5"
+                                           RadiusY="1.5"
+                                           Fill="{StaticResource PlayerAccentBrush}"
+                                           RenderTransformOrigin="0.5,1">
+                                    <Rectangle.RenderTransform>
+                                        <ScaleTransform x:Name="EqScale2"
+                                                        ScaleY="0.35" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                                <Rectangle x:Name="EqBar3"
+                                           Width="3"
+                                           Height="9"
+                                           VerticalAlignment="Bottom"
+                                           RadiusX="1.5"
+                                           RadiusY="1.5"
+                                           Fill="{StaticResource PlayerAccentBrush}"
+                                           RenderTransformOrigin="0.5,1">
+                                    <Rectangle.RenderTransform>
+                                        <ScaleTransform x:Name="EqScale3"
+                                                        ScaleY="0.35" />
+                                    </Rectangle.RenderTransform>
+                                </Rectangle>
+                            </StackPanel>
+                        </StackPanel>
+                    </StackPanel>
+
+                    <!--  两个图标按钮落在右上角那块原本空着的地方，卡片高度不增  -->
+                    <StackPanel Grid.Column="2"
+                                Orientation="Horizontal"
+                                Spacing="2"
+                                VerticalAlignment="Top">
+
+                        <Button x:Name="DownloadButton"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                BorderThickness="0"
+                                CornerRadius="16"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                Click="DownloadButton_Click"
+                                ToolTipService.ToolTip="下载">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground"
+                                                 Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush"
+                                                 Color="Transparent" />
+                            </Button.Resources>
+                            <FontIcon Glyph="&#xE896;"
+                                      FontSize="16" />
+                        </Button>
+
+                        <Button x:Name="VolumeButton"
+                                Width="32"
+                                Height="32"
+                                Padding="0"
+                                BorderThickness="0"
+                                CornerRadius="16"
+                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                ToolTipService.ToolTip="音量">
+                            <Button.Resources>
+                                <SolidColorBrush x:Key="ButtonBackground"
+                                                 Color="Transparent" />
+                                <SolidColorBrush x:Key="ButtonBorderBrush"
+                                                 Color="Transparent" />
+                            </Button.Resources>
+                            <FontIcon x:Name="VolumeIcon"
+                                      Glyph="&#xE767;"
+                                      FontSize="16" />
+                            <Button.Flyout>
+                                <Flyout Placement="TopEdgeAlignedRight"
+                                        FlyoutPresenterStyle="{StaticResource PlayerFlyoutPresenterStyle}">
+                                    <StackPanel Orientation="Horizontal"
+                                                Spacing="8"
+                                                VerticalAlignment="Center">
+                                        <Button x:Name="MuteButton"
+                                                Width="24"
+                                                Height="24"
+                                                Padding="0"
+                                                BorderThickness="0"
+                                                CornerRadius="12"
+                                                Background="Transparent"
+                                                BorderBrush="Transparent"
+                                                Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                                                Click="MuteButton_Click"
+                                                ToolTipService.ToolTip="静音">
+                                            <FontIcon x:Name="MuteIcon"
+                                                      Glyph="&#xE74F;"
+                                                      FontSize="14" />
+                                        </Button>
+                                        <Slider x:Name="VolumeSlider"
+                                                Width="120"
+                                                MinHeight="18"
+                                                Maximum="100"
+                                                Minimum="0"
+                                                Value="70"
+                                                ValueChanged="VolumeSlider_ValueChanged"
+                                                VerticalAlignment="Center">
+                                            <Slider.Resources>
+                                                <StaticResource x:Key="SliderTrackValueFill"
+                                                                ResourceKey="PlayerAccentBrush" />
+                                                <StaticResource x:Key="SliderTrackValueFillPointerOver"
+                                                                ResourceKey="PlayerAccentHoverBrush" />
+                                                <StaticResource x:Key="SliderTrackValueFillPressed"
+                                                                ResourceKey="PlayerAccentPressedBrush" />
+                                                <!--  实测：拇指里那颗圆点由 SliderThumbBackground 控制  -->
+                                                <StaticResource x:Key="SliderThumbBackground"
+                                                                ResourceKey="PlayerAccentBrush" />
+                                                <StaticResource x:Key="SliderThumbBackgroundPointerOver"
+                                                                ResourceKey="PlayerAccentHoverBrush" />
+                                                <StaticResource x:Key="SliderThumbBackgroundPressed"
+                                                                ResourceKey="PlayerAccentPressedBrush" />
+
+
+
+                                            </Slider.Resources>
+                                        </Slider>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                    </StackPanel>
+                </Grid>
+
+                <!--
+                    ② 进度行。行高固定 20：滑块自身的布局盒是 40，居中后正好只溢出，轨道落在行中央，
+                    这样"轨道到底边"的间距才是可预期的
+                -->
+                <Grid Grid.Row="1"
+                      Margin="0,14,0,0"
+                      ColumnSpacing="10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+
+                    <TextBlock x:Name="CurrentTimeText"
+                               Grid.Column="0"
+                               Width="34"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="0:00" />
+
+                    <Slider x:Name="ProgressSlider"
+                            Grid.Column="1"
+                            MinWidth="270"
+                            VerticalAlignment="Center"
+                            IsEnabled="False"
+                            Maximum="100"
+                            Minimum="0"
+                            Value="0"
+                            ValueChanged="ProgressSlider_ValueChanged">
+                        <Slider.Resources>
+                            <StaticResource x:Key="SliderTrackValueFill"
+                                            ResourceKey="PlayerAccentBrush" />
+                            <StaticResource x:Key="SliderTrackValueFillPointerOver"
+                                            ResourceKey="PlayerAccentHoverBrush" />
+                            <StaticResource x:Key="SliderTrackValueFillPressed"
+                                            ResourceKey="PlayerAccentPressedBrush" />
+                            <!--  实测：拇指里那颗圆点由 SliderThumbBackground 控制  -->
+                            <StaticResource x:Key="SliderThumbBackground"
+                                            ResourceKey="PlayerAccentBrush" />
+                            <StaticResource x:Key="SliderThumbBackgroundPointerOver"
+                                            ResourceKey="PlayerAccentHoverBrush" />
+                            <StaticResource x:Key="SliderThumbBackgroundPressed"
+                                            ResourceKey="PlayerAccentPressedBrush" />
+
+
+
+                        </Slider.Resources>
+                    </Slider>
+
+                    <TextBlock x:Name="TotalTimeText"
+                               Grid.Column="2"
+                               Width="34"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               TextAlignment="Right"
+                               Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                               Text="0:00" />
+                </Grid>
+
+                <!--
+                    ③ 状态行：加载中 / 错误提示。
+                    外边距放在子元素上而不是这一行上——两个子元素都折叠时这一行必须真的是 0 高，
+                    否则卡片底部会多出一段看不见的空隙
+                -->
+                <Grid Grid.Row="2">
+                    <ProgressBar x:Name="LoadingIndicator"
+                                 Height="2"
+                                 Margin="0,8,0,0"
+                                 IsIndeterminate="True"
+                                 Visibility="Collapsed" />
+                    <TextBlock x:Name="ErrorTextBlock"
+                               FontSize="12"
+                               Margin="0,8,0,0"
+                               Foreground="Red"
+                               TextWrapping="Wrap"
+                               Visibility="Collapsed" />
+                </Grid>
+            </Grid>
+        </Border>
     </Grid>
 </UserControl>

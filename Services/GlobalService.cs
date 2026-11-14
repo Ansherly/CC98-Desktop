@@ -25,13 +25,6 @@ public class GlobalService
     public int SystemCount { get; set; }
 
     /// <summary>
-    /// 是否替换导航参数。
-    /// </summary>
-    // TODO: 这个属性的命名可能需要更改，以更好地反映其用途。
-    public bool ShouldReplaceNavigationArgs { get; set; }
-
-
-    /// <summary>
     /// 受保护的构造方法。
     /// </summary>
     private GlobalService()
@@ -43,9 +36,6 @@ public class GlobalService
     /// </summary>
     public static GlobalService Instance { get; } = new();
 
-    /// <summary>
-    /// 全局导航参数对象，可以在应用的不同部分使用和修改，以便在导航时传递数据。
-    /// </summary>
-    public object? NavigationAnchor { get; set; }
+
     public static bool IsVpnConfigured => PasswordManager.PasswordExists("VpnUserName") && PasswordManager.PasswordExists("VpnPassWord");
 }

@@ -1,26 +1,43 @@
-<?xml version="1.0" encoding="utf-8"?>
-<Page
-    x:Class="CC98.Views.GuidePage"
-    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:local="using:CC98.Views"
-    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
-    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-    xmlns:ic="using:FluentIcons.WinUI"  
-    xmlns:tool="using:CommunityToolkit.WinUI.Controls"
-    mc:Ignorable="d">
+﻿<?xml version="1.0" encoding="utf-8" ?>
+<Page x:Class="CC98.Views.GuidePage"
+      xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+      xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+      xmlns:local="using:CC98.Views"
+      xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+      xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+      xmlns:ic="using:FluentIcons.WinUI"
+      xmlns:md="using:CC98.Controls.MarkdownTextBlock"
+      xmlns:svc="using:CC98.Services"
+      mc:Ignorable="d">
 
-    <Grid x:Name="RootGrid" Padding="20" Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}" CornerRadius="8" Opacity="0.8" RowSpacing="10" Loaded="RootGrid_Loaded">
+    <Grid x:Name="RootGrid"
+          Padding="20"
+          Background="{ThemeResource AcrylicBackgroundFillColorDefaultBrush}"
+          CornerRadius="8"
+          Opacity="0.8"
+          RowSpacing="10"
+          Loaded="RootGrid_Loaded">
         <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
-        <HyperlinkButton Grid.Row="0" Padding="7" Click="Back_Click">
-            <ic:SymbolIcon Symbol="ArrowLeft" Foreground="LightSeaGreen" FontSize="16"></ic:SymbolIcon>
+        <HyperlinkButton Grid.Row="0"
+                         Padding="7"
+                         Click="Back_Click">
+            <ic:SymbolIcon Symbol="ArrowLeft"
+                           Foreground="LightSeaGreen"
+                           FontSize="16" />
         </HyperlinkButton>
 
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
-            <tool:MarkdownTextBlock x:Name="TipText" Foreground="{ThemeResource TextFillColorSecondaryBrush}" UseAutoLinks="True" UseEmphasisExtras="True" UseListExtras="True" UsePipeTables="True" UseTaskLists="True" UseSoftlineBreakAsHardlineBreak="True"/>
+        <ScrollViewer Grid.Row="1"
+                      VerticalScrollBarVisibility="Hidden">
+            <md:MarkdownTextBlock x:Name="TipText"
+                                  ImageMaxWidth="{x:Bind svc:AppSettings.Current.ImageMaxWidth, Mode=OneWay}"
+                                  FontFamily="{StaticResource HarmonySans}"
+                                  BoldFontFamily="{StaticResource HarmonySansBold}"
+                                  QuoteBackground="{ThemeResource QuoteBackgroundBrush}"
+                                  QuoteBorderBrush="{ThemeResource QuoteBorderBrush}"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}" />
         </ScrollViewer>
     </Grid>
 </Page>

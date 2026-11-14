@@ -361,3 +361,17 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# DSH 编辑器的本地状态数据(不应提交)
+.dsh_better_edit/
+/UbbTextBlock优化规划书.md
+/UBB自动链接功能规划书.md
+/MarkdownTextBlock的HTML渲染完善规划书.md
+
+# WorkBuddy 会话记忆/截图等本地数据
+.workbuddy/
+
+# 字体子集化产物（tools/subset-fonts.py 生成，不入库；确认后再手动覆盖 Assets/Fonts）
+/build/
+
+

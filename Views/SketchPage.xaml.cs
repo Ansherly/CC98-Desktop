@@ -6,7 +6,9 @@ using System.Linq;
 using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
+using Windows.ApplicationModel.DataTransfer;
 using Windows.Storage;
+using Windows.Storage.Streams;
 using CC98.Kernel;
 using CC98.Objects;
 using CC98.Services;
@@ -19,6 +21,7 @@ using Microsoft.UI.Xaml.Navigation;
 using Microsoft.Windows.Storage.Pickers;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -42,11 +45,15 @@ public sealed partial class SketchPage : Page
     // 表情分组缓存:悬停切换类型时避免重复扫描磁盘与重建整组 Image
     private readonly Dictionary<string, List<Emoji>> _emojiCache = [];
     private string _currentEmojiType = "";
+    //是否匿名发帖。默认不匿名。
     private bool IsAnonymous = false;
     private bool IsTailVisible;
+    //发回复帖时，通知所有回复者和主题作者，还是只通知主题作者。默认只通知主题作者。
     private bool NotifyAllReplier = false;
+    //发主题帖时，是否接收来自回复者的通知。默认接收通知。
     private bool NotifyPoster = true;
-    private int PostTypeValue; //普通帖子
+    //发主题帖时，帖子类型。默认普通帖子。
+    private int PostTypeValue = (int)TopicType.Normal; 
     private ApiService ApiService = App.Current.GetService<ApiService>();
     public SketchPage()
     {
@@ -108,7 +115,7 @@ public sealed partial class SketchPage : Page
     {
         IsTailVisible = AppSettings.Current.IsTailVisible;
         TextContentType = NavigationInfo.ContentType;
-        if (TextContentType == (int)ContentType.Markdown)
+        if (TextContentType == (int)MarkupContentType.Markdown)
         {
             MdViewer.Visibility = Visibility.Visible;
             UbbViewer.Visibility = Visibility.Collapsed;
@@ -170,10 +177,10 @@ public sealed partial class SketchPage : Page
     {
         //关闭预览窗格可以避免卡顿，尤其是在内容较长时
         if (!EditArea.IsPaneOpen) return;
-        if (TextContentType == (int)Objects.ContentType.Ubb)
+        if (TextContentType == (int)Objects.MarkupContentType.Ubb)
             UbbViewer.UbbText = TextContent;
         else
-            MdViewer.Text = TextContent;
+            MdViewer.MarkdownText = TextContent;
     }
 
     #endregion
@@ -185,7 +192,7 @@ public sealed partial class SketchPage : Page
     {
         var b = sender as AppBarButton;
         if (b == null) return;
-        var isMd = TextContentType == (int)Objects.ContentType.Markdown;
+        var isMd = TextContentType == (int)Objects.MarkupContentType.Markdown;
         switch (b.Label)
         {
             case "预览":
@@ -283,8 +290,10 @@ public sealed partial class SketchPage : Page
                     Editor.Focus(FocusState.Programmatic);
                 }
                 break;
-            case "贴图":
-                // TODO: 实现贴图功能
+            case "公式":
+                // 只管插语法骨架,公式内容由用户直接输入 —— 编辑区右侧本来就是实时预览
+                if (isMd) InsertMdSyntax("$$\n", "\n$$");   // MD:块级公式围栏 $$...$$
+                else InsertTag("math", "math", "");          // UBB:[math]...[/math] 标签(CC98 用的是 math 而非 latex)
                 break;
         }
     }
@@ -332,11 +341,22 @@ public sealed partial class SketchPage : Page
         var fullTag = $"{openTag}{content}{closeTag}";
         var selectionStart = Editor.SelectionStart;
         Editor.Text = Editor.Text.Insert(selectionStart, fullTag);
-        Editor.SelectionStart = selectionStart + openTag.Length + content.Length + offset;
         if (selectText)
+        {
+            // 选中已插入的内容,输入即可整体替换
+            Editor.SelectionStart = selectionStart + openTag.Length + offset;
             Editor.SelectionLength = content.Length;
+        }
         else
+        {
+            // 有内容时把光标移到闭合标签之后;空标签则停在标签内部,便于直接输入。
+            // 若一律停在内部,连续插入多个媒体标签时后一个会被插进前一个内部,
+            // 产生 [img]A[upload]B[/upload][/img] 这类错误嵌套。
+            Editor.SelectionStart = string.IsNullOrEmpty(content)
+                ? selectionStart + openTag.Length + offset
+                : selectionStart + fullTag.Length + offset;
             Editor.SelectionLength = 0;
+        }
         Editor.Focus(FocusState.Programmatic);
     }
 
@@ -476,11 +496,11 @@ public sealed partial class SketchPage : Page
                 if (!result.Success)
                 {
                     if (!string.IsNullOrEmpty(result.Error))
-                        Flower.Play(FlowStatus.Fail, $"上传失败:{result.Error}");
+                        Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
                     return;
                 }
 
-                if (TextContentType == (int)Objects.ContentType.Markdown)
+                if (TextContentType == (int)Objects.MarkupContentType.Markdown)
                     InsertMdMedia(CurrentLabel, result.Url);
                 else
                     InsertTag(CurrentLabel, CurrentLabel, result.Url);
@@ -489,7 +509,7 @@ public sealed partial class SketchPage : Page
             {
                 // 仅输入标签:插入空标签,由用户在编辑器中补充内容
                 FileHelper.Hide();
-                if (TextContentType == (int)Objects.ContentType.Markdown)
+                if (TextContentType == (int)Objects.MarkupContentType.Markdown)
                     InsertMdMedia(CurrentLabel, "");
                 else
                     InsertTag(CurrentLabel, CurrentLabel, "");
@@ -503,6 +523,119 @@ public sealed partial class SketchPage : Page
         }
     }
 
+    /// <summary>
+    /// 编辑器粘贴(Ctrl+V):剪贴板中为文件或图片时先上传,再按当前编辑器模式插入标签;
+    /// 普通文本不干预,交给默认粘贴行为。
+    /// </summary>
+    private async void Editor_Paste(object sender, TextControlPasteEventArgs e)
+    {
+        try
+        {
+            var content = Clipboard.GetContent();
+            var hasFiles = content.Contains(StandardDataFormats.StorageItems);
+            var hasBitmap = !hasFiles && content.Contains(StandardDataFormats.Bitmap);
+            if (!hasFiles && !hasBitmap) return; // 普通文本:走默认粘贴
+
+            // 必须在任何 await 之前同步置位:本方法是 async void,遇到 await 就会返回,
+            // 若此时仍未置位,框架会认为未处理而照常执行默认粘贴。
+            e.Handled = true;
+
+            await UploadClipboardMediaAsync(content, hasFiles);
+        }
+        catch (Exception ex)
+        {
+            // async void 必须兜底:未捕获异常会终止进程
+            Debug.WriteLine($"粘贴上传失败: {ex.Message}");
+            Tip.Show(InfoType.Error, "粘贴上传失败，请重试");
+        }
+    }
+
+    /// <summary>
+    /// 上传剪贴板中的媒体并插入标签。文件与位图两种来源共用。
+    /// </summary>
+    private async Task UploadClipboardMediaAsync(DataPackageView content, bool hasFiles)
+    {
+        await RunUploadBusyAsync(async () =>
+        {
+            if (hasFiles)
+                await UploadPastedFilesAsync(await content.GetStorageItemsAsync());
+            else
+                await UploadPastedBitmapAsync(await content.GetBitmapAsync());
+        });
+    }
+
+    /// <summary>
+    /// 上传期间的忙碌态:提示进度并暂时禁止编辑,避免重复粘贴触发并发上传;结束后恢复原状态。
+    /// 用 IsReadOnly 而非 IsEnabled=false —— 后者会连带禁用右键菜单与文本选择高亮。
+    /// </summary>
+    private async Task RunUploadBusyAsync(Func<Task> upload)
+    {
+        var previousStatus = status.Text;
+        var previousReadOnly = Editor.IsReadOnly;
+        try
+        {
+            Editor.IsReadOnly = true;
+            status.Text = "正在上传…";
+            await upload();
+        }
+        finally
+        {
+            Editor.IsReadOnly = previousReadOnly;
+            status.Text = previousStatus;
+        }
+    }
+
+    private async Task UploadPastedFilesAsync(IReadOnlyList<IStorageItem> items)
+    {
+        var files = items.OfType<StorageFile>().ToList();
+        if (files.Count == 0) return;
+
+        var uploaded = 0;
+        foreach (var file in files)
+        {
+            status.Text = $"正在上传 {file.Name}…";
+            var result = await FileUploadService.UploadAsync(file);
+            if (!result.Success)
+            {
+                // 仅在确实有错误时提示(用户取消不算错误)
+                if (!string.IsNullOrEmpty(result.Error))
+                    Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
+                continue;
+            }
+
+            InsertMediaTag(FileUploadService.GetLabelForFileName(file.Name), result.Url);
+            uploaded++;
+        }
+
+        if (uploaded > 0) Tip.Show(InfoType.Success, $"已上传 {uploaded} 个文件");
+    }
+
+    private async Task UploadPastedBitmapAsync(RandomAccessStreamReference bitmap)
+    {
+        status.Text = "正在上传图片…";
+        var result = await FileUploadService.UploadClipboardBitmapAsync(bitmap);
+        if (!result.Success)
+        {
+            if (!string.IsNullOrEmpty(result.Error))
+                Tip.Show(InfoType.Error, $"上传失败:{result.Error}");
+            return;
+        }
+
+        InsertMediaTag("img", result.Url);
+        Tip.Show(InfoType.Success, "图片已上传");
+    }
+
+    /// <summary>
+    /// 按当前编辑器模式插入媒体标签:UBB 生成 [xx]url[/xx],Markdown 生成对应语法。
+    /// </summary>
+    private void InsertMediaTag(string label, string url)
+    {
+        if (TextContentType == (int)Objects.MarkupContentType.Markdown)
+            InsertMdMedia(label, url);
+        else
+            InsertTag(label, label, url);
+    }
+
     private async void SendButton_Click(object sender, RoutedEventArgs e)
     {
         try
@@ -511,7 +644,7 @@ public sealed partial class SketchPage : Page
             if (r != ContentDialogResult.Primary) return;
             if (string.IsNullOrWhiteSpace(TextContent))
             {
-                Flower.Play(FlowStatus.Warning, "内容不能为空");
+                Tip.Show(InfoType.Warning, "内容不能为空");
                 return;
             }
             switch (NavigationInfo.EditorMode)
@@ -533,7 +666,7 @@ public sealed partial class SketchPage : Page
         {
             // 对话框宿主卸载/网络异常等:避免 async void 未捕获异常导致进程崩溃
             Debug.WriteLine($"发送失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "发送失败，请重试");
+            Tip.Show(InfoType.Error, "发送失败，请重试");
         }
     }
 
@@ -576,13 +709,6 @@ public sealed partial class SketchPage : Page
         }
         else
         {
-            var param = new TopicNavigationInfo
-            {
-                IsJumpingMode = true,
-                TopicId = NavigationInfo.TopicId,
-                TargetFloor = NavigationInfo.Floor
-            };
-            GlobalService.Instance.NavigationAnchor = param;
             GoBack();
         }
     }
@@ -627,14 +753,6 @@ public sealed partial class SketchPage : Page
         }
         else
         {
-            var param = new TopicNavigationInfo
-            {
-                IsJumpingMode = NavigationInfo.EditorMode == EditorMode.ReplyToPost,
-                TopicId = NavigationInfo.TopicId,
-                TargetFloor = NavigationInfo.Floor,
-                GoToLatest = NavigationInfo.EditorMode == EditorMode.ReplyToTopic
-            };
-            GlobalService.Instance.NavigationAnchor = param;
             GoBack();
         }
     }
@@ -661,13 +779,8 @@ public sealed partial class SketchPage : Page
         }
         else
         {
-            var newTopicId = res.Data;
-            var param = new TopicNavigationInfo
-            {
-                IsJumpingMode = false,
-                TopicId = newTopicId
-            };
-            GlobalService.Instance.NavigationAnchor = param;
+            // 注意:本分支目前没有调用方(BoardPage 的"发主题"入口尚未开放)。
+            // 将来接入时需要决定如何打开新建的主题(可直接用 res.Data 作为 TopicId)。
             GoBack();
         }
     }
@@ -694,14 +807,14 @@ public sealed partial class SketchPage : Page
 
     private void SwitchContentType_Click(object sender, RoutedEventArgs e)
     {
-        if (TextContentType == (int)ContentType.Ubb)
+        if (TextContentType == (int)MarkupContentType.Ubb)
         {
             TextContentType = 1;
             MD.Visibility = Visibility.Visible;
             UBB.Visibility = Visibility.Collapsed;
             MdViewer.Visibility = Visibility.Visible;
             UbbViewer.Visibility = Visibility.Collapsed;
-            Flower.Play("\uE946", "切换到Markdown");
+            Tip.Show(InfoType.Information, "切换到Markdown");
         }
         else
         {
@@ -710,7 +823,7 @@ public sealed partial class SketchPage : Page
             UBB.Visibility = Visibility.Visible;
             MdViewer.Visibility = Visibility.Collapsed;
             UbbViewer.Visibility = Visibility.Visible;
-            Flower.Play("\uE946", "切换到UBB");
+            Tip.Show(InfoType.Information, "切换到UBB");
         }
 
         ApplyContentToViewer();
@@ -735,7 +848,7 @@ public sealed partial class SketchPage : Page
 
     private void ConfirmCustomLink_Click(object sender, RoutedEventArgs e)
     {
-        if (TextContentType == (int)Objects.ContentType.Markdown)
+        if (TextContentType == (int)Objects.MarkupContentType.Markdown)
             InsertMdMedia(CurrentLabel, CustomLink.Text);
         else
             InsertTag(CurrentLabel, CurrentLabel, CustomLink.Text);

@@ -5,6 +5,7 @@ using CC98.Objects;
 using CC98.Services;
 using CC98.Services.Extensions;
 using CC98.Services.Helpers;
+using CC98.Controls.Primitives;
 using ColorCode.Compilation.Languages;
 using CommunityToolkit.WinUI.Converters;
 using CSharpMath;
@@ -40,6 +41,7 @@ using Windows.Storage;
 using static CC98.Kernel.ApiEndpoints;
 using static System.Runtime.InteropServices.JavaScript.JSType;
 using Symbol = FluentIcons.Common.Symbol;
+using CC98.Controls;
 
 // To learn more about WinUI, the WinUI project structure,
 // and more about our project templates, see: http://aka.ms/winui-project-info.
@@ -51,15 +53,6 @@ namespace CC98.Views;
 /// </summary>
 public sealed partial class MainWindow : Window
 {
-    private readonly HashSet<(Type from, Type to)> _rules =
-    [
-        (typeof(SketchPage), typeof(TopicPage)),
-        (typeof(TopicPage), typeof(MessagePage)),
-        (typeof(TopicPage), typeof(FocusPage)),
-        (typeof(ProfilePage), typeof(FollowPage)),
-        (typeof(TopicPage), typeof(SearchPage))
-    ];
-
     public ObservableCollection<string> Collections = [];
     public GlobalService GlobalService = GlobalService.Instance;
     //需要迁移到新的存取关注版面的方式
@@ -76,6 +69,8 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        //接入 Windows 11 系统媒体状态栏(SMTC),由 MusicPlayer 上报歌曲信息
+        SmtcController.Initialize(this);
         // 初始化复用的头像缩放动画(XAML 解析完成后才能绑定 Target)
         Storyboard.SetTarget(_portScaleX, PortScaleTransform);
         Storyboard.SetTargetProperty(_portScaleX, "ScaleX");
@@ -84,6 +79,10 @@ public sealed partial class MainWindow : Window
         _portScaleStoryboard.Children.Add(_portScaleX);
         _portScaleStoryboard.Children.Add(_portScaleY);
         App.ThemeChanged += OnAppThemeChanged;
+        //窗口关闭时退订静态/单例事件并停止同步定时器,避免被关闭的窗口被静态委托钉住
+        Closed += OnWindowClosed;
+        //后退栈超过上限时修剪最早的条目
+        ContentFrame.Navigated += ContentFrame_Navigated;
         //设置窗口状态
         SetWindowState();
         //加载自定义设置
@@ -150,10 +149,18 @@ public sealed partial class MainWindow : Window
         InitializeTimer();
         // VPN 检查 fire-and-forget:异常在内部捕获,失败/缓慢不影响其他任务
         _ = CheckVpnStatusSafelyAsync();
-        await Task.WhenAll(
-            RefreshMessage(),
-            LoadUserProfile(),
-            GetFavorites());
+        try
+        {
+            await Task.WhenAll(
+                RefreshMessage(),
+                LoadUserProfile(),
+                GetFavorites());
+        }
+        catch (Exception ex)
+        {
+            // 这里是 DispatcherQueue 回调里的 async 调用,异常一旦逃逸会以 stowed exception 结束进程
+            Debug.WriteLine($"主窗口启动数据加载异常: {ex}");
+        }
     }
     /// <summary>
     /// VPN 启动检查的安全包装:任何异常都只记录,不传播到调用链。
@@ -174,20 +181,19 @@ public sealed partial class MainWindow : Window
     {
         try
         {
-            //尝试获取新头像地址。获取失败时，尝试加载本地缓存。加载缓存也失败，使用AppSettings.Current.Portrait。
             var profileUrl = ApiEndpoints.User.UserProfile(true);
             var profileResult = await ApiService.Fetch<UserInfo>(profileUrl);
             var customBoards = SerializationHelper.TryDeserialize<List<int>>(AppSettings.Current.CustomBoards);
             if (!profileResult.IsSuccess || profileResult.Data == null)
             {
-                Flower.Play(FlowStatus.Fail, $"更新用户信息失败: {profileResult.Message}");
+                Tip.Show(InfoType.Error, $"更新用户信息失败: {profileResult.Message}");
                 if(customBoards!=null) await LoadFocusBoards(customBoards);
                 return;
             }
             else
             {
                 var data = profileResult.Data;
-                await RefreshPortraitIfNeeded(data.PortraitUrl);
+                AppSettings.Current.UserId = data.Id;
                 var refreshTask = RefreshPortraitIfNeeded(data.PortraitUrl);
                 var loadBoardsTask = LoadFocusBoardsIfNeeded(data, customBoards);
                 await Task.WhenAll(refreshTask, loadBoardsTask);
@@ -198,18 +204,31 @@ public sealed partial class MainWindow : Window
         catch(Exception ex)
         {
             Debug.WriteLine($"加载头像失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, $"更新头像出错: {ex.Message}");
+            Tip.Show(InfoType.Error, $"更新头像出错: {ex.Message}");
         }  
     }
     private async Task RefreshPortraitIfNeeded(string url)
     {
-        if (AppSettings.Current.PortraitUrl == url) return;
-        AppSettings.Current.PortraitUrl = url;
-        //进行下载缓存,并使用缓存图片
-        var portraitPath = await Downloader.DownloadFileAsync(url, ApplicationData.Current.LocalCacheFolder.Path);
-        if (portraitPath == null) return;
+        if (string.IsNullOrWhiteSpace(url)) return;
+
+        // 命中缓存的充要条件:远端地址没变【且本地缓存文件确实还在】。
+        // 只比较地址是不够的:清除缓存 / 切换用户会删掉 LocalCache 里的头像文件,却不会动这两项设置,
+        // 于是 LocalPortraitUrl 变成指向已删除文件的悬空路径;而只看地址的旧逻辑会直接返回,
+        // 头像便再也下载不回来 —— 表现为设置里有路径、缓存目录里没有文件、头像空白。
+        if (AppSettings.Current.PortraitUrl == url && File.Exists(AppSettings.Current.LocalPortraitUrl)) return;
+
+        // 下载期间先不写 PortraitUrl:若失败时已经写入,下次启动会因地址相同而跳过重试
+        var portraitPath = await Downloader.DownloadCacheFileAsync(url, ApplicationData.Current.LocalCacheFolder.Path);
+        if (portraitPath == null)
+        {
+            Debug.WriteLine("下载头像失败");
+            return;
+        }
+
         AppSettings.Current.LocalPortraitUrl = portraitPath;
+        AppSettings.Current.PortraitUrl = url;
     }
+
     private async Task LoadFocusBoardsIfNeeded(UserInfo data, List<int>? customBoards)
     {
         if (customBoards == null || !customBoards.ToHashSet().SetEquals(data.CustomBoards.ToHashSet()))
@@ -228,7 +247,7 @@ public sealed partial class MainWindow : Window
         if (sections == null)
         {
             //
-            Flower.Play(FlowStatus.Fail, "版面信息加载失败");
+            Tip.Show(InfoType.Error, "版面信息加载失败");
             return;
         }
         //构建查找字典
@@ -290,7 +309,7 @@ public sealed partial class MainWindow : Window
         if (!result.IsSuccess)
         {
             //
-            Flower.Play(FlowStatus.Fail, $"取消关注失败: {result.Message}");
+            Tip.Show(InfoType.Error, $"取消关注失败: {result.Message}");
             return;
         }
         var customBoards = AppSettings.Current.CustomBoards;
@@ -333,12 +352,48 @@ public sealed partial class MainWindow : Window
         {
             Interval = TimeSpan.FromSeconds(240)
         };
-        SyncTimer.Tick += async (s, e) => 
+        SyncTimer.Tick += async (s, e) =>
         {
-            // 刷新首页缓存与刷新未读数互不依赖,并行执行
-            await Task.WhenAll(FetchIndex(), RefreshMessage());
+            //重入保护:上一轮网络请求尚未完成(挂起)时跳过本轮,避免任务叠加
+            if (_syncInProgress) return;
+            _syncInProgress = true;
+            try
+            {
+                // 刷新首页缓存与刷新未读数互不依赖,并行执行
+                await Task.WhenAll(FetchIndex(), RefreshMessage());
+            }
+            finally
+            {
+                _syncInProgress = false;
+            }
         };
         SyncTimer.Start();
+    }
+
+    private bool _syncInProgress;
+
+    /// <summary>
+    /// 窗口关闭时清理:退订静态/单例事件、停止同步定时器。
+    /// 否则 App.ThemeChanged(静态事件)与 Messenger.Instance.NavigationItemAdded(单例事件)
+    /// 的委托会强引用本窗口,连同 ContentFrame 后退栈与全部缓存页面一起泄漏;
+    /// SyncTimer 也会在关闭后的窗口里继续每 240 秒发起网络请求。
+    /// </summary>
+    private void OnWindowClosed(object sender, WindowEventArgs args)
+    {
+        App.ThemeChanged -= OnAppThemeChanged;
+        Messenger.Instance.NavigationItemAdded -= OnNavigationItemAdded;
+        SyncTimer?.Stop();
+    }
+
+    // 后退栈上限:仅保存类型与参数,单条很小,但超限修剪可防止长时间使用后无限增长
+    private const int MaxBackStackDepth = 25;
+
+    private void ContentFrame_Navigated(object sender, NavigationEventArgs e)
+    {
+        while (ContentFrame.BackStackDepth > MaxBackStackDepth)
+        {
+            ContentFrame.BackStack.RemoveAt(0);
+        }
     }
 
 
@@ -360,43 +415,65 @@ public sealed partial class MainWindow : Window
 
     private async Task RefreshMessage()
     {
-        var url = ApiEndpoints.User.UnreadMessage();
-        var result = await ApiService.Fetch<UnreadMessageInfo>(url);
-        if (!result.IsSuccess || result.Data == null)
+        try
         {
-            //await App.Logger.WriteAsync("MainWindow", "刷新未读消息失败", $"{result.StatusCode}:{result.Message}");
-            return;
-        }
+            var url = ApiEndpoints.User.UnreadMessage();
+            var result = await ApiService.Fetch<UnreadMessageInfo>(url);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                return;
+            }
 
-        var data = result.Data;
-        GlobalService.AtCount = data.AtCount;
-        GlobalService.ReplyCount = data.ReplyCount;
-        GlobalService.SystemCount = data.SystemCount;
-        GlobalService.MessageCount = data.MessageCount;
-        UnreadCount = data.MessageCount + data.AtCount + data.ReplyCount + data.SystemCount;
-        BadgeNotificationManager.Current.SetBadgeAsCount((uint)UnreadCount);
+            var data = result.Data;
+            GlobalService.AtCount = data.AtCount;
+            GlobalService.ReplyCount = data.ReplyCount;
+            GlobalService.SystemCount = data.SystemCount;
+            GlobalService.MessageCount = data.MessageCount;
+            UnreadCount = data.MessageCount + data.AtCount + data.ReplyCount + data.SystemCount;
+
+            try
+            {
+                BadgeNotificationManager.Current.SetBadgeAsCount((uint)UnreadCount);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"设置应用角标失败: {ex.Message}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"刷新未读消息失败: {ex.Message}");
+        }
     }
 
 
     private async Task<bool> GetFavorites()
     {
-        var favoritesInfoUrl = ApiEndpoints.User.FavoritesList();
-        var favoritesInfoResult = await ApiService.Fetch<FavoritesInfo>(favoritesInfoUrl);
-        if (!favoritesInfoResult.IsSuccess || favoritesInfoResult.Data == null)
-            //
-            return false;
-        var data = favoritesInfoResult.Data;
-        var groups = data.FavoriteTopicGroups;
-        if (groups.IsNonEmpty())
+        try
         {
-            //存储收藏夹列表
-            var favoJson = SerializationHelper.TrySerialize(groups);
-            AppSettings.Current.FavoriteGroups = favoJson ?? "";
-            return true;
-        }
+            var favoritesInfoUrl = ApiEndpoints.User.FavoritesList();
+            var favoritesInfoResult = await ApiService.Fetch<FavoritesInfo>(favoritesInfoUrl);
+            if (!favoritesInfoResult.IsSuccess || favoritesInfoResult.Data == null)
+                //
+                return false;
+            var data = favoritesInfoResult.Data;
+            var groups = data.FavoriteTopicGroups;
+            if (groups.IsNonEmpty())
+            {
+                //存储收藏夹列表
+                var favoJson = SerializationHelper.TrySerialize(groups);
+                AppSettings.Current.FavoriteGroups = favoJson ?? "";
+                return true;
+            }
 
-        Flower.Play(FlowStatus.Info, "暂无收藏夹");
-        return false;
+            Tip.Show(InfoType.Information, "暂无收藏夹");
+            return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.WriteLine($"刷新收藏夹失败: {ex.Message}");
+            return false;
+        }
     }
 
 
@@ -418,48 +495,82 @@ public sealed partial class MainWindow : Window
     private void Navi_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
         if (args.InvokedItemContainer?.Tag is not string tag) return;
-        var item = args.InvokedItem as NavigationViewItem;
+
+        Type pageType;
+        object? parameter = null;
+        // 纯信息流页面(新帖/动态)没有别的刷新入口:重复点击当前导航项仍要能重新加载。
+        // 其余页面各自有刷新按钮或菜单项,重复点击一律视为"已在目的页"。
+        var reloadOnRepeat = false;
+
         switch (tag)
         {
             case "Index":
-                ContentFrame.Navigate(typeof(IndexPage));
+                pageType = typeof(IndexPage);
                 break;
             case "Section":
-                ContentFrame.Navigate(typeof(SectionPage));
+                pageType = typeof(SectionPage);
                 break;
             case "Discover":
-                ContentFrame.Navigate(typeof(DiscoverPage));
+                pageType = typeof(DiscoverPage);
+                reloadOnRepeat = true;
                 break;
             case "Favorite":
-                ContentFrame.Navigate(typeof(FavoritePage));
+                pageType = typeof(FavoritePage);
                 break;
             case "Setting":
-                ContentFrame.Navigate(typeof(SettingPage));
+                pageType = typeof(SettingPage);
                 break;
             case "Message":
-                var param = new ChatNavigationInfo { HasTarget = false };
-                ContentFrame.Navigate(typeof(MessagePage), param);
+                pageType = typeof(MessagePage);
+                parameter = new ChatNavigationInfo { HasTarget = false };
                 break;
             case "Focus":
-                ContentFrame.Navigate(typeof(FocusPage));
+                pageType = typeof(FocusPage);
+                reloadOnRepeat = true;
                 break;
             case "History":
-                ContentFrame.Navigate(typeof(HistoryPage));
+                pageType = typeof(HistoryPage);
                 break;
             default:
-                if (tag.All(char.IsDigit))
+                if (!tag.All(char.IsDigit)) return;
+                // All(char.IsDigit) 挡不住溢出,用 TryParse 代替原来的 Parse + catch
+                if (!int.TryParse(tag, out var boardId))
                 {
-                    try
-                    {
-                        ContentFrame.Navigate(typeof(BoardPage), int.Parse(tag));
-                    }
-                    catch
-                    {
-                        Flower.Play(FlowStatus.Fail, "无效的版块ID");
-                    }
+                    Tip.Show(InfoType.Error, $"无效的版面号:{tag}");
+                    return;
                 }
+                pageType = typeof(BoardPage);
+                parameter = boardId;
                 break;
         }
+
+        if (IsCurrentPage(pageType, parameter))
+        {
+            // 目标就是当前页:不再压栈。
+            // 否则反复点同一个导航项会把真实历史挤出后退栈上限(25),按后退会跳到意外的页面。
+            if (!reloadOnRepeat) return;
+
+            // 需要原地刷新的页面:导航后立刻抹掉刚压入的那一条,后退栈恢复原样。
+            // Navigate 返回 false 时后退栈没变,不能去动它。
+            var depthBefore = ContentFrame.BackStackDepth;
+            if (!ContentFrame.Navigate(pageType, parameter)) return;
+            while (ContentFrame.BackStackDepth > depthBefore)
+                ContentFrame.BackStack.RemoveAt(ContentFrame.BackStackDepth - 1);
+            return;
+        }
+
+        ContentFrame.Navigate(pageType, parameter);
+    }
+
+    /// <summary>
+    ///     判断当前页是否就是导航目标。判据是"当前页实例"而不是"上次导航意图",
+    ///     因此从深层页面(主题页/资料页)返回后点导航项不会被误判成重进。
+    ///     版面页是唯一"同类型不同参数"的入口:同一版面才算重进,换版面要正常导航。
+    /// </summary>
+    private bool IsCurrentPage(Type pageType, object? parameter)
+    {
+        if (ContentFrame.Content is not Page current || current.GetType() != pageType) return false;
+        return parameter is not int boardId || (current is BoardPage board && board.BoardId == boardId);
     }
 
     private void PaneExpand_Click(object sender, RoutedEventArgs e)
@@ -532,23 +643,13 @@ public sealed partial class MainWindow : Window
     }
     
 
-    //本方法只控制全局状态记忆类的参量，而不更改导航栈本身的导航参数
-    private void ContentFrame_Navigating(object sender, NavigatingCancelEventArgs e)
-    {
-        if (ContentFrame.Content is not Page currentPage) return;
-        var fromPage = currentPage.GetType();
-        var toPage = e.SourcePageType;
-        GlobalService.ShouldReplaceNavigationArgs = e.NavigationMode == NavigationMode.Back && _rules.Contains((fromPage, toPage));
-    }
-
-    
     private async void VPNConfigSave_Click(object sender, RoutedEventArgs e)
     {
         var userName = VPNUsername.Text;
         var password = VPNPassword.Password;
         if (string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
         {
-            Flower.Play(FlowStatus.Fail, "用户名或密码不能为空");
+            Tip.Show(InfoType.Error, "用户名或密码不能为空");
             return;
         }
         var result= await LoginAsync(userName, password);
@@ -558,11 +659,11 @@ public sealed partial class MainWindow : Window
             PasswordManager.SavePassword(password, "VpnPassWord");
             AppSettings.Current.IsVpnEnabled=true;
             VPNConfigDialog.Hide();
-            Flower.Play(FlowStatus.Success, "已保存凭据并启用VPN");
+            Tip.Show(InfoType.Success, "已保存凭据并启用VPN");
         }
         else
         {
-            Flower.Play(FlowStatus.Fail, "VPN登录失败，请检查用户名和密码");
+            Tip.Show(InfoType.Error, "VPN登录失败，请检查用户名和密码");
         }
     }
     private void VPNConfigCancel_Click(object sender, RoutedEventArgs e)
@@ -651,7 +752,7 @@ public sealed partial class MainWindow : Window
         {
             // 网络异常:避免异常逃逸出 async void 调用链导致进程崩溃
             Debug.WriteLine($"VPN确认失败: {ex.Message}");
-            Flower.Play(FlowStatus.Fail, "VPN确认失败，请重试");
+            Tip.Show(InfoType.Error, "VPN确认失败，请重试");
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
@@ -661,7 +762,7 @@ public sealed partial class MainWindow : Window
         {
             //可以肯定此时账户密码均正确
             //需要重试
-            Flower.Play(FlowStatus.Fail, "VPN确认顶号失败，请重试");
+            Tip.Show(InfoType.Error, "VPN确认顶号失败，请重试");
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
@@ -669,7 +770,7 @@ public sealed partial class MainWindow : Window
         }
         else
         {
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return true;
         }
     }
@@ -699,7 +800,7 @@ public sealed partial class MainWindow : Window
             }
             catch(Exception ex)
             {
-                Flower.Play(FlowStatus.Warning, ex.Message);
+                Tip.Show(InfoType.Warning, ex.Message);
             }
             //等待用户登录VPN
         }
@@ -715,7 +816,7 @@ public sealed partial class MainWindow : Window
                 AppSettings.Current.IsVpnEnabled = true;
                 VPNConfigButton.Visibility = Visibility.Collapsed;
                 DisconnectButton.Visibility = Visibility.Visible;
-                Flower.Play(FlowStatus.Success, "VPN连接成功");
+                Tip.Show(InfoType.Success, "VPN连接成功");
             }
             else if (networkStatus == NetworkStatus.VpnCookieExpired)
             {
@@ -727,7 +828,7 @@ public sealed partial class MainWindow : Window
                 AppSettings.Current.IsVpnEnabled = false;
                 VPNConfigButton.Visibility = Visibility.Visible;
                 DisconnectButton.Visibility = Visibility.Collapsed;
-                Flower.Play(FlowStatus.Fail, $"VPN连接失败{networkStatus}");
+                Tip.Show(InfoType.Error, $"VPN连接失败{networkStatus}");
             }
         }
         
@@ -740,7 +841,7 @@ public sealed partial class MainWindow : Window
         var password = PasswordManager.RetrievePassword("VpnPassWord");
         if(string.IsNullOrEmpty(userName) || string.IsNullOrEmpty(password))
         {
-            Flower.Play(FlowStatus.Fail, "VPN凭据不完整，请重新配置");
+            Tip.Show(InfoType.Error, "VPN凭据不完整，请重新配置");
             return;
         }
         var vpnService = App.Current.GetService<IVpnService>();
@@ -756,7 +857,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
-            Flower.Play(FlowStatus.Fail, "VPN连接失败，请检查网络后重试");
+            Tip.Show(InfoType.Error, "VPN连接失败，请检查网络后重试");
             return;
         }
         if (res == null)
@@ -765,7 +866,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled=false;
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
-            Flower.Play(FlowStatus.Fail, "VPN连接失败，请检查网络后重试");
+            Tip.Show(InfoType.Error, "VPN连接失败，请检查网络后重试");
             return;
         }
         
@@ -775,7 +876,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = true;
             VPNConfigButton.Visibility = Visibility.Collapsed;
             DisconnectButton.Visibility = Visibility.Visible;
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return;
         }
         if (res.Status == VpnLoginStatus.NeedConfirm)
@@ -784,7 +885,7 @@ public sealed partial class MainWindow : Window
             AppSettings.Current.IsVpnEnabled = true;
             VPNConfigButton.Visibility = success ? Visibility.Collapsed : Visibility.Visible;
             DisconnectButton.Visibility = success ? Visibility.Visible : Visibility.Collapsed;
-            Flower.Play(FlowStatus.Success, "VPN连接成功");
+            Tip.Show(InfoType.Success, "VPN连接成功");
             return;
         }
         if (res.Status == VpnLoginStatus.AccoutInvalid || res.Status == VpnLoginStatus.Fail)
@@ -795,7 +896,7 @@ public sealed partial class MainWindow : Window
             VPNConfigButton.Visibility = Visibility.Visible;
             DisconnectButton.Visibility = Visibility.Collapsed;
             AppSettings.Current.IsVpnEnabled=false;
-            Flower.Play(FlowStatus.Fail, "VPN套餐过期或密码已错误，请重新登录");
+            Tip.Show(InfoType.Error, "VPN套餐过期或密码已错误，请重新登录");
         }
     }
 
@@ -828,7 +929,7 @@ public sealed partial class MainWindow : Window
     private void DisconnectButton_Click(object sender, RoutedEventArgs e)
     {
         AppSettings.Current.IsVpnEnabled = false;
-        Flower.Play(FlowStatus.Success, "VPN连接已断开");
+        Tip.Show(InfoType.Success, "VPN连接已断开");
         DisconnectButton.Visibility = Visibility.Collapsed;
         VPNConfigButton.Visibility = Visibility.Visible;
     }
